@@ -24,15 +24,16 @@ This directory contains Postman collections for testing the Sqordia API in diffe
 
 **Purpose:** Testing against production deployment
 
-**Base URL:** `http://34.19.252.60:8080`
+**Base URL:** `https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app`
 
 **Usage:**
 - Import into Postman
 - Use for testing production API
+- Swagger UI available at: `https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app/swagger`
 - Update admin credentials if different from local
 
 **Default Variables:**
-- `base_url`: `http://34.19.252.60:8080`
+- `base_url`: `https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app`
 - `admin_email`: `admin@sqordia.com` (update if different)
 - `admin_password`: `Sqordia2025!` (update if different)
 

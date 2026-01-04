@@ -1,8 +1,8 @@
 {
   "info": {
     "name": "Sqordia API - Production",
-    "description": "Complete API collection for Sqordia PRODUCTION environment. Base URL: http://34.19.252.60:8080. Includes AI Analysis endpoints (Strategy Suggestions, Risk Mitigation, Business Mentor). All endpoints use API version v1. Questionnaire endpoints support bilingual (French/English) responses.",
-    "version": "11.1.0",
+    "description": "Complete API collection for Sqordia PRODUCTION environment. Base URL: https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app. Includes AI Analysis endpoints (Strategy Suggestions, Risk Mitigation, Business Mentor). All endpoints use API version v1. Questionnaire endpoints support bilingual (French/English) responses. Swagger UI available at /swagger.",
+    "version": "11.2.0",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -18,9 +18,9 @@
   "variable": [
     {
       "key": "base_url",
-      "value": "http://34.19.252.60:8080",
+      "value": "https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app",
       "type": "string",
-      "description": "Production API base URL"
+      "description": "Production API base URL (Google Cloud Run)"
     },
     {
       "key": "jwt_token",

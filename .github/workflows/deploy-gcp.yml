@@ -90,12 +90,20 @@ jobs:
 
       - name: Terraform Plan
         working-directory: infrastructure/terraform/gcp
+        env:
+          TF_VAR_gcp_project_id: ${{ env.GCP_PROJECT_ID }}
+          TF_VAR_gcp_region: ${{ env.GCP_REGION }}
+          TF_VAR_cloud_sql_password: ${{ secrets.CLOUD_SQL_PASSWORD }}
         run: |
           terraform plan -out=tfplan
         continue-on-error: true
 
       - name: Terraform Apply
         working-directory: infrastructure/terraform/gcp
+        env:
+          TF_VAR_gcp_project_id: ${{ env.GCP_PROJECT_ID }}
+          TF_VAR_gcp_region: ${{ env.GCP_REGION }}
+          TF_VAR_cloud_sql_password: ${{ secrets.CLOUD_SQL_PASSWORD }}
         run: |
           terraform apply -auto-approve tfplan
 

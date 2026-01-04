@@ -167,7 +167,12 @@ PUT    /api/v1/business-plans/{id}   # Update business plan
 DELETE /api/v1/business-plans/{id}   # Delete business plan
 ```
 
-Full API documentation available at `/swagger` when running in Development mode.
+Full API documentation available at `/swagger` in all environments.
+
+**Production API:**
+- Base URL: `https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app`
+- Swagger UI: `https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app/swagger`
+- Health Check: `https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app/health`
 
 ## Docker Development
 
