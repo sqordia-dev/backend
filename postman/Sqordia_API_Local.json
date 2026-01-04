@@ -1,0 +1,2939 @@
+{
+  "info": {
+    "name": "Sqordia API - Local Development",
+    "description": "Complete API collection for Sqordia LOCAL DEVELOPMENT environment. Base URL: http://localhost:5241. Includes AI Analysis endpoints (Strategy Suggestions, Risk Mitigation, Business Mentor). All endpoints use API version v1. Questionnaire endpoints support bilingual (French/English) responses.",
+    "version": "11.1.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5241",
+      "type": "string",
+      "description": "Local development API base URL"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "role_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "organization_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "business_plan_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "prompt_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "parent_prompt_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "question_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "section_name",
+      "value": "executive-summary",
+      "type": "string"
+    },
+    {
+      "key": "environment",
+      "value": "production",
+      "type": "string"
+    },
+    {
+      "key": "api_version",
+      "value": "v1",
+      "type": "string"
+    },
+    {
+      "key": "obnl_plan_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "template_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "financial_projection_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "session_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_email",
+      "value": "admin@sqordia.com",
+      "type": "string"
+    },
+    {
+      "key": "admin_password",
+      "value": "Sqordia2025!",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health & System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Check if the API is running and healthy"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "1. Database Seeding (Admin Only)",
+      "item": [
+        {
+          "name": "Seed Database",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seed/database",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seed", "database"]
+            },
+            "description": "Seed the database with initial data (roles, permissions, admin user)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Seed Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seed/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seed", "status"]
+            },
+            "description": "Check if database has been seeded"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Configuration",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seed/config",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seed", "config"]
+            },
+            "description": "Get database configuration and connection details"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('jwt_token', jsonData.token);",
+                  "    pm.collectionVariables.set('refresh_token', jsonData.refreshToken);",
+                  "    pm.collectionVariables.set('user_id', jsonData.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "en",
+                "description": "fr or en"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"userName\": \"johndoe\",\n  \"password\": \"Password123!\",\n  \"confirmPassword\": \"Password123!\",\n  \"userType\": \"Entrepreneur\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Register a new user. UserType: Entrepreneur, OBNL, or Consultant"
+          },
+          "response": []
+        },
+        {
+          "name": "Login (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('jwt_token', jsonData.token);",
+                  "    pm.collectionVariables.set('refresh_token', jsonData.refreshToken);",
+                  "    pm.collectionVariables.set('user_id', jsonData.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "en"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Login with admin credentials"
+          },
+          "response": []
+        },
+        {
+          "name": "Login (Custom)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('jwt_token', jsonData.token);",
+                  "    pm.collectionVariables.set('refresh_token', jsonData.refreshToken);",
+                  "    pm.collectionVariables.set('user_id', jsonData.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "en"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Login with custom credentials"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "en"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('jwt_token', jsonData.token);",
+                  "    pm.collectionVariables.set('refresh_token', jsonData.refreshToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/refresh-token",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "refresh-token"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/revoke-token",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "revoke-token"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Authenticate with Google",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('jwt_token', jsonData.token);",
+                  "    pm.collectionVariables.set('refresh_token', jsonData.refreshToken);",
+                  "    pm.collectionVariables.set('user_id', jsonData.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "en",
+                "description": "fr or en"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"your-google-id-token\",\n  \"accessToken\": \"your-google-access-token\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/google",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "google"]
+            },
+            "description": "Authenticate with Google OAuth. Use Google ID token and access token from Google Sign-In."
+          },
+          "response": []
+        },
+        {
+          "name": "Link Google Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "en",
+                "description": "fr or en"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"your-google-id-token\",\n  \"accessToken\": \"your-google-access-token\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/google/link",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "google", "link"]
+            },
+            "description": "Link a Google account to an existing local user account."
+          },
+          "response": []
+        },
+        {
+          "name": "Unlink Google Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "en",
+                "description": "fr or en"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/google/unlink",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "google", "unlink"]
+            },
+            "description": "Unlink Google account from the current user account."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. User Profile",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "en"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phoneNumber\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"OldPassword123!\",\n  \"newPassword\": \"NewPassword123!\",\n  \"confirmPassword\": \"NewPassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/profile/change-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "profile", "change-password"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "profile"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Two-Factor Authentication",
+      "item": [
+        {
+          "name": "Setup 2FA",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/2fa/setup",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "2fa", "setup"]
+            },
+            "description": "Get QR code and secret key for 2FA setup"
+          },
+          "response": []
+        },
+        {
+          "name": "Enable 2FA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/2fa/enable",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "2fa", "enable"]
+            },
+            "description": "Verify and enable 2FA with code from authenticator app"
+          },
+          "response": []
+        },
+        {
+          "name": "Disable 2FA",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/2fa/disable",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "2fa", "disable"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get 2FA Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/2fa/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "2fa", "status"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Security & Sessions",
+      "item": [
+        {
+          "name": "Get Active Sessions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/security/sessions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "security", "sessions"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke Specific Session",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/security/sessions/{{session_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "security", "sessions", "{{session_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke All Other Sessions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Session-Token",
+                "value": "{{refresh_token}}",
+                "description": "Current session token"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/security/sessions/revoke-others",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "security", "sessions", "revoke-others"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke All Sessions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/security/sessions/revoke-all",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "security", "sessions", "revoke-all"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Login History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/security/login-history?pageNumber=1&pageSize=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "security", "login-history"],
+              "query": [
+                {
+                  "key": "pageNumber",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Admin Dashboard",
+      "item": [
+        {
+          "name": "Get System Overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/overview",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "overview"]
+            },
+            "description": "Get comprehensive system overview and key metrics"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Users (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/users?page=1&pageSize=25",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "25"
+                },
+                {
+                  "key": "searchTerm",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "userType",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get paginated list of users with filtering options"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Role Management (Admin Only)",
+      "item": [
+        {
+          "name": "Get All Roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "roles"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Role By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "roles", "{{role_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Editor\",\n  \"description\": \"Can edit content\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "roles"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Editor\",\n  \"description\": \"Can edit and publish content\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "roles", "{{role_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Role",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "roles", "{{role_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Role to User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"roleId\": \"{{role_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles/assign",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "roles", "assign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Role from User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles/users/{{user_id}}/roles/{{role_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "roles", "users", "{{user_id}}", "roles", "{{role_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "roles", "users", "{{user_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Permissions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles/permissions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "roles", "permissions"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "8. Organizations",
+      "item": [
+        {
+          "name": "Create Organization",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('organization_id', jsonData.id || jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Organization\",\n  \"organizationType\": \"Startup\",\n  \"description\": \"A sample organization\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizations",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "organizations"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Organizations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizations",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "organizations"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Organization",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizations/{{organization_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "organizations", "{{organization_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Organization Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizations/{{organization_id}}/detail",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "organizations", "{{organization_id}}", "detail"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Organization",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Organization Name\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizations/{{organization_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "organizations", "{{organization_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Organization",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizations/{{organization_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "organizations", "{{organization_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Organization Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizations/{{organization_id}}/members",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "organizations", "{{organization_id}}", "members"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"member@example.com\",\n  \"role\": \"Member\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizations/{{organization_id}}/members",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "organizations", "{{organization_id}}", "members"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Member Role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"Admin\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizations/{{organization_id}}/members/:memberId/role",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "organizations", "{{organization_id}}", "members", ":memberId", "role"],
+              "variable": [
+                {
+                  "key": "memberId",
+                  "value": "member-id-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Member",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizations/{{organization_id}}/members/:memberId",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "organizations", "{{organization_id}}", "members", ":memberId"],
+              "variable": [
+                {
+                  "key": "memberId",
+                  "value": "member-id-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "9. Business Plans",
+      "item": [
+        {
+          "name": "Create Business Plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('business_plan_id', jsonData.id || jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organizationId\": \"{{organization_id}}\",\n  \"title\": \"My Business Plan\",\n  \"planType\": \"BusinessPlan\",\n  \"description\": \"A comprehensive business plan\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Business Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans"]
+            },
+            "description": "Get all business plans for the current user across all organizations they are a member of"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Business Plan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Organization Business Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/organizations/{{organization_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "organizations", "{{organization_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Business Plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Business Plan Title\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Business Plan",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Plan Types",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/plan-types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "plan-types"]
+            },
+            "description": "Get all available business plan types with descriptions and characteristics"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Business Plan with Sections",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}?sections=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}"],
+              "query": [
+                {
+                  "key": "sections",
+                  "value": "true",
+                  "description": "Include structured sections in the response"
+                }
+              ]
+            },
+            "description": "Get business plan with structured sections data"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10. Questionnaires",
+      "item": [
+        {
+          "name": "Get Questionnaire",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "en",
+                "description": "fr or en for bilingual support. Returns questions in French or English based on this header."
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/questionnaire",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "questionnaire"]
+            },
+            "description": "Get all questions for a business plan. Automatically loads the appropriate questionnaire template based on plan type (BusinessPlan, StrategicPlan, LeanCanvas). Supports bilingual responses (French/English) via Accept-Language header. For StrategicPlan, returns 20 questions organized into 5 sections."
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Response",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "en",
+                "description": "fr or en for bilingual support"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questionTemplateId\": \"{{question_id}}\",\n  \"responseText\": \"Our mission is to promote social and economic integration of newcomers through comprehensive support services and community programs.\",\n  \"numericValue\": null,\n  \"dateValue\": null,\n  \"booleanValue\": null,\n  \"selectedOptions\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/questionnaire/responses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "questionnaire", "responses"]
+            },
+            "description": "Submit or update a response to a questionnaire question. For StrategicPlan questions (LongText type), only responseText is required. The system automatically tracks completion percentage."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Responses",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "en",
+                "description": "fr or en for bilingual support"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/questionnaire/responses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "questionnaire", "responses"]
+            },
+            "description": "Get all responses for a business plan questionnaire. Returns all questions with their responses (if answered). Questions are ordered by their order field."
+          },
+          "response": []
+        },
+        {
+          "name": "Get AI Question Suggestions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questionText\": \"How would you describe the main mission of your organization?\",\n  \"planType\": \"StrategicPlan\",\n  \"existingResponse\": null,\n  \"organizationContext\": \"Non-profit organization focused on community development\",\n  \"suggestionCount\": 3,\n  \"language\": \"en\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/questionnaire/questions/{{question_id}}/suggest-answer",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "questionnaire", "questions", "{{question_id}}", "suggest-answer"]
+            },
+            "description": "Generate AI suggestions for answering a questionnaire question. Supports both French and English questions. For StrategicPlan questions, provides context-aware suggestions based on the organization type. Requires AI service to be configured and available."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Questionnaire Progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "en",
+                "description": "fr or en for bilingual support"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/questionnaire/progress",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "questionnaire", "progress"]
+            },
+            "description": "Get detailed progress information for a business plan questionnaire including completion percentage, answered/unanswered questions, time estimates, and milestones. For StrategicPlan, tracks progress through 20 questions across 5 sections."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "11. Business Plan Sections",
+      "item": [
+        {
+          "name": "Get All Sections",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/sections",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "sections"]
+            },
+            "description": "Get all sections for a business plan with content and metadata"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Specific Section",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/sections/{{section_name}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "sections", "{{section_name}}"]
+            },
+            "description": "Get a specific section of a business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Section",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Updated executive summary content with new information about our market position and competitive advantages.\",\n  \"isAIGenerated\": false,\n  \"isManualEdit\": true,\n  \"status\": \"review\",\n  \"tags\": [\"updated\", \"review\"],\n  \"notes\": \"Updated based on stakeholder feedback\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/sections/{{section_name}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "sections", "{{section_name}}"]
+            },
+            "description": "Update a specific section of a business plan"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "12. Section Improvement (AI-Powered)",
+      "item": [
+        {
+          "name": "Improve Section",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentContent\": \"Notre entreprise fournit des solutions innovantes pour les petites entreprises. Nous avons une équipe expérimentée et des produits de qualité.\",\n  \"improvementType\": \"improve\",\n  \"language\": \"fr\",\n  \"planType\": \"BusinessPlan\",\n  \"instructions\": \"Rendez-le plus convaincant pour les investisseurs\",\n  \"targetAudience\": \"investisseurs\",\n  \"industryContext\": \"Startup technologique\",\n  \"tone\": \"professionnel\",\n  \"maxLength\": 2000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/sections/{{section_name}}/improve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "sections", "{{section_name}}", "improve"]
+            },
+            "description": "Improve a business plan section using AI for better clarity and professionalism"
+          },
+          "response": []
+        },
+        {
+          "name": "Expand Section",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentContent\": \"Notre marché cible se compose de petites et moyennes entreprises qui cherchent à digitaliser leurs processus.\",\n  \"improvementType\": \"expand\",\n  \"language\": \"fr\",\n  \"planType\": \"BusinessPlan\",\n  \"instructions\": \"Ajoutez des données de recherche de marché et une analyse concurrentielle\",\n  \"targetAudience\": \"investisseurs\",\n  \"industryContext\": \"SaaS technologique\",\n  \"maxLength\": 3000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/sections/{{section_name}}/expand",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "sections", "{{section_name}}", "expand"]
+            },
+            "description": "Expand a business plan section using AI by adding details and subsections"
+          },
+          "response": []
+        },
+        {
+          "name": "Simplify Section",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentContent\": \"Notre algorithme propriétaire utilise des techniques avancées d'apprentissage automatique pour optimiser les processus métier complexes.\",\n  \"improvementType\": \"simplify\",\n  \"language\": \"fr\",\n  \"planType\": \"BusinessPlan\",\n  \"instructions\": \"Rendez-le accessible aux parties prenantes non techniques\",\n  \"targetAudience\": \"grand public\",\n  \"maxLength\": 1500\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/sections/{{section_name}}/simplify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "sections", "{{section_name}}", "simplify"]
+            },
+            "description": "Simplify a business plan section using AI for better readability"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "11. Business Plan Generation",
+      "item": [
+        {
+          "name": "Generate Business Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"businessPlanId\": \"{{business_plan_id}}\",\n  \"options\": {\n    \"includeFinancialProjections\": true,\n    \"includeMarketAnalysis\": true,\n    \"includeRiskAssessment\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/generate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "generate"]
+            },
+            "description": "Generate a complete business plan using AI"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Generation Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/generation/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "generation", "status"]
+            },
+            "description": "Check the status of business plan generation"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Strategy Suggestions (AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"businessPlanId\": \"{{business_plan_id}}\",\n  \"planType\": \"BusinessPlan\",\n  \"industry\": \"Technology\",\n  \"suggestionCount\": 3,\n  \"language\": \"fr\",\n  \"focusArea\": \"growth\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/ai-analysis/strategy-suggestions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "ai-analysis", "strategy-suggestions"]
+            },
+            "description": "Generate AI-powered strategy suggestions for business growth. Returns actionable strategies with implementation steps, priority levels, and expected impact."
+          },
+          "response": []
+        },
+        {
+          "name": "Analyze Risks (AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"businessPlanId\": \"{{business_plan_id}}\",\n  \"planType\": \"BusinessPlan\",\n  \"industry\": \"Technology\",\n  \"minRiskCount\": 3,\n  \"language\": \"fr\",\n  \"riskCategories\": [\"financial\", \"market\", \"operational\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/ai-analysis/risk-analysis",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "ai-analysis", "risk-analysis"]
+            },
+            "description": "Perform comprehensive risk analysis with AI. Identifies potential risks, provides mitigation strategies, and calculates risk scores."
+          },
+          "response": []
+        },
+        {
+          "name": "Business Mentor Analysis (AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"businessPlanId\": \"{{business_plan_id}}\",\n  \"planType\": \"BusinessPlan\",\n  \"industry\": \"Technology\",\n  \"language\": \"fr\",\n  \"analysisAreas\": [\"opportunities\", \"weaknesses\", \"strategy\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/ai-analysis/business-mentor",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "ai-analysis", "business-mentor"]
+            },
+            "description": "Get comprehensive business mentor analysis. Detects hidden opportunities, identifies weaknesses, provides strategic recommendations, and calculates business health score."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "12. Financial Projections",
+      "item": [
+        {
+          "name": "Create Financial Projection",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"businessPlanId\": \"{{business_plan_id}}\",\n  \"projectionType\": \"Revenue\",\n  \"amount\": 100000,\n  \"currency\": \"USD\",\n  \"period\": \"Monthly\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/financial-projections",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "financial-projections"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Financial Projections",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/financial-projections",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "financial-projections"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "13. Export & Reports",
+      "item": [
+        {
+          "name": "Export Business Plan (PDF)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/export/pdf",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "export", "pdf"]
+            },
+            "description": "Export business plan as PDF"
+          },
+          "response": []
+        },
+        {
+          "name": "Export Business Plan (Word)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/export/word",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "export", "word"]
+            },
+            "description": "Export business plan as Word document"
+          },
+          "response": []
+        },
+        {
+          "name": "Export Financial Report (Excel)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business-plans/{{business_plan_id}}/export/financial/excel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business-plans", "{{business_plan_id}}", "export", "financial", "excel"]
+            },
+            "description": "Export financial projections as Excel file"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "14. OBNL Business Plans",
+      "item": [
+        {
+          "name": "Create OBNL Business Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organizationId\": \"{{organization_id}}\",\n  \"obnlType\": \"Charitable Organization\",\n  \"mission\": \"To serve the community through essential services\",\n  \"vision\": \"A thriving community where everyone has access to support\",\n  \"values\": \"Compassion, Integrity, Community, Service\",\n  \"fundingRequirements\": 250000,\n  \"fundingPurpose\": \"Program expansion and sustainability\",\n  \"legalStructure\": \"Non-Profit Corporation\",\n  \"registrationNumber\": \"123456789\",\n  \"registrationDate\": \"2024-01-01T00:00:00Z\",\n  \"governingBody\": \"Board of Directors\",\n  \"boardComposition\": \"5 members with diverse backgrounds\",\n  \"stakeholderEngagement\": \"Community engagement plan\",\n  \"impactMeasurement\": \"Impact measurement framework\",\n  \"sustainabilityStrategy\": \"Sustainability strategy\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/obnl/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "obnl", "plans"]
+            },
+            "description": "Create a new OBNL business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Get OBNL Business Plan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/obnl/plans/{{obnl_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "obnl", "plans", "{{obnl_plan_id}}"]
+            },
+            "description": "Get OBNL business plan by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Get OBNL Plans by Organization",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/obnl/organizations/{{organization_id}}/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "obnl", "organizations", "{{organization_id}}", "plans"]
+            },
+            "description": "Get all OBNL business plans for an organization"
+          },
+          "response": []
+        },
+        {
+          "name": "Update OBNL Business Plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"obnlType\": \"Charitable Organization\",\n  \"mission\": \"Updated mission statement\",\n  \"vision\": \"Updated vision statement\",\n  \"values\": \"Updated values\",\n  \"fundingRequirements\": 300000,\n  \"fundingPurpose\": \"Updated funding purpose\",\n  \"legalStructure\": \"Non-Profit Corporation\",\n  \"registrationNumber\": \"123456789\",\n  \"registrationDate\": \"2024-01-01T00:00:00Z\",\n  \"governingBody\": \"Board of Directors\",\n  \"boardComposition\": \"5 members with diverse backgrounds\",\n  \"stakeholderEngagement\": \"Updated engagement plan\",\n  \"impactMeasurement\": \"Updated measurement framework\",\n  \"sustainabilityStrategy\": \"Updated sustainability strategy\",\n  \"updatedBy\": \"{{user_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/obnl/plans/{{obnl_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "obnl", "plans", "{{obnl_plan_id}}"]
+            },
+            "description": "Update OBNL business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete OBNL Business Plan",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/obnl/plans/{{obnl_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "obnl", "plans", "{{obnl_plan_id}}"]
+            },
+            "description": "Delete OBNL business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Analyze OBNL Compliance",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/obnl/plans/{{obnl_plan_id}}/compliance/analyze",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "obnl", "plans", "{{obnl_plan_id}}", "compliance", "analyze"]
+            },
+            "description": "Analyze OBNL compliance status"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Grant Application",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"obnlBusinessPlanId\": \"{{obnl_plan_id}}\",\n  \"grantName\": \"Community Development Grant\",\n  \"grantingOrganization\": \"Community Foundation\",\n  \"grantType\": \"Program Grant\",\n  \"requestedAmount\": 50000,\n  \"matchingFunds\": 10000,\n  \"projectDescription\": \"Community development project\",\n  \"objectives\": \"Improve community services\",\n  \"expectedOutcomes\": \"Increased community engagement\",\n  \"targetPopulation\": \"Local residents\",\n  \"geographicScope\": \"Local community\",\n  \"timeline\": \"12 months\",\n  \"budgetBreakdown\": \"Detailed budget breakdown\",\n  \"evaluationPlan\": \"Evaluation methodology\",\n  \"sustainabilityPlan\": \"Long-term sustainability plan\",\n  \"applicationDeadline\": \"2024-12-31T23:59:59Z\",\n  \"submissionDate\": \"2024-01-15T00:00:00Z\",\n  \"status\": \"Draft\",\n  \"notes\": \"Grant application notes\",\n  \"createdBy\": \"{{user_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/obnl/plans/{{obnl_plan_id}}/grants",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "obnl", "plans", "{{obnl_plan_id}}", "grants"]
+            },
+            "description": "Create a new grant application"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Grant Applications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/obnl/plans/{{obnl_plan_id}}/grants",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "obnl", "plans", "{{obnl_plan_id}}", "grants"]
+            },
+            "description": "Get all grant applications for an OBNL plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Impact Measurement",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"obnlBusinessPlanId\": \"{{obnl_plan_id}}\",\n  \"metricName\": \"Community Impact\",\n  \"description\": \"Measure community impact\",\n  \"measurementType\": \"Quantitative\",\n  \"unitOfMeasurement\": \"Count\",\n  \"baselineValue\": 0,\n  \"targetValue\": 500,\n  \"currentValue\": 0,\n  \"dataSource\": \"Community surveys\",\n  \"collectionMethod\": \"Survey\",\n  \"frequency\": \"Monthly\",\n  \"responsibleParty\": \"Program Manager\",\n  \"lastMeasurement\": \"2024-01-01T00:00:00Z\",\n  \"nextMeasurement\": \"2024-02-01T00:00:00Z\",\n  \"status\": \"Active\",\n  \"notes\": \"Impact measurement notes\",\n  \"createdBy\": \"{{user_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/obnl/plans/{{obnl_plan_id}}/impact-measurements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "obnl", "plans", "{{obnl_plan_id}}", "impact-measurements"]
+            },
+            "description": "Create a new impact measurement"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Impact Measurements",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/obnl/plans/{{obnl_plan_id}}/impact-measurements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "obnl", "plans", "{{obnl_plan_id}}", "impact-measurements"]
+            },
+            "description": "Get all impact measurements for an OBNL plan"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "15. Template Management",
+      "item": [
+        {
+          "name": "Create Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Technology Startup Template\",\n  \"description\": \"Comprehensive template for tech startups\",\n  \"content\": \"Template content here\",\n  \"category\": \"BusinessPlan\",\n  \"type\": \"IndustrySpecific\",\n  \"industry\": \"Technology\",\n  \"targetAudience\": \"Startups\",\n  \"language\": \"English\",\n  \"country\": \"United States\",\n  \"isPublic\": true,\n  \"tags\": \"startup,technology,business-plan\",\n  \"previewImage\": \"https://example.com/preview.jpg\",\n  \"author\": \"John Doe\",\n  \"authorEmail\": \"john@example.com\",\n  \"version\": \"1.0\",\n  \"changelog\": \"Initial version\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/template",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template"]
+            },
+            "description": "Create a new template"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Template by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/{{template_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "{{template_id}}"]
+            },
+            "description": "Get a specific template by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Templates by Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/category/BusinessPlan",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "category", "BusinessPlan"]
+            },
+            "description": "Get templates by category"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Templates by Industry",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/industry/Technology",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "industry", "Technology"]
+            },
+            "description": "Get templates by industry"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Public Templates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/public",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "public"]
+            },
+            "description": "Get all public templates"
+          },
+          "response": []
+        },
+        {
+          "name": "Search Templates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/search?searchTerm=startup",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "search"],
+              "query": [
+                {
+                  "key": "searchTerm",
+                  "value": "startup"
+                }
+              ]
+            },
+            "description": "Search templates by term"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Template",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{template_id}}\",\n  \"name\": \"Updated Template Name\",\n  \"description\": \"Updated description\",\n  \"content\": \"Updated content\",\n  \"category\": \"BusinessPlan\",\n  \"type\": \"Standard\",\n  \"industry\": \"Technology\",\n  \"targetAudience\": \"Startups\",\n  \"language\": \"English\",\n  \"country\": \"United States\",\n  \"isPublic\": true,\n  \"tags\": \"updated,startup,technology\",\n  \"previewImage\": \"https://example.com/updated-preview.jpg\",\n  \"author\": \"John Doe\",\n  \"version\": \"1.1\",\n  \"changelog\": \"Updated template with new features\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/{{template_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "{{template_id}}"]
+            },
+            "description": "Update an existing template"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Template",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/{{template_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "{{template_id}}"]
+            },
+            "description": "Delete a template"
+          },
+          "response": []
+        },
+        {
+          "name": "Clone Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Cloned Template\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/{{template_id}}/clone",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "{{template_id}}", "clone"]
+            },
+            "description": "Clone an existing template"
+          },
+          "response": []
+        },
+        {
+          "name": "Publish Template",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/{{template_id}}/publish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "{{template_id}}", "publish"]
+            },
+            "description": "Publish a template to make it public"
+          },
+          "response": []
+        },
+        {
+          "name": "Archive Template",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/{{template_id}}/archive",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "{{template_id}}", "archive"]
+            },
+            "description": "Archive a template"
+          },
+          "response": []
+        },
+        {
+          "name": "Record Template Usage",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usageType\": \"Use\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/{{template_id}}/usage",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "{{template_id}}", "usage"]
+            },
+            "description": "Record template usage"
+          },
+          "response": []
+        },
+        {
+          "name": "Rate Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Excellent template!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/{{template_id}}/rate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "{{template_id}}", "rate"]
+            },
+            "description": "Rate a template"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Popular Templates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/popular?count=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "popular"],
+              "query": [
+                {
+                  "key": "count",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get popular templates"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recent Templates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/recent?count=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "recent"],
+              "query": [
+                {
+                  "key": "count",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get recent templates"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Templates by Author",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/author/John%20Doe",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "author", "John Doe"]
+            },
+            "description": "Get templates by author"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Template Analytics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/template/{{template_id}}/analytics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "template", "{{template_id}}", "analytics"]
+            },
+            "description": "Get template analytics and usage statistics"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "16. Financial Management",
+      "item": [
+        {
+          "name": "Create Financial Projection",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"businessPlanId\": \"{{business_plan_id}}\",\n  \"name\": \"Revenue Projection Q1\",\n  \"description\": \"Monthly revenue projection for Q1 2024\",\n  \"projectionType\": \"Revenue\",\n  \"scenario\": 2,\n  \"year\": 2024,\n  \"month\": 1,\n  \"amount\": 10000,\n  \"currencyCode\": \"USD\",\n  \"category\": 1,\n  \"subCategory\": \"Product Sales\",\n  \"isRecurring\": true,\n  \"frequency\": \"Monthly\",\n  \"growthRate\": 10.0,\n  \"assumptions\": \"Standard market conditions\",\n  \"notes\": \"Monthly revenue projection\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/projections",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "projections"]
+            },
+            "description": "Create a new financial projection"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Financial Projection",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/projections/{{financial_projection_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "projections", "{{financial_projection_id}}"]
+            },
+            "description": "Get a specific financial projection by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Financial Projections by Business Plan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/projections/business-plan/{{business_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "projections", "business-plan", "{{business_plan_id}}"]
+            },
+            "description": "Get all financial projections for a business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Financial Projections by Scenario",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/projections/business-plan/{{business_plan_id}}/scenario/2",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "projections", "business-plan", "{{business_plan_id}}", "scenario", "2"]
+            },
+            "description": "Get financial projections for a specific scenario (1=Optimistic, 2=Realistic, 3=Pessimistic)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Financial Projection",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Revenue Projection Q1\",\n  \"description\": \"Updated monthly revenue projection for Q1 2024\",\n  \"projectionType\": \"Revenue\",\n  \"scenario\": 2,\n  \"year\": 2024,\n  \"month\": 1,\n  \"amount\": 15000,\n  \"currencyCode\": \"USD\",\n  \"category\": 1,\n  \"subCategory\": \"Product Sales\",\n  \"isRecurring\": true,\n  \"frequency\": \"Monthly\",\n  \"growthRate\": 15.0,\n  \"assumptions\": \"Updated market conditions\",\n  \"notes\": \"Updated monthly revenue projection\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/projections/{{financial_projection_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "projections", "{{financial_projection_id}}"]
+            },
+            "description": "Update a financial projection"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Financial Projection",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/projections/{{financial_projection_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "projections", "{{financial_projection_id}}"]
+            },
+            "description": "Delete a financial projection"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Currencies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/currencies",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "currencies"]
+            },
+            "description": "Get all available currencies"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Currency",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/currencies/USD",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "currencies", "USD"]
+            },
+            "description": "Get a specific currency by code"
+          },
+          "response": []
+        },
+        {
+          "name": "Convert Currency",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/currencies/convert?amount=1000&fromCurrency=USD&toCurrency=EUR",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "currencies", "convert"],
+              "query": [
+                {
+                  "key": "amount",
+                  "value": "1000"
+                },
+                {
+                  "key": "fromCurrency",
+                  "value": "USD"
+                },
+                {
+                  "key": "toCurrency",
+                  "value": "EUR"
+                }
+              ]
+            },
+            "description": "Convert currency between different currencies"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Exchange Rate",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/currencies/exchange-rate?fromCurrency=USD&toCurrency=EUR",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "currencies", "exchange-rate"],
+              "query": [
+                {
+                  "key": "fromCurrency",
+                  "value": "USD"
+                },
+                {
+                  "key": "toCurrency",
+                  "value": "EUR"
+                }
+              ]
+            },
+            "description": "Get exchange rate between two currencies"
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate Tax",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"financialProjectionId\": \"{{financial_projection_id}}\",\n  \"country\": \"United States\",\n  \"region\": \"California\",\n  \"taxType\": \"Income\",\n  \"taxableAmount\": 50000,\n  \"currencyCode\": \"USD\",\n  \"taxPeriod\": \"2024-01-01T00:00:00Z\",\n  \"businessType\": \"Corporation\",\n  \"notes\": \"Tax calculation for Q1 2024\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/tax/calculate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "tax", "calculate"]
+            },
+            "description": "Calculate tax for a financial projection"
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate Taxes for Projection",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/tax/projection/{{financial_projection_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "tax", "projection", "{{financial_projection_id}}"]
+            },
+            "description": "Calculate all applicable taxes for a financial projection"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Tax Rules",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/tax/rules?country=United%20States&region=California",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "tax", "rules"],
+              "query": [
+                {
+                  "key": "country",
+                  "value": "United States"
+                },
+                {
+                  "key": "region",
+                  "value": "California"
+                }
+              ]
+            },
+            "description": "Get tax rules for a specific country and region"
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate Financial KPIs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/kpis/business-plan/{{business_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "kpis", "business-plan", "{{business_plan_id}}"]
+            },
+            "description": "Calculate financial KPIs for a business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Get KPI by Name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/kpis/business-plan/{{business_plan_id}}/name/Revenue%20Growth%20Rate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "kpis", "business-plan", "{{business_plan_id}}", "name", "Revenue Growth Rate"]
+            },
+            "description": "Get a specific KPI by name for a business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Get KPIs by Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/kpis/business-plan/{{business_plan_id}}/category/Growth",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "kpis", "business-plan", "{{business_plan_id}}", "category", "Growth"]
+            },
+            "description": "Get KPIs by category for a business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Investment Analysis",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"businessPlanId\": \"{{business_plan_id}}\",\n  \"analysisType\": \"ROI\",\n  \"name\": \"Investment Analysis Q1\",\n  \"description\": \"Investment analysis for Q1 2024\",\n  \"initialInvestment\": 100000,\n  \"expectedReturn\": 150000,\n  \"currencyCode\": \"USD\",\n  \"discountRate\": 8.0,\n  \"analysisPeriod\": 3,\n  \"riskLevel\": \"Medium\",\n  \"investmentType\": \"Equity\",\n  \"investorType\": \"Angel\",\n  \"valuation\": 1000000,\n  \"equityOffering\": 10.0,\n  \"fundingRequired\": 100000,\n  \"fundingStage\": \"Series A\",\n  \"assumptions\": \"Standard market conditions\",\n  \"notes\": \"Investment analysis for business plan\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/investment/analysis",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "investment", "analysis"]
+            },
+            "description": "Create an investment analysis"
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate ROI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/investment/roi/business-plan/{{business_plan_id}}?investmentAmount=100000",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "investment", "roi", "business-plan", "{{business_plan_id}}"],
+              "query": [
+                {
+                  "key": "investmentAmount",
+                  "value": "100000"
+                }
+              ]
+            },
+            "description": "Calculate Return on Investment (ROI) for a business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate NPV",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/investment/npv/business-plan/{{business_plan_id}}?discountRate=8.0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "investment", "npv", "business-plan", "{{business_plan_id}}"],
+              "query": [
+                {
+                  "key": "discountRate",
+                  "value": "8.0"
+                }
+              ]
+            },
+            "description": "Calculate Net Present Value (NPV) for a business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate IRR",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/investment/irr/business-plan/{{business_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "investment", "irr", "business-plan", "{{business_plan_id}}"]
+            },
+            "description": "Calculate Internal Rate of Return (IRR) for a business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Financial Report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/reports/business-plan/{{business_plan_id}}?reportType=comprehensive",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "reports", "business-plan", "{{business_plan_id}}"],
+              "query": [
+                {
+                  "key": "reportType",
+                  "value": "comprehensive"
+                }
+              ]
+            },
+            "description": "Generate a comprehensive financial report for a business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Cash Flow Report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/reports/cash-flow/business-plan/{{business_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "reports", "cash-flow", "business-plan", "{{business_plan_id}}"]
+            },
+            "description": "Generate a cash flow report for a business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Profit & Loss Report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/reports/profit-loss/business-plan/{{business_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "reports", "profit-loss", "business-plan", "{{business_plan_id}}"]
+            },
+            "description": "Generate a profit and loss report for a business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Balance Sheet Report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/reports/balance-sheet/business-plan/{{business_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "reports", "balance-sheet", "business-plan", "{{business_plan_id}}"]
+            },
+            "description": "Generate a balance sheet report for a business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Perform Scenario Analysis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/analysis/scenario/business-plan/{{business_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "analysis", "scenario", "business-plan", "{{business_plan_id}}"]
+            },
+            "description": "Perform scenario analysis for a business plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Perform Sensitivity Analysis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/analysis/sensitivity/business-plan/{{business_plan_id}}?variable=Revenue%20Growth%20Rate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "analysis", "sensitivity", "business-plan", "{{business_plan_id}}"],
+              "query": [
+                {
+                  "key": "variable",
+                  "value": "Revenue Growth Rate"
+                }
+              ]
+            },
+            "description": "Perform sensitivity analysis for a specific variable"
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate Break-Even Analysis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/financial/analysis/break-even/business-plan/{{business_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "financial", "analysis", "break-even", "business-plan", "{{business_plan_id}}"]
+            },
+            "description": "Calculate break-even analysis for a business plan"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "15. Admin AI Prompt Management",
+      "item": [
+        {
+          "name": "Create AI Prompt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Question Suggestions - Business Plan\",\n  \"description\": \"Generates AI suggestions for business plan questionnaire questions\",\n  \"category\": \"QuestionSuggestions\",\n  \"planType\": \"BusinessPlan\",\n  \"language\": \"fr\",\n  \"systemPrompt\": \"Vous êtes un expert consultant en affaires aidant les utilisateurs à répondre aux questions de questionnaire pour la création de plans d'affaires. Votre tâche est de générer des suggestions utiles, pertinentes et professionnelles.\",\n  \"userPromptTemplate\": \"Question: {questionText}\\n\\nContexte: {organizationContext}\\n\\nVeuillez générer {suggestionCount} suggestions différentes pour répondre à cette question.\",\n  \"variables\": \"{\\\"questionText\\\": \\\"The question to answer\\\", \\\"organizationContext\\\": \\\"Organization context\\\", \\\"suggestionCount\\\": \\\"Number of suggestions\\\"}\",\n  \"notes\": \"Optimized for French business plan questions\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/ai-prompts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "ai-prompts"]
+            },
+            "description": "Create a new AI prompt template"
+          },
+          "response": []
+        },
+        {
+          "name": "Get AI Prompt",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/ai-prompts/{{prompt_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "ai-prompts", "{{prompt_id}}"]
+            },
+            "description": "Get a specific AI prompt template by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "List AI Prompts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/ai-prompts?category=QuestionSuggestions&planType=BusinessPlan&language=fr&isActive=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "ai-prompts"],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "QuestionSuggestions"
+                },
+                {
+                  "key": "planType",
+                  "value": "BusinessPlan"
+                },
+                {
+                  "key": "language",
+                  "value": "fr"
+                },
+                {
+                  "key": "isActive",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Get all AI prompt templates with optional filtering"
+          },
+          "response": []
+        },
+        {
+          "name": "Update AI Prompt",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Question Suggestions - Business Plan (Updated)\",\n  \"description\": \"Updated description for the prompt\",\n  \"systemPrompt\": \"Updated system prompt with improved instructions\",\n  \"userPromptTemplate\": \"Updated user prompt template with better variable handling\",\n  \"notes\": \"Updated notes about the prompt\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/ai-prompts/{{prompt_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "ai-prompts", "{{prompt_id}}"]
+            },
+            "description": "Update an existing AI prompt template"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete AI Prompt",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/ai-prompts/{{prompt_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "ai-prompts", "{{prompt_id}}"]
+            },
+            "description": "Delete an AI prompt template"
+          },
+          "response": []
+        },
+        {
+          "name": "Test AI Prompt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"promptId\": \"{{prompt_id}}\",\n  \"sampleVariables\": \"{\\\"questionText\\\": \\\"What is your target market?\\\", \\\"organizationContext\\\": \\\"Tech startup\\\", \\\"suggestionCount\\\": \\\"3\\\"}\",\n  \"testContext\": \"Testing question suggestions for business plan\",\n  \"maxTokens\": 1000,\n  \"temperature\": 0.7\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/ai-prompts/test",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "ai-prompts", "test"]
+            },
+            "description": "Test an AI prompt with sample data"
+          },
+          "response": []
+        },
+        {
+          "name": "Get AI Prompt Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/ai-prompts/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "ai-prompts", "stats"]
+            },
+            "description": "Get usage statistics for all AI prompts"
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle AI Prompt Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "true"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/ai-prompts/{{prompt_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "ai-prompts", "{{prompt_id}}", "status"]
+            },
+            "description": "Activate or deactivate an AI prompt"
+          },
+          "response": []
+        },
+        {
+          "name": "Create AI Prompt Version",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Question Suggestions - Business Plan v2\",\n  \"description\": \"Updated version of the question suggestions prompt\",\n  \"category\": \"QuestionSuggestions\",\n  \"planType\": \"BusinessPlan\",\n  \"language\": \"fr\",\n  \"systemPrompt\": \"Improved system prompt with better instructions\",\n  \"userPromptTemplate\": \"Enhanced user prompt template\",\n  \"variables\": \"{\\\"questionText\\\": \\\"The question to answer\\\", \\\"organizationContext\\\": \\\"Organization context\\\", \\\"suggestionCount\\\": \\\"Number of suggestions\\\"}\",\n  \"notes\": \"Version 2 with improvements\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/ai-prompts/{{parent_prompt_id}}/versions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "ai-prompts", "{{parent_prompt_id}}", "versions"]
+            },
+            "description": "Create a new version of an existing AI prompt"
+          },
+          "response": []
+        },
+        {
+          "name": "Get AI Prompt Versions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/ai-prompts/{{parent_prompt_id}}/versions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "ai-prompts", "{{parent_prompt_id}}", "versions"]
+            },
+            "description": "Get all versions of a specific AI prompt"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

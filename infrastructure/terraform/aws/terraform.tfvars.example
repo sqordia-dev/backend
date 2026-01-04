@@ -1,0 +1,49 @@
+# Example Terraform variables file
+# Copy this to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars to Git (it's in .gitignore)
+
+aws_region = "ca-central-1"
+environment = "production"
+project_name = "sqordia"
+
+# Lambda Configuration
+lambda_runtime = "dotnet8"
+lambda_timeout = 300  # 5 minutes for AI generation
+lambda_memory_size = 512
+
+# SQS Configuration
+max_receive_count = 3
+visibility_timeout_seconds = 360  # 6 minutes (should be >= lambda_timeout)
+message_retention_seconds = 1209600  # 14 days
+
+# RDS Configuration
+rds_database_name = "SqordiaDb"
+rds_password = "CHANGE_THIS_TO_A_STRONG_PASSWORD"  # REQUIRED: Set a strong password (min 8 chars, mixed case, numbers, special chars)
+# Note: rds_endpoint will be automatically set from RDS output after creation
+
+# RDS Public Access (for PgAdmin and local development)
+# Set to true to enable connections from your local machine
+rds_publicly_accessible = false  # Set to true to enable PgAdmin access
+# Allow specific IP addresses (use /32 for single IP, e.g., "1.2.3.4/32")
+rds_allowed_ip_addresses = []  # Example: ["24.200.142.208/32"] - Add your IP here
+# Or allow CIDR blocks (e.g., ["1.2.3.0/24"])
+rds_allowed_cidr_blocks = []
+
+# S3 Configuration
+# Note: s3_bucket_name will be automatically set from S3 output after creation
+
+# SES Configuration
+ses_from_email = "noreply@sqordia.com"
+
+# Custom Domain Configuration (optional)
+# Recommended: Use subdomain (industry standard)
+# Note: If sqordia.com is taken, alternatives like api.sqordia-dev.com are available
+domain_name = "api.sqordia-dev.com"
+
+# Leave empty to skip domain setup (API accessible via task public IP)
+# domain_name = ""
+
+# Note: API keys are now stored in the database Settings table (encrypted)
+# Use the Settings API or database to store OpenAI, Claude, and Gemini API keys
+# Example: POST /api/v1/settings/secrets/AI:OpenAI:ApiKey with encrypted value
+

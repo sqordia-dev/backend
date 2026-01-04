@@ -1,0 +1,461 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Authentication Messages -->
+  <data name="Auth.Success.Registration" xml:space="preserve">
+    <value>Registration successful. Please verify your email.</value>
+  </data>
+  <data name="Auth.Success.Login" xml:space="preserve">
+    <value>Login successful.</value>
+  </data>
+  <data name="Auth.Success.Logout" xml:space="preserve">
+    <value>Logout successful.</value>
+  </data>
+  <data name="Auth.Success.PasswordChanged" xml:space="preserve">
+    <value>Password changed successfully.</value>
+  </data>
+  <data name="Auth.Success.EmailVerified" xml:space="preserve">
+    <value>Email verified successfully.</value>
+  </data>
+  
+  <!-- Error Messages -->
+  <data name="Auth.Error.InvalidCredentials" xml:space="preserve">
+    <value>Invalid email or password.</value>
+  </data>
+  <data name="Auth.Error.UserNotFound" xml:space="preserve">
+    <value>User not found.</value>
+  </data>
+  <data name="Auth.Error.EmailAlreadyExists" xml:space="preserve">
+    <value>This email address is already in use.</value>
+  </data>
+  <data name="Auth.Error.UserNameAlreadyExists" xml:space="preserve">
+    <value>This username is already taken.</value>
+  </data>
+  <data name="Auth.Error.InvalidToken" xml:space="preserve">
+    <value>Invalid or expired token.</value>
+  </data>
+  <data name="Auth.Error.AccountLocked" xml:space="preserve">
+    <value>Account locked due to failed login attempts. Please try again later.</value>
+  </data>
+  <data name="Auth.Error.EmailNotVerified" xml:space="preserve">
+    <value>Please verify your email address before continuing.</value>
+  </data>
+  
+  <!-- Organization Messages -->
+  <data name="Organization.Success.Created" xml:space="preserve">
+    <value>Organization created successfully.</value>
+  </data>
+  <data name="Organization.Success.Updated" xml:space="preserve">
+    <value>Organization updated successfully.</value>
+  </data>
+  <data name="Organization.Success.Deleted" xml:space="preserve">
+    <value>Organization deleted successfully.</value>
+  </data>
+  <data name="Organization.Success.MemberAdded" xml:space="preserve">
+    <value>Member added to organization successfully.</value>
+  </data>
+  <data name="Organization.Success.MemberRemoved" xml:space="preserve">
+    <value>Member removed from organization successfully.</value>
+  </data>
+  <data name="Organization.Success.RoleUpdated" xml:space="preserve">
+    <value>Member role updated successfully.</value>
+  </data>
+  
+  <data name="Organization.Error.NotFound" xml:space="preserve">
+    <value>Organization not found.</value>
+  </data>
+  <data name="Organization.Error.Unauthorized" xml:space="preserve">
+    <value>You do not have permission to access this organization.</value>
+  </data>
+  <data name="Organization.Error.MemberLimitReached" xml:space="preserve">
+    <value>Member limit reached for this organization.</value>
+  </data>
+  <data name="Organization.Error.CannotRemoveOwner" xml:space="preserve">
+    <value>Cannot remove the owner from the organization.</value>
+  </data>
+  <data name="Organization.Error.UserAlreadyMember" xml:space="preserve">
+    <value>User is already a member of this organization.</value>
+  </data>
+  
+  <!-- Business Plan Messages -->
+  <data name="BusinessPlan.Success.Created" xml:space="preserve">
+    <value>Business plan created successfully.</value>
+  </data>
+  <data name="BusinessPlan.Success.Updated" xml:space="preserve">
+    <value>Business plan updated successfully.</value>
+  </data>
+  <data name="BusinessPlan.Success.Deleted" xml:space="preserve">
+    <value>Business plan deleted successfully.</value>
+  </data>
+  <data name="BusinessPlan.Success.Generated" xml:space="preserve">
+    <value>Business plan generated successfully by AI.</value>
+  </data>
+  
+  <data name="BusinessPlan.Error.NotFound" xml:space="preserve">
+    <value>Business plan not found.</value>
+  </data>
+  <data name="BusinessPlan.Error.Unauthorized" xml:space="preserve">
+    <value>You do not have permission to access this business plan.</value>
+  </data>
+  <data name="BusinessPlan.Error.InvalidStatus" xml:space="preserve">
+    <value>Invalid business plan status.</value>
+  </data>
+  <data name="BusinessPlan.Error.QuestionnaireIncomplete" xml:space="preserve">
+    <value>The questionnaire must be completed before generating the business plan.</value>
+  </data>
+  
+  <!-- Questionnaire Messages -->
+  <data name="Questionnaire.Success.ResponseSubmitted" xml:space="preserve">
+    <value>Response saved successfully.</value>
+  </data>
+  <data name="Questionnaire.Success.Completed" xml:space="preserve">
+    <value>Questionnaire completed successfully.</value>
+  </data>
+  
+  <data name="Questionnaire.Error.QuestionNotFound" xml:space="preserve">
+    <value>Question not found.</value>
+  </data>
+  <data name="Questionnaire.Error.InvalidAnswer" xml:space="preserve">
+    <value>Invalid answer for this question.</value>
+  </data>
+  
+  <!-- User Profile Messages -->
+  <data name="Profile.Success.Updated" xml:space="preserve">
+    <value>Profile updated successfully.</value>
+  </data>
+  <data name="Profile.Success.AccountDeleted" xml:space="preserve">
+    <value>Account deleted successfully.</value>
+  </data>
+  
+  <data name="Profile.Error.InvalidCurrentPassword" xml:space="preserve">
+    <value>Current password is incorrect.</value>
+  </data>
+  
+  <!-- Role Management Messages -->
+  <data name="Role.Success.Created" xml:space="preserve">
+    <value>Role created successfully.</value>
+  </data>
+  <data name="Role.Success.Updated" xml:space="preserve">
+    <value>Role updated successfully.</value>
+  </data>
+  <data name="Role.Success.Deleted" xml:space="preserve">
+    <value>Role deleted successfully.</value>
+  </data>
+  <data name="Role.Success.AssignedToUser" xml:space="preserve">
+    <value>Role assigned to user successfully.</value>
+  </data>
+  <data name="Role.Success.RemovedFromUser" xml:space="preserve">
+    <value>Role removed from user successfully.</value>
+  </data>
+  
+  <data name="Role.Error.NotFound" xml:space="preserve">
+    <value>Role not found.</value>
+  </data>
+  <data name="Role.Error.AlreadyExists" xml:space="preserve">
+    <value>A role with this name already exists.</value>
+  </data>
+  <data name="Role.Error.SystemRole" xml:space="preserve">
+    <value>Cannot modify or delete a system role.</value>
+  </data>
+  <data name="Role.Error.UserAlreadyHasRole" xml:space="preserve">
+    <value>User already has this role.</value>
+  </data>
+  
+  <!-- Security Messages -->
+  <data name="Security.Success.SessionRevoked" xml:space="preserve">
+    <value>Session revoked successfully.</value>
+  </data>
+  <data name="Security.Success.AllSessionsRevoked" xml:space="preserve">
+    <value>All sessions have been revoked successfully.</value>
+  </data>
+  
+  <!-- 2FA Messages -->
+  <data name="TwoFactor.Success.Enabled" xml:space="preserve">
+    <value>Two-factor authentication enabled successfully.</value>
+  </data>
+  <data name="TwoFactor.Success.Disabled" xml:space="preserve">
+    <value>Two-factor authentication disabled successfully.</value>
+  </data>
+  <data name="TwoFactor.Success.BackupCodesGenerated" xml:space="preserve">
+    <value>Backup codes generated successfully. Keep them safe.</value>
+  </data>
+  
+  <data name="TwoFactor.Error.InvalidCode" xml:space="preserve">
+    <value>Invalid verification code.</value>
+  </data>
+  <data name="TwoFactor.Error.AlreadyEnabled" xml:space="preserve">
+    <value>Two-factor authentication is already enabled.</value>
+  </data>
+  <data name="TwoFactor.Error.NotEnabled" xml:space="preserve">
+    <value>Two-factor authentication is not enabled.</value>
+  </data>
+  
+  <!-- Validation Messages -->
+  <data name="Validation.Required" xml:space="preserve">
+    <value>This field is required.</value>
+  </data>
+  <data name="Validation.Email" xml:space="preserve">
+    <value>Invalid email address.</value>
+  </data>
+  <data name="Validation.MinLength" xml:space="preserve">
+    <value>Must contain at least {0} characters.</value>
+  </data>
+  <data name="Validation.MaxLength" xml:space="preserve">
+    <value>Cannot exceed {0} characters.</value>
+  </data>
+  <data name="Validation.PasswordComplexity" xml:space="preserve">
+    <value>Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character.</value>
+  </data>
+  <data name="Validation.PasswordsMustMatch" xml:space="preserve">
+    <value>Passwords do not match.</value>
+  </data>
+  
+  <!-- General Messages -->
+  <data name="General.Success" xml:space="preserve">
+    <value>Operation successful.</value>
+  </data>
+  <data name="General.Error" xml:space="preserve">
+    <value>An error occurred.</value>
+  </data>
+  <data name="General.NotFound" xml:space="preserve">
+    <value>Resource not found.</value>
+  </data>
+  <data name="General.Unauthorized" xml:space="preserve">
+    <value>Unauthorized.</value>
+  </data>
+  <data name="General.Forbidden" xml:space="preserve">
+    <value>Access denied.</value>
+  </data>
+  <data name="General.InternalServerError" xml:space="preserve">
+    <value>Internal server error.</value>
+  </data>
+  
+  <!-- Email Subjects -->
+  <data name="Email.Subject.Welcome" xml:space="preserve">
+    <value>Welcome to Sqordia!</value>
+  </data>
+  <data name="Email.Subject.Verification" xml:space="preserve">
+    <value>Verify Your Email Address</value>
+  </data>
+  <data name="Email.Subject.PasswordReset" xml:space="preserve">
+    <value>Reset Your Password</value>
+  </data>
+  <data name="Email.Subject.AccountLocked" xml:space="preserve">
+    <value>Your Account Has Been Temporarily Locked</value>
+  </data>
+  <data name="Email.Subject.LoginAlert" xml:space="preserve">
+    <value>New Login Detected</value>
+  </data>
+  <data name="Email.Subject.OrganizationInvitation" xml:space="preserve">
+    <value>Invitation to Join an Organization</value>
+  </data>
+  
+  <!-- Email Content - Welcome -->
+  <data name="Email.Welcome.Greeting" xml:space="preserve">
+    <value>Welcome, {0}!</value>
+  </data>
+  <data name="Email.Welcome.ThankYou" xml:space="preserve">
+    <value>Thank you for joining Sqordia! We're thrilled to have you as part of our community.</value>
+  </data>
+  <data name="Email.Welcome.NextStep" xml:space="preserve">
+    <value>Next Step:</value>
+  </data>
+  <data name="Email.Welcome.VerificationInstruction" xml:space="preserve">
+    <value>Please check your email for a verification link to complete your registration and activate your account.</value>
+  </data>
+  <data name="Email.Welcome.WhatYouCanDo" xml:space="preserve">
+    <value>What you can do with Sqordia:</value>
+  </data>
+  <data name="Email.Welcome.Feature1" xml:space="preserve">
+    <value>Create and manage business plans</value>
+  </data>
+  <data name="Email.Welcome.Feature2" xml:space="preserve">
+    <value>Track your business metrics</value>
+  </data>
+  <data name="Email.Welcome.Feature3" xml:space="preserve">
+    <value>Collaborate with your team</value>
+  </data>
+  <data name="Email.Welcome.Feature4" xml:space="preserve">
+    <value>Export professional reports</value>
+  </data>
+  <data name="Email.Welcome.ReadyToStart" xml:space="preserve">
+    <value>Ready to get started? Once you verify your email, you can begin creating your first business plan!</value>
+  </data>
+  <data name="Email.Welcome.Support" xml:space="preserve">
+    <value>If you have any questions, feel free to reach out to our support team at support@sqordia.com</value>
+  </data>
+  <data name="Email.Welcome.HereToHelp" xml:space="preserve">
+    <value>We're here to help you succeed!</value>
+  </data>
+  
+  <!-- Email Content - Verification -->
+  <data name="Email.Verification.Title" xml:space="preserve">
+    <value>Verify Your Email Address</value>
+  </data>
+  <data name="Email.Verification.Greeting" xml:space="preserve">
+    <value>Hi {0},</value>
+  </data>
+  <data name="Email.Verification.ThankYou" xml:space="preserve">
+    <value>Thank you for registering with Sqordia! To complete your registration, please verify your email address by clicking the button below:</value>
+  </data>
+  <data name="Email.Verification.ButtonText" xml:space="preserve">
+    <value>Verify Email</value>
+  </data>
+  <data name="Email.Verification.AlternativeText" xml:space="preserve">
+    <value>If you're unable to click the button, copy and paste this link into your browser:</value>
+  </data>
+  <data name="Email.Verification.ExpiryNote" xml:space="preserve">
+    <value>This verification link will expire in 24 hours.</value>
+  </data>
+  <data name="Email.Verification.IgnoreNote" xml:space="preserve">
+    <value>If you didn't create an account with Sqordia, you can safely ignore this email.</value>
+  </data>
+  
+  <!-- Email Content - Password Reset -->
+  <data name="Email.PasswordReset.Title" xml:space="preserve">
+    <value>Reset Your Password</value>
+  </data>
+  <data name="Email.PasswordReset.Greeting" xml:space="preserve">
+    <value>Hi {0},</value>
+  </data>
+  <data name="Email.PasswordReset.RequestReceived" xml:space="preserve">
+    <value>We received a request to reset your password. Click the button below to create a new password:</value>
+  </data>
+  <data name="Email.PasswordReset.ButtonText" xml:space="preserve">
+    <value>Reset Password</value>
+  </data>
+  <data name="Email.PasswordReset.AlternativeText" xml:space="preserve">
+    <value>If you're unable to click the button, copy and paste this link into your browser:</value>
+  </data>
+  <data name="Email.PasswordReset.ExpiryNote" xml:space="preserve">
+    <value>This reset link will expire in 1 hour.</value>
+  </data>
+  <data name="Email.PasswordReset.IgnoreNote" xml:space="preserve">
+    <value>If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.</value>
+  </data>
+  <data name="Email.PasswordReset.SecurityTip" xml:space="preserve">
+    <value>Security Tip:</value>
+  </data>
+  <data name="Email.PasswordReset.SecurityAdvice" xml:space="preserve">
+    <value>Never share your password with anyone. Sqordia will never ask for your password via email.</value>
+  </data>
+  
+  <!-- Email Content - Account Locked -->
+  <data name="Email.AccountLocked.Title" xml:space="preserve">
+    <value>Account Temporarily Locked</value>
+  </data>
+  <data name="Email.AccountLocked.Greeting" xml:space="preserve">
+    <value>Hi {0},</value>
+  </data>
+  <data name="Email.AccountLocked.Notification" xml:space="preserve">
+    <value>Your account has been temporarily locked due to multiple failed login attempts.</value>
+  </data>
+  <data name="Email.AccountLocked.Duration" xml:space="preserve">
+    <value>Lockout Duration: {0} minutes</value>
+  </data>
+  <data name="Email.AccountLocked.AutoUnlock" xml:space="preserve">
+    <value>Your account will be automatically unlocked after this period.</value>
+  </data>
+  <data name="Email.AccountLocked.NotYou" xml:space="preserve">
+    <value>If this wasn't you:</value>
+  </data>
+  <data name="Email.AccountLocked.SecurityAdvice" xml:space="preserve">
+    <value>If you didn't try to log in, your password may be compromised. We recommend resetting it as soon as possible.</value>
+  </data>
+  <data name="Email.AccountLocked.ResetButtonText" xml:space="preserve">
+    <value>Reset Password</value>
+  </data>
+  <data name="Email.AccountLocked.ContactSupport" xml:space="preserve">
+    <value>If you need immediate assistance, contact our support team at support@sqordia.com</value>
+  </data>
+  
+  <!-- Email Content - Login Alert -->
+  <data name="Email.LoginAlert.Title" xml:space="preserve">
+    <value>New Login Detected</value>
+  </data>
+  <data name="Email.LoginAlert.Greeting" xml:space="preserve">
+    <value>Hi {0},</value>
+  </data>
+  <data name="Email.LoginAlert.Notification" xml:space="preserve">
+    <value>We detected a new login to your account from a new location or device.</value>
+  </data>
+  <data name="Email.LoginAlert.Details" xml:space="preserve">
+    <value>Login Details:</value>
+  </data>
+  <data name="Email.LoginAlert.Time" xml:space="preserve">
+    <value>Time: {0}</value>
+  </data>
+  <data name="Email.LoginAlert.IpAddress" xml:space="preserve">
+    <value>IP Address: {0}</value>
+  </data>
+  <data name="Email.LoginAlert.Location" xml:space="preserve">
+    <value>Location: {0}</value>
+  </data>
+  <data name="Email.LoginAlert.Device" xml:space="preserve">
+    <value>Device: {0}</value>
+  </data>
+  <data name="Email.LoginAlert.WasYou" xml:space="preserve">
+    <value>If this was you:</value>
+  </data>
+  <data name="Email.LoginAlert.NoAction" xml:space="preserve">
+    <value>No action required. This email is just a security notification.</value>
+  </data>
+  <data name="Email.LoginAlert.NotYou" xml:space="preserve">
+    <value>If this wasn't you:</value>
+  </data>
+  <data name="Email.LoginAlert.TakeAction" xml:space="preserve">
+    <value>Please reset your password immediately and review your account security settings.</value>
+  </data>
+  <data name="Email.LoginAlert.ResetButtonText" xml:space="preserve">
+    <value>Reset Password</value>
+  </data>
+  
+  <!-- Email Footer -->
+  <data name="Email.Footer.Copyright" xml:space="preserve">
+    <value>© 2024 Sqordia. All rights reserved.</value>
+  </data>
+  <data name="Email.Footer.DoNotReply" xml:space="preserve">
+    <value>This email was sent from an address that does not accept replies. Please do not reply to this email.</value>
+  </data>
+</root>
+

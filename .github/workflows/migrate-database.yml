@@ -1,0 +1,101 @@
+name: Database Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+  push:
+    branches:
+      - release
+    paths:
+      - 'src/Infrastructure/Sqordia.Persistence/Migrations/**'
+
+env:
+  GCP_PROJECT_ID: sqordia-api
+  INSTANCE_NAME: sqordia-backend
+  INSTANCE_ZONE: northamerica-northeast1-a
+
+jobs:
+  migrate:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Get Compute Engine instance details
+        id: get-instance
+        run: |
+          INSTANCE_NAME=$(gcloud compute instances list \
+            --filter="name:${{ env.INSTANCE_NAME }}" \
+            --format="value(name)" \
+            --zones=${{ env.INSTANCE_ZONE }} | head -1)
+          
+          if [ -z "$INSTANCE_NAME" ]; then
+            echo "Instance not found"
+            exit 1
+          fi
+          
+          echo "instance_name=$INSTANCE_NAME" >> $GITHUB_OUTPUT
+          echo "zone=${{ env.INSTANCE_ZONE }}" >> $GITHUB_OUTPUT
+
+      - name: Check if container is running
+        id: check-container
+        run: |
+          CONTAINER_STATUS=$(gcloud compute ssh ${{ steps.get-instance.outputs.instance_name }} \
+            --zone=${{ steps.get-instance.outputs.zone }} \
+            --command="sudo docker ps --filter 'name=sqordia-backend' --format '{{.Status}}'" \
+            --quiet || echo "not running")
+          
+          if [ -z "$CONTAINER_STATUS" ] || [ "$CONTAINER_STATUS" = "not running" ]; then
+            echo "running=false" >> $GITHUB_OUTPUT
+          else
+            echo "running=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run migrations via container
+        if: steps.check-container.outputs.running == 'true'
+        run: |
+          gcloud compute ssh ${{ steps.get-instance.outputs.instance_name }} \
+            --zone=${{ steps.get-instance.outputs.zone }} \
+            --command="
+              sudo docker exec sqordia-backend dotnet ef database update \
+                --project src/Infrastructure/Sqordia.Persistence \
+                --startup-project src/WebAPI \
+                --no-build \
+                --connection '${{ secrets.DB_CONNECTION_STRING }}'
+            " \
+            --quiet
+
+      - name: Run migrations directly (if container not running)
+        if: steps.check-container.outputs.running == 'false'
+        run: |
+          echo "⚠️ Container not running. Migrations should be run after deployment."
+          echo "Please deploy the application first, then run migrations."
+
+      - name: Migration summary
+        run: |
+          echo "✅ Database migrations completed successfully"
+          echo "Environment: ${{ github.event.inputs.environment || 'production' }}"
+

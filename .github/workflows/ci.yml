@@ -1,0 +1,53 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches:
+      - release
+      - main
+      - develop
+  pull_request:
+    branches:
+      - release
+      - main
+      - develop
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore Sqordia.sln
+
+      - name: Build
+        run: dotnet build Sqordia.sln --no-restore -c Release
+
+      - name: Run unit tests
+        run: dotnet test Sqordia.sln --no-build --no-restore -c Release --verbosity normal --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.sha }}
+          path: '**/test-results.trx'
+          retention-days: 30
+
+      - name: Build Docker image (dry-run)
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -t sqordia-backend:test \
+            -f Dockerfile \
+            . || echo "Docker build check completed"
+

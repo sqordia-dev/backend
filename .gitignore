@@ -1,0 +1,113 @@
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio cache/options directory
+.vs/
+
+## GCP Service Account Keys (Phase 1)
+github-actions-key.json
+*-key.json
+*.gcp-key.json
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## NuGet Packages
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+
+## Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+## IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Docker
+.dockerignore
+
+## Secrets and sensitive files
+# Azure secrets file with actual credentials (DO NOT COMMIT)
+docs/AZURE_SECRETS_GENERATED.md
+docs/GITHUB_SECRETS_VALUES.md
+# Development configuration with actual secrets
+src/WebAPI/appsettings.Development.json
+src/WebAPI/Properties/launchSettings.json
+# Publish output (may contain secrets)
+src/WebAPI/publish/
+# Docker compose files are now cleaned (use env vars), but can be ignored if needed
+# docker-compose.yml
+# docker-compose.dev.yml
+# Temporary secret files
+/tmp/publish-profile.xml
+/tmp/azure-secrets-output.txt
+
+## Logs
+logs/
+*.log
+docs/STRATEGIC_PLAN_QUESTIONNAIRE.md
+docs/FRONTEND_QUESTIONNAIRE_INTEGRATION.md
+20 questions plan stratégiques.docx.md
+scripts/SeedStrategicPlanQuestions.sql
+docs/ORGANIZATION_API_FORMAT.md
+
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.backup
+**/.terraform.lock.hcl
+terraform.tfvars
+secrets.json
+
+# PowerShell scripts (may contain sensitive information)
+*.ps1

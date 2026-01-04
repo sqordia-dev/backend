@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for local development
+  sqordia-db:
+    image: postgres:16-alpine
+    container_name: sqordia-db-dev
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=SqordiaDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - sqordia-db-data:/var/lib/postgresql/data
+    networks:
+      - sqordia-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+
+  sqordia-webapi:
+    build:
+      context: .
+      dockerfile: src/WebAPI/Dockerfile
+    ports:
+      - "5241:80"
+      - "7148:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80;https://+:443
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      - ConnectionStrings__DefaultConnection=Host=sqordia-db;Port=5432;Database=SqordiaDb;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres};
+      - JwtSettings__Secret=${JWT_SECRET}
+      - JwtSettings__Issuer=Sqordia
+      - JwtSettings__Audience=SqordiaUsers
+      - JwtSettings__ExpirationMinutes=60
+      - OpenAI__ApiKey=${OPENAI_API_KEY:-}
+      - OpenAI__Model=gpt-4
+      - SendGrid__ApiKey=${SENDGRID_API_KEY:-}
+      - SendGrid__FromEmail=sqordia.dev@gmail.com
+      - SendGrid__FromName=Sqordia
+    volumes:
+      - ~/.aspnet/https:/https:ro
+    depends_on:
+      sqordia-db:
+        condition: service_healthy
+    networks:
+      - sqordia-network
+
+volumes:
+  sqordia-db-data:
+    driver: local
+
+networks:
+  sqordia-network:
+    driver: bridge

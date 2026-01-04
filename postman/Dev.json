@@ -1,0 +1,79 @@
+{
+  "id": "sqordia-development-env",
+  "name": "Sqordia Dev Environment",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5241",
+      "description": "Base URL for the Sqordia API (Local Development on port 5241)",
+      "enabled": true
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "description": "JWT authentication token (auto-populated after login)",
+      "enabled": true
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "description": "Refresh token for token renewal",
+      "enabled": true
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "description": "Current user ID (auto-populated after login)",
+      "enabled": true
+    },
+    {
+      "key": "role_id",
+      "value": "",
+      "description": "Role ID for testing (auto-populated)",
+      "enabled": true
+    },
+    {
+      "key": "organization_id",
+      "value": "",
+      "description": "Organization ID for testing (auto-populated)",
+      "enabled": true
+    },
+    {
+      "key": "business_plan_id",
+      "value": "",
+      "description": "Business plan ID for testing (auto-populated)",
+      "enabled": true
+    },
+    {
+      "key": "session_id",
+      "value": "",
+      "description": "Session ID for testing (auto-populated)",
+      "enabled": true
+    },
+    {
+      "key": "test_user_email",
+      "value": "admin@sqordia.com",
+      "description": "Test user email for authentication",
+      "enabled": true
+    },
+    {
+      "key": "test_user_password",
+      "value": "Sqordia2025!",
+      "description": "Test user password for authentication",
+      "enabled": true
+    },
+    {
+      "key": "admin_email",
+      "value": "admin@sqordia.com",
+      "description": "Admin user email",
+      "enabled": true
+    },
+    {
+      "key": "admin_password",
+      "value": "Sqordia2025!",
+      "description": "Admin user password",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

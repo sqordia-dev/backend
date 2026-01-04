@@ -1,0 +1,106 @@
+{
+  "TestSettings": {
+    "UnitTests": {
+      "Enabled": true,
+      "ParallelExecution": true,
+      "MaxParallelThreads": 4,
+      "Timeout": 30000,
+      "Categories": [
+        "Unit",
+        "Fast"
+      ]
+    },
+    "IntegrationTests": {
+      "Enabled": true,
+      "ParallelExecution": false,
+      "MaxParallelThreads": 1,
+      "Timeout": 60000,
+      "Categories": [
+        "Integration",
+        "Slow"
+      ]
+    },
+    "CodeCoverage": {
+      "Enabled": true,
+      "Threshold": 80,
+      "ExcludeAssemblies": [
+        "*.Tests",
+        "*.Test",
+        "*.UnitTests",
+        "*.IntegrationTests"
+      ],
+      "ExcludeNamespaces": [
+        "*.Tests.*",
+        "*.Test.*",
+        "*.UnitTests.*",
+        "*.IntegrationTests.*"
+      ],
+      "ExcludeTypes": [
+        "*Test*",
+        "*Mock*",
+        "*Stub*"
+      ],
+      "ExcludeMethods": [
+        "*Test*",
+        "*Mock*",
+        "*Stub*"
+      ]
+    },
+    "Database": {
+      "UseInMemory": true,
+      "ConnectionString": "Data Source=:memory:",
+      "SeedData": true,
+      "CleanupAfterTests": true
+    },
+    "Logging": {
+      "Level": "Information",
+      "IncludeTestOutput": true,
+      "IncludeTestResults": true
+    },
+    "Reporting": {
+      "GenerateHtmlReport": true,
+      "GenerateXmlReport": true,
+      "GenerateJsonReport": true,
+      "OutputDirectory": "./TestResults"
+    }
+  },
+  "TestData": {
+    "DefaultUser": {
+      "Id": "00000000-0000-0000-0000-000000000001",
+      "Email": "test@example.com",
+      "UserName": "testuser",
+      "FirstName": "Test",
+      "LastName": "User"
+    },
+    "DefaultOrganization": {
+      "Id": "00000000-0000-0000-0000-000000000002",
+      "Name": "Test Organization",
+      "Description": "Test organization for unit tests",
+      "Type": "Startup"
+    },
+    "DefaultBusinessPlan": {
+      "Id": "00000000-0000-0000-0000-000000000003",
+      "Title": "Test Business Plan",
+      "Description": "Test business plan for unit tests",
+      "Type": "Startup",
+      "Status": "Draft"
+    }
+  },
+  "MockSettings": {
+    "AiService": {
+      "MockResponses": true,
+      "ResponseDelay": 100,
+      "ErrorRate": 0.0
+    },
+    "EmailService": {
+      "MockSending": true,
+      "LogEmails": true,
+      "ResponseDelay": 50
+    },
+    "ExportService": {
+      "MockFileGeneration": true,
+      "GeneratedFileSize": 1024,
+      "ResponseDelay": 200
+    }
+  }
+}

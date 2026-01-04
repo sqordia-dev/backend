@@ -1,0 +1,183 @@
+@WebAPI_HostAddress = https://localhost:7148
+@WebAPI_HostAddress_HTTP = http://localhost:5241
+@ContentType = application/json
+
+# ===========================================
+# API ENDPOINTS
+# ===========================================
+# Available URLs:
+# - HTTPS: https://localhost:7148 (recommended)
+# - HTTP:  http://localhost:5241 (alternative)
+# 
+# To start the API: dotnet run (from src/Presentation/WebAPI/)
+# Swagger UI: https://localhost:7148/swagger
+
+# ===========================================
+# AUTHENTICATION ENDPOINTS
+# ===========================================
+# Note: After registration, users will receive:
+# 1. Welcome email with platform information
+# 2. Email verification link (expires in 24 hours)
+
+### 1. User Registration
+POST {{WebAPI_HostAddress}}/api/auth/register
+Content-Type: {{ContentType}}
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "afaicals@gmail.com",
+  "password": "SecurePassword123!",
+  "confirmPassword": "SecurePassword123!",
+  "userName": "johndoe"
+}
+
+### 2. User Login
+POST {{WebAPI_HostAddress}}/api/auth/login
+Content-Type: {{ContentType}}
+
+{
+  "email": "john.doe@example.com",
+  "password": "SecurePassword123!"
+}
+
+### 3. Refresh Token
+POST {{WebAPI_HostAddress}}/api/auth/refresh-token
+Content-Type: {{ContentType}}
+
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiJlNzJiYTczNC03M2EzLTQ1MzctYWEwZC0yM2E4NjgyNTk5M2IiLCJlbWFpbCI6ImpvaG4uZG9lQGV4YW1wbGUuY29tIiwidW5pcXVlX25hbWUiOiJqb2huLmRvZUBleGFtcGxlLmNvbSIsImZpcnN0TmFtZSI6IkpvaG4iLCJsYXN0TmFtZSI6IkRvZSIsIm5iZiI6MTc1OTcxNzkxNSwiZXhwIjoxNzU5NzIxNTE1LCJpYXQiOjE3NTk3MTc5MTUsImlzcyI6IlNxb3JkaWEiLCJhdWQiOiJTcW9yZGlhVXNlcnMifQ.MnJcMsYREjeRye4oICCPfOmHIfo1dDKtXvspqeoyc_U",
+  "refreshToken": "Ehj255IQz4FXliC30Uk3gYXIvZhl7EgxfzNSaD6DIti6noubX61dyMY7sIaySOqL3pzBil+lcy4Tw5zJURPVaw=="
+}
+
+### 4. Get Current User (Requires Authentication)
+GET {{WebAPI_HostAddress}}/api/auth/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiJlNzJiYTczNC03M2EzLTQ1MzctYWEwZC0yM2E4NjgyNTk5M2IiLCJlbWFpbCI6ImpvaG4uZG9lQGV4YW1wbGUuY29tIiwidW5pcXVlX25hbWUiOiJqb2huLmRvZUBleGFtcGxlLmNvbSIsImZpcnN0TmFtZSI6IkpvaG4iLCJsYXN0TmFtZSI6IkRvZSIsIm5iZiI6MTc1OTcxNzk1NSwiZXhwIjoxNzU5NzIxNTU1LCJpYXQiOjE3NTk3MTc5NTUsImlzcyI6IlNxb3JkaWEiLCJhdWQiOiJTcW9yZGlhVXNlcnMifQ.-g3nMSYP9rzrF09OranYywwhN5sudP6z5wQ84Sgx95k
+Content-Type: {{ContentType}}
+
+### 5. Logout (Requires Authentication)
+POST {{WebAPI_HostAddress}}/api/auth/logout
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiJlNzJiYTczNC03M2EzLTQ1MzctYWEwZC0yM2E4NjgyNTk5M2IiLCJlbWFpbCI6ImpvaG4uZG9lQGV4YW1wbGUuY29tIiwidW5pcXVlX25hbWUiOiJqb2huLmRvZUBleGFtcGxlLmNvbSIsImZpcnN0TmFtZSI6IkpvaG4iLCJsYXN0TmFtZSI6IkRvZSIsIm5iZiI6MTc1OTcxNzk1NSwiZXhwIjoxNzU5NzIxNTU1LCJpYXQiOjE3NTk3MTc5NTUsImlzcyI6IlNxb3JkaWEiLCJhdWQiOiJTcW9yZGlhVXNlcnMifQ.-g3nMSYP9rzrF09OranYywwhN5sudP6z5wQ84Sgx95k
+Content-Type: {{ContentType}}
+
+{
+  "refreshToken": "Ehj255IQz4FXliC30Uk3gYXIvZhl7EgxfzNSaD6DIti6noubX61dyMY7sIaySOqL3pzBil+lcy4Tw5zJURPVaw=="
+}
+
+### 6. Revoke Token (Requires Authentication)
+POST {{WebAPI_HostAddress}}/api/auth/revoke-token
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiJlNzJiYTczNC03M2EzLTQ1MzctYWEwZC0yM2E4NjgyNTk5M2IiLCJlbWFpbCI6ImpvaG4uZG9lQGV4YW1wbGUuY29tIiwidW5pcXVlX25hbWUiOiJqb2huLmRvZUBleGFtcGxlLmNvbSIsImZpcnN0TmFtZSI6IkpvaG4iLCJsYXN0TmFtZSI6IkRvZSIsIm5iZiI6MTc1OTcxNzk1NSwiZXhwIjoxNzU5NzIxNTU1LCJpYXQiOjE3NTk3MTc5NTUsImlzcyI6IlNxb3JkaWEiLCJhdWQiOiJTcW9yZGlhVXNlcnMifQ.-g3nMSYP9rzrF09OranYywwhN5sudP6z5wQ84Sgx95k
+Content-Type: {{ContentType}}
+
+{
+  "refreshToken": "Ehj255IQz4FXliC30Uk3gYXIvZhl7EgxfzNSaD6DIti6noubX61dyMY7sIaySOqL3pzBil+lcy4Tw5zJURPVaw=="
+}
+
+### 7. Send Email Verification
+POST {{WebAPI_HostAddress}}/api/auth/send-verification-email
+Content-Type: {{ContentType}}
+
+{
+  "email": "afaicals@gmail.com"
+}
+
+### 8. Verify Email
+POST {{WebAPI_HostAddress}}/api/auth/verify-email
+Content-Type: {{ContentType}}
+
+{
+  "token": "your-email-verification-token-here"
+}
+
+### 9. Forgot Password
+POST {{WebAPI_HostAddress}}/api/auth/forgot-password
+Content-Type: {{ContentType}}
+
+{
+  "email": "john.doe@example.com"
+}
+
+### 10. Reset Password
+POST {{WebAPI_HostAddress}}/api/auth/reset-password
+Content-Type: {{ContentType}}
+
+{
+  "token": "your-password-reset-token-here",
+  "newPassword": "NewSecurePassword123!",
+  "confirmPassword": "NewSecurePassword123!"
+}
+
+# ===========================================
+# TESTING SCENARIOS
+# ===========================================
+
+### Test Registration with Invalid Data
+POST {{WebAPI_HostAddress}}/api/auth/register
+Content-Type: {{ContentType}}
+
+{
+  "firstName": "A",
+  "lastName": "B",
+  "email": "invalid-email",
+  "password": "123",
+  "confirmPassword": "456",
+  "userName": "ab"
+}
+
+### Test Login with Invalid Credentials
+POST {{WebAPI_HostAddress}}/api/auth/login
+Content-Type: {{ContentType}}
+
+{
+  "email": "nonexistent@example.com",
+  "password": "wrongpassword"
+}
+
+### Test Refresh Token with Invalid Token
+POST {{WebAPI_HostAddress}}/api/auth/refresh-token
+Content-Type: {{ContentType}}
+
+{
+  "token": "invalid-token",
+  "refreshToken": "invalid-refresh-token"
+}
+
+### Test Get Current User without Authentication
+GET {{WebAPI_HostAddress}}/api/auth/me
+Content-Type: {{ContentType}}
+
+### Test Forgot Password with Non-existent Email
+POST {{WebAPI_HostAddress}}/api/auth/forgot-password
+Content-Type: {{ContentType}}
+
+{
+  "email": "nonexistent@example.com"
+}
+
+### Test Reset Password with Invalid Token
+POST {{WebAPI_HostAddress}}/api/auth/reset-password
+Content-Type: {{ContentType}}
+
+{
+  "token": "invalid-reset-token",
+  "newPassword": "NewPassword123!",
+  "confirmPassword": "NewPassword123!"
+}
+
+### Test Verify Email with Invalid Token
+POST {{WebAPI_HostAddress}}/api/auth/verify-email
+Content-Type: {{ContentType}}
+
+{
+  "token": "invalid-verification-token"
+}
+
+# ===========================================
+# LEGACY ENDPOINT (if still exists)
+# ===========================================
+
+### Weather Forecast (Legacy)
+GET {{WebAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
