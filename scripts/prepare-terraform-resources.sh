@@ -280,8 +280,24 @@ if ! in_state "google_storage_bucket.functions_source"; then
                 ERROR_COUNT=$((ERROR_COUNT + 1))
             fi
         else
-            echo "  Bucket has $OBJECT_COUNT object(s), importing..."
-            try_import "google_storage_bucket.functions_source" "$BUCKET_NAME"
+            echo "  Bucket has $OBJECT_COUNT object(s)"
+            # Try to import first
+            if try_import "google_storage_bucket.functions_source" "$BUCKET_NAME"; then
+                echo "  [OK] Imported bucket with objects"
+            else
+                echo "  Import failed, deleting objects and bucket (will be recreated)..."
+                # Delete all objects first
+                gsutil rm "gs://$BUCKET_NAME/**" > /dev/null 2>&1
+                # Then delete the bucket
+                gsutil rm -r "gs://$BUCKET_NAME" > /dev/null 2>&1
+                if [ $? -eq 0 ]; then
+                    echo "  [OK] Deleted bucket and objects (will be recreated)"
+                    DELETED_COUNT=$((DELETED_COUNT + 1))
+                else
+                    echo "  [FAIL] Failed to delete bucket"
+                    ERROR_COUNT=$((ERROR_COUNT + 1))
+                fi
+            fi
         fi
     else
         echo "  [SKIP] Bucket doesn't exist"

@@ -54,6 +54,12 @@ jobs:
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
+      - name: Enable Required APIs
+        run: |
+          echo "Enabling required GCP APIs..."
+          gcloud services enable cloudresourcemanager.googleapis.com --project=${{ env.GCP_PROJECT_ID }} || echo "API may already be enabled"
+          echo "✅ APIs enabled"
+
       - name: Configure Docker for Artifact Registry
         run: |
           gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
