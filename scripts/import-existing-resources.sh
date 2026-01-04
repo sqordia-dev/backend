@@ -2,7 +2,8 @@
 # Import Existing GCP Resources into Terraform State
 # This script imports resources that already exist in GCP but aren't in Terraform state
 
-set -e
+# Don't exit on error - we want to continue importing other resources even if some fail
+set +e
 
 PROJECT_ID="${1:-}"
 REGION="${2:-northamerica-northeast2}"
@@ -29,7 +30,8 @@ if [ ! -d "$TERRAFORM_DIR" ]; then
     exit 1
 fi
 
-cd "$TERRAFORM_DIR"
+cd "$TERRAFORM_DIR" || exit 1
+echo "Changed to directory: $(pwd)"
 
 # Initialize Terraform if needed
 if [ ! -d ".terraform" ]; then
@@ -39,10 +41,13 @@ if [ ! -d ".terraform" ]; then
         echo "❌ Terraform init failed"
         exit 1
     fi
+else
+    echo "Terraform already initialized"
 fi
 
 echo ""
 echo "Importing resources..."
+echo "Current working directory: $(pwd)"
 echo ""
 
 SUCCESS_COUNT=0
@@ -70,12 +75,16 @@ import_resource() {
     export TF_VAR_project_name="$PROJECT_NAME"
     export TF_VAR_environment="$ENVIRONMENT"
     
-    if terraform import "$RESOURCE" "$RESOURCE_ID" 2>&1; then
+    IMPORT_OUTPUT=$(terraform import "$RESOURCE" "$RESOURCE_ID" 2>&1)
+    IMPORT_EXIT_CODE=$?
+    
+    if [ $IMPORT_EXIT_CODE -eq 0 ]; then
         echo "  [OK] Successfully imported"
         SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
         return 0
     else
-        echo "  [FAIL] Import failed (resource may not exist or ID is incorrect)"
+        echo "  [FAIL] Import failed"
+        echo "  Error: $IMPORT_OUTPUT" | head -3
         ERROR_COUNT=$((ERROR_COUNT + 1))
         return 1
     fi
@@ -146,13 +155,19 @@ fi
 
 echo ""
 echo "=== Import Summary ==="
-echo "  Successfully imported: $SUCCESS_COUNT"
+echo "  ✅ Successfully imported: $SUCCESS_COUNT"
 if [ $ERROR_COUNT -gt 0 ]; then
-    echo "  Failed: $ERROR_COUNT"
+    echo "  ❌ Failed: $ERROR_COUNT"
 else
-    echo "  Failed: $ERROR_COUNT"
+    echo "  ✅ Failed: $ERROR_COUNT (none)"
 fi
-echo "  Skipped (already in state): $SKIPPED_COUNT"
+echo "  ⏭️  Skipped (already in state): $SKIPPED_COUNT"
+echo ""
+
+# Show current state
+echo "=== Current Terraform State ==="
+echo "Resources in state:"
+terraform state list 2>/dev/null | head -20 || echo "  (Unable to list state)"
 echo ""
 
 if [ $ERROR_COUNT -gt 0 ]; then

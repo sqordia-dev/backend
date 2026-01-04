@@ -90,8 +90,20 @@ jobs:
           TF_VAR_gcp_region: ${{ env.GCP_REGION }}
           TF_VAR_cloud_sql_password: ${{ secrets.CLOUD_SQL_PASSWORD }}
         run: |
+          echo "=== Importing Existing Resources ==="
+          echo "Project ID: ${{ env.GCP_PROJECT_ID }}"
+          echo "Region: ${{ env.GCP_REGION }}"
+          echo ""
           chmod +x ../../scripts/import-existing-resources.sh
-          ../../scripts/import-existing-resources.sh ${{ env.GCP_PROJECT_ID }} ${{ env.GCP_REGION }} sqordia production || echo "Import step completed (some resources may have failed, which is OK if they don't exist)"
+          if [ -f "../../scripts/import-existing-resources.sh" ]; then
+            echo "Script found, running import..."
+            ../../scripts/import-existing-resources.sh ${{ env.GCP_PROJECT_ID }} ${{ env.GCP_REGION }} sqordia production
+            echo ""
+            echo "Import step completed"
+          else
+            echo "⚠️  Import script not found, skipping import step"
+            echo "Resources will need to be imported manually or they will fail with 'already exists' errors"
+          fi
         continue-on-error: true
 
       - name: Terraform Plan
