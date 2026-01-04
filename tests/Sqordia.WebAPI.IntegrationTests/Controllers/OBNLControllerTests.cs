@@ -26,8 +26,9 @@ public class OBNLControllerTests : IClassFixture<WebApplicationFactory<Program>>
     {
         _factory = factory.WithWebHostBuilder(builder =>
         {
-            // Set environment to skip GCP services
-            builder.UseEnvironment("Testing");
+            // Set environment variable to skip GCP services
+            builder.UseSetting("ASPNETCORE_ENVIRONMENT", "Testing");
+            builder.UseSetting("SkipGcpServices", "true");
             
             builder.ConfigureServices(services =>
             {
