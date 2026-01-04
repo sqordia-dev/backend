@@ -26,6 +26,9 @@ public class OBNLControllerTests : IClassFixture<WebApplicationFactory<Program>>
     {
         _factory = factory.WithWebHostBuilder(builder =>
         {
+            // Set environment to skip GCP services
+            builder.UseEnvironment("Testing");
+            
             builder.ConfigureServices(services =>
             {
                 // Remove the existing DbContext registration
