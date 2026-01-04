@@ -207,6 +207,17 @@ echo ""
 echo "Processing critical resources (import only, never delete)..."
 echo ""
 
+# Cloud SQL Instance - import only, never delete
+if ! in_state "google_sql_database_instance.postgresql"; then
+    echo "Checking: Cloud SQL Instance"
+    if gcloud sql instances describe "${PROJECT_NAME}-${ENVIRONMENT}-db" --project="$PROJECT_ID" > /dev/null 2>&1; then
+        try_import "google_sql_database_instance.postgresql" "$PROJECT_ID/${PROJECT_NAME}-${ENVIRONMENT}-db"
+    else
+        echo "  [SKIP] Cloud SQL instance doesn't exist yet"
+        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+    fi
+fi
+
 # Cloud SQL Database
 if ! in_state "google_sql_database.postgresql_db"; then
     echo "Checking: Cloud SQL Database (SqordiaDb)"
@@ -218,10 +229,114 @@ if ! in_state "google_sql_database.postgresql_db"; then
     fi
 fi
 
+# Service Accounts - import only, never delete
+echo ""
+echo "Processing service accounts (import only)..."
+echo ""
+
+# Cloud Functions Service Account
+if ! in_state "google_service_account.cloud_functions_sa"; then
+    echo "Checking: Cloud Functions Service Account"
+    SA_EMAIL="${PROJECT_NAME}-${ENVIRONMENT}-functions@${PROJECT_ID}.iam.gserviceaccount.com"
+    if gcloud iam service-accounts describe "$SA_EMAIL" --project="$PROJECT_ID" > /dev/null 2>&1; then
+        try_import "google_service_account.cloud_functions_sa" "projects/$PROJECT_ID/serviceAccounts/$SA_EMAIL"
+    else
+        echo "  [SKIP] Service account doesn't exist yet"
+        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+    fi
+fi
+
+# Cloud Run Service Account
+if ! in_state "google_service_account.cloud_run_sa"; then
+    echo "Checking: Cloud Run Service Account"
+    SA_EMAIL="${PROJECT_NAME}-${ENVIRONMENT}-run@${PROJECT_ID}.iam.gserviceaccount.com"
+    if gcloud iam service-accounts describe "$SA_EMAIL" --project="$PROJECT_ID" > /dev/null 2>&1; then
+        try_import "google_service_account.cloud_run_sa" "projects/$PROJECT_ID/serviceAccounts/$SA_EMAIL"
+    else
+        echo "  [SKIP] Service account doesn't exist yet"
+        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+    fi
+fi
+
+# Storage Buckets - import if they have data, delete if empty
+echo ""
+echo "Processing storage buckets..."
+echo ""
+
+# Functions Source Bucket
+if ! in_state "google_storage_bucket.functions_source"; then
+    BUCKET_NAME="${PROJECT_NAME}-${ENVIRONMENT}-functions-source"
+    echo "Checking: $BUCKET_NAME"
+    if gsutil ls -b "gs://$BUCKET_NAME" > /dev/null 2>&1; then
+        OBJECT_COUNT=$(gsutil ls "gs://$BUCKET_NAME/**" 2>/dev/null | wc -l)
+        if [ "$OBJECT_COUNT" -eq 0 ]; then
+            echo "  Bucket is empty, deleting (will be recreated)..."
+            gsutil rm -r "gs://$BUCKET_NAME" > /dev/null 2>&1
+            if [ $? -eq 0 ]; then
+                echo "  [OK] Deleted empty bucket"
+                DELETED_COUNT=$((DELETED_COUNT + 1))
+            else
+                echo "  [FAIL] Failed to delete bucket"
+                ERROR_COUNT=$((ERROR_COUNT + 1))
+            fi
+        else
+            echo "  Bucket has $OBJECT_COUNT object(s), importing..."
+            try_import "google_storage_bucket.functions_source" "$BUCKET_NAME"
+        fi
+    else
+        echo "  [SKIP] Bucket doesn't exist"
+        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+    fi
+fi
+
+# Documents Bucket
+if ! in_state "google_storage_bucket.documents"; then
+    BUCKET_NAME="${PROJECT_NAME}-${ENVIRONMENT}-documents"
+    echo "Checking: $BUCKET_NAME"
+    if gsutil ls -b "gs://$BUCKET_NAME" > /dev/null 2>&1; then
+        echo "  Bucket exists, importing..."
+        try_import "google_storage_bucket.documents" "$BUCKET_NAME"
+    else
+        echo "  [SKIP] Bucket doesn't exist"
+        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+    fi
+fi
+
+# Artifact Registry Repository - import only, never delete
+if ! in_state "google_artifact_registry_repository.container_repo"; then
+    echo ""
+    echo "Checking: Artifact Registry Repository"
+    REPO_NAME="${PROJECT_NAME}-${ENVIRONMENT}-repo"
+    if gcloud artifacts repositories describe "$REPO_NAME" --location="$REGION" --project="$PROJECT_ID" > /dev/null 2>&1; then
+        try_import "google_artifact_registry_repository.container_repo" "projects/$PROJECT_ID/locations/$REGION/repositories/$REPO_NAME"
+    else
+        echo "  [SKIP] Repository doesn't exist yet"
+        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+    fi
+fi
+
+# Secret Manager Secret - import only, never delete
+if ! in_state "google_secret_manager_secret.database_connection"; then
+    echo ""
+    echo "Checking: Secret Manager Secret"
+    SECRET_NAME="${PROJECT_NAME}-${ENVIRONMENT}-db-connection"
+    if gcloud secrets describe "$SECRET_NAME" --project="$PROJECT_ID" > /dev/null 2>&1; then
+        try_import "google_secret_manager_secret.database_connection" "projects/$PROJECT_ID/secrets/$SECRET_NAME"
+    else
+        echo "  [SKIP] Secret doesn't exist yet"
+        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+    fi
+fi
+
 echo ""
 echo "=== Summary ==="
 echo "  ✅ Imported into Terraform state: $IMPORTED_COUNT"
 echo "  🗑️  Deleted (will be recreated): $DELETED_COUNT"
+if [ $ERROR_COUNT -gt 0 ]; then
+    echo "  ❌ Errors: $ERROR_COUNT"
+else
+    echo "  ✅ Errors: $ERROR_COUNT (none)"
+fi
 echo "  ⏭️  Skipped: $SKIPPED_COUNT"
 echo ""
 
