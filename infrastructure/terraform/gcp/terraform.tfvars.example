@@ -4,7 +4,7 @@
 
 # GCP Configuration
 gcp_project_id = "sqordia-production"
-gcp_region     = "us-central1"
+gcp_region     = "northamerica-northeast2"
 
 # Environment
 environment  = "production"

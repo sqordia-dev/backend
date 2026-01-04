@@ -72,17 +72,17 @@ This configuration is optimized for cost:
 
 1. **Authenticate with Artifact Registry:**
    ```bash
-   gcloud auth configure-docker us-central1-docker.pkg.dev
+   gcloud auth configure-docker northamerica-northeast2-docker.pkg.dev
    ```
 
 2. **Build Docker image:**
    ```bash
-   docker build -t us-central1-docker.pkg.dev/PROJECT_ID/REPO_NAME/api:latest .
+   docker build -t northamerica-northeast2-docker.pkg.dev/PROJECT_ID/REPO_NAME/api:latest .
    ```
 
 3. **Push to Artifact Registry:**
    ```bash
-   docker push us-central1-docker.pkg.dev/PROJECT_ID/REPO_NAME/api:latest
+   docker push northamerica-northeast2-docker.pkg.dev/PROJECT_ID/REPO_NAME/api:latest
    ```
 
 ### Deploy Cloud Functions

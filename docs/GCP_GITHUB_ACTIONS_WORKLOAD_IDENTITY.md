@@ -214,12 +214,21 @@ gcloud iam service-accounts keys create github-actions-key.json \
 
 **Solution**: Ensure you've created the pool and provider correctly
 
-### Error: "Permission denied"
+### Error: "Permission denied" or "IAM_PERMISSION_DENIED"
 
 **Solution**: 
-1. Verify service account has necessary IAM roles
-2. Check Workload Identity binding is correct
-3. Verify repository name matches exactly
+1. **Grant Terraform permissions to the service account:**
+   ```powershell
+   .\scripts\grant-terraform-permissions.ps1 -ProjectId "project-b79ef08c-1eb8-47ea-80e"
+   ```
+   
+   This script grants all necessary IAM roles for Terraform to create GCP resources:
+   - `roles/owner` - Full access to create all resources (recommended for Terraform)
+   - Or specific roles: `iam.serviceAccountAdmin`, `storage.admin`, `logging.admin`, `artifactregistry.admin`, `cloudsql.admin`, `pubsub.admin`, `secretmanager.admin`, `run.admin`, `cloudfunctions.admin`
+
+2. Verify service account has necessary IAM roles
+3. Check Workload Identity binding is correct
+4. Verify repository name matches exactly
 
 ### Error: "Invalid issuer"
 
