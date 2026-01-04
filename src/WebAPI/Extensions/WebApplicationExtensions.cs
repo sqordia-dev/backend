@@ -64,16 +64,13 @@ public static class WebApplicationExtensions
     {
         var environment = app.Environment;
 
-        // Configure Swagger for development
-        if (environment.IsDevelopment())
+        // Configure Swagger (enabled in all environments including production)
+        app.UseSwagger();
+        app.UseSwaggerUI(options =>
         {
-            app.UseSwagger();
-            app.UseSwaggerUI(options =>
-            {
-                options.SwaggerEndpoint("/swagger/v1/swagger.json", "Sqordia API v1");
-                options.RoutePrefix = "swagger";
-            });
-        }
+            options.SwaggerEndpoint("/swagger/v1/swagger.json", "Sqordia API v1");
+            options.RoutePrefix = "swagger";
+        });
 
         // HTTPS redirection (can be disabled in Docker if needed)
         if (!environment.IsDevelopment() || Environment.GetEnvironmentVariable("DISABLE_HTTPS_REDIRECT") != "true")
