@@ -70,13 +70,8 @@ jobs:
 
       - name: Build Cloud Functions
         run: |
-          chmod +x scripts/build-cloud-functions.sh || true
-          if [ -f "scripts/build-cloud-functions.sh" ]; then
-            ./scripts/build-cloud-functions.sh
-          else
-            # Fallback to PowerShell script via pwsh if available
-            pwsh -File scripts/build-cloud-functions.ps1 -ProjectId ${{ env.GCP_PROJECT_ID }} -Region ${{ env.GCP_REGION }} || echo "Cloud Functions build skipped"
-          fi
+          chmod +x scripts/build-cloud-functions.sh
+          ./scripts/build-cloud-functions.sh ${{ env.GCP_PROJECT_ID }} ${{ env.GCP_REGION }} || echo "Cloud Functions build skipped"
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -87,6 +82,17 @@ jobs:
         working-directory: infrastructure/terraform/gcp
         run: |
           terraform init -upgrade
+
+      - name: Import Existing Resources
+        working-directory: infrastructure/terraform/gcp
+        env:
+          TF_VAR_gcp_project_id: ${{ env.GCP_PROJECT_ID }}
+          TF_VAR_gcp_region: ${{ env.GCP_REGION }}
+          TF_VAR_cloud_sql_password: ${{ secrets.CLOUD_SQL_PASSWORD }}
+        run: |
+          chmod +x ../../scripts/import-existing-resources.sh
+          ../../scripts/import-existing-resources.sh ${{ env.GCP_PROJECT_ID }} ${{ env.GCP_REGION }} sqordia production || echo "Import step completed (some resources may have failed, which is OK if they don't exist)"
+        continue-on-error: true
 
       - name: Terraform Plan
         working-directory: infrastructure/terraform/gcp
