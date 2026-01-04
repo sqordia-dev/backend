@@ -84,7 +84,6 @@ jobs:
           terraform init -upgrade
 
       - name: Import Existing Resources
-        working-directory: infrastructure/terraform/gcp
         env:
           TF_VAR_gcp_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_gcp_region: ${{ env.GCP_REGION }}
@@ -93,16 +92,21 @@ jobs:
           echo "=== Importing Existing Resources ==="
           echo "Project ID: ${{ env.GCP_PROJECT_ID }}"
           echo "Region: ${{ env.GCP_REGION }}"
+          echo "Working directory: $(pwd)"
           echo ""
-          chmod +x ../../scripts/import-existing-resources.sh
-          if [ -f "../../scripts/import-existing-resources.sh" ]; then
-            echo "Script found, running import..."
-            ../../scripts/import-existing-resources.sh ${{ env.GCP_PROJECT_ID }} ${{ env.GCP_REGION }} sqordia production
+          if [ -f "scripts/import-existing-resources.sh" ]; then
+            echo "✅ Script found, making executable and running import..."
+            chmod +x scripts/import-existing-resources.sh
+            scripts/import-existing-resources.sh ${{ env.GCP_PROJECT_ID }} ${{ env.GCP_REGION }} sqordia production
             echo ""
-            echo "Import step completed"
+            echo "✅ Import step completed"
           else
-            echo "⚠️  Import script not found, skipping import step"
-            echo "Resources will need to be imported manually or they will fail with 'already exists' errors"
+            echo "⚠️  Import script not found at scripts/import-existing-resources.sh"
+            echo "Current directory: $(pwd)"
+            echo "Listing scripts directory:"
+            ls -la scripts/ 2>/dev/null || echo "Scripts directory not found"
+            echo ""
+            echo "Skipping import step - resources will need to be imported manually"
           fi
         continue-on-error: true
 
