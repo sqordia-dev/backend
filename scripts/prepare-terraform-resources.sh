@@ -264,45 +264,43 @@ echo "Processing storage buckets..."
 echo ""
 
 # Functions Source Bucket
-if ! in_state "google_storage_bucket.functions_source"; then
-    BUCKET_NAME="${PROJECT_NAME}-${ENVIRONMENT}-functions-source"
-    echo "Checking: $BUCKET_NAME"
-    if gsutil ls -b "gs://$BUCKET_NAME" > /dev/null 2>&1; then
-        OBJECT_COUNT=$(gsutil ls "gs://$BUCKET_NAME/**" 2>/dev/null | wc -l)
-        if [ "$OBJECT_COUNT" -eq 0 ]; then
-            echo "  Bucket is empty, deleting (will be recreated)..."
-            gsutil rm -r "gs://$BUCKET_NAME" > /dev/null 2>&1
-            if [ $? -eq 0 ]; then
-                echo "  [OK] Deleted empty bucket"
-                DELETED_COUNT=$((DELETED_COUNT + 1))
-            else
-                echo "  [FAIL] Failed to delete bucket"
-                ERROR_COUNT=$((ERROR_COUNT + 1))
-            fi
-        else
-            echo "  Bucket has $OBJECT_COUNT object(s)"
-            # Try to import first
-            if try_import "google_storage_bucket.functions_source" "$BUCKET_NAME"; then
-                echo "  [OK] Imported bucket with objects"
-            else
-                echo "  Import failed, deleting objects and bucket (will be recreated)..."
-                # Delete all objects first
-                gsutil rm "gs://$BUCKET_NAME/**" > /dev/null 2>&1
-                # Then delete the bucket
-                gsutil rm -r "gs://$BUCKET_NAME" > /dev/null 2>&1
-                if [ $? -eq 0 ]; then
-                    echo "  [OK] Deleted bucket and objects (will be recreated)"
-                    DELETED_COUNT=$((DELETED_COUNT + 1))
-                else
-                    echo "  [FAIL] Failed to delete bucket"
-                    ERROR_COUNT=$((ERROR_COUNT + 1))
-                fi
-            fi
+# This bucket contains build artifacts that will be recreated, so we can safely clean it
+BUCKET_NAME="${PROJECT_NAME}-${ENVIRONMENT}-functions-source"
+echo "Checking: $BUCKET_NAME"
+
+# Remove from state if it exists (so Terraform can recreate it with correct settings)
+if in_state "google_storage_bucket.functions_source"; then
+    echo "  Bucket is in Terraform state, removing from state (will be recreated)..."
+    terraform state rm "google_storage_bucket.functions_source" > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        echo "  [OK] Removed from state"
+    fi
+fi
+
+# Clean up the bucket if it exists
+if gsutil ls -b "gs://$BUCKET_NAME" > /dev/null 2>&1; then
+    OBJECT_COUNT=$(gsutil ls "gs://$BUCKET_NAME/**" 2>/dev/null | wc -l)
+    if [ "$OBJECT_COUNT" -gt 0 ]; then
+        echo "  Bucket has $OBJECT_COUNT object(s), deleting objects (build artifacts will be recreated)..."
+        gsutil rm "gs://$BUCKET_NAME/**" > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            echo "  [OK] Deleted all objects"
         fi
+    fi
+    
+    # Delete the bucket itself
+    echo "  Deleting bucket (will be recreated by Terraform with force_destroy=true)..."
+    gsutil rm -r "gs://$BUCKET_NAME" > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        echo "  [OK] Deleted bucket (will be recreated)"
+        DELETED_COUNT=$((DELETED_COUNT + 1))
     else
-        echo "  [SKIP] Bucket doesn't exist"
+        echo "  [SKIP] Bucket deletion failed (may not exist or already deleted)"
         SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
     fi
+else
+    echo "  [SKIP] Bucket doesn't exist"
+    SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
 fi
 
 # Documents Bucket

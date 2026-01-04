@@ -79,58 +79,35 @@ jobs:
           chmod +x scripts/build-cloud-functions.sh
           ./scripts/build-cloud-functions.sh ${{ env.GCP_PROJECT_ID }} ${{ env.GCP_REGION }} || echo "Cloud Functions build skipped"
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.5.0"
-
-      - name: Terraform Init
-        working-directory: infrastructure/terraform/gcp
+      - name: Deploy GCP Infrastructure
         run: |
-          terraform init -upgrade
-
-      - name: Prepare Terraform Resources
-        env:
-          TF_VAR_gcp_project_id: ${{ env.GCP_PROJECT_ID }}
-          TF_VAR_gcp_region: ${{ env.GCP_REGION }}
-          TF_VAR_cloud_sql_password: ${{ secrets.CLOUD_SQL_PASSWORD }}
-        run: |
-          echo "=== Preparing resources for Terraform ==="
-          echo "This will import existing resources or clean them up if safe"
-          echo ""
-          if [ -f "scripts/prepare-terraform-resources.sh" ]; then
-            chmod +x scripts/prepare-terraform-resources.sh
-            scripts/prepare-terraform-resources.sh ${{ env.GCP_PROJECT_ID }} ${{ env.GCP_REGION }} sqordia production
-            echo "✅ Preparation completed"
-          else
-            echo "⚠️  Preparation script not found, skipping step"
-          fi
-        continue-on-error: true
-
-      - name: Terraform Plan
-        working-directory: infrastructure/terraform/gcp
-        env:
-          TF_VAR_gcp_project_id: ${{ env.GCP_PROJECT_ID }}
-          TF_VAR_gcp_region: ${{ env.GCP_REGION }}
-          TF_VAR_cloud_sql_password: ${{ secrets.CLOUD_SQL_PASSWORD }}
-        run: |
-          terraform plan -out=tfplan
-        continue-on-error: true
-
-      - name: Terraform Apply
-        working-directory: infrastructure/terraform/gcp
-        env:
-          TF_VAR_gcp_project_id: ${{ env.GCP_PROJECT_ID }}
-          TF_VAR_gcp_region: ${{ env.GCP_REGION }}
-          TF_VAR_cloud_sql_password: ${{ secrets.CLOUD_SQL_PASSWORD }}
-        run: |
-          terraform apply -auto-approve tfplan
+          echo "=== Deploying GCP Infrastructure ==="
+          chmod +x scripts/deploy-gcp-infrastructure.sh
+          scripts/deploy-gcp-infrastructure.sh \
+            ${{ env.GCP_PROJECT_ID }} \
+            ${{ env.GCP_REGION }} \
+            sqordia \
+            production \
+            ${{ secrets.CLOUD_SQL_PASSWORD }} \
+            db-f1-micro \
+            10 \
+            SqordiaDb \
+            postgres \
+            0.5 \
+            1Gi \
+            0 \
+            10 \
+            US
+          echo "✅ Infrastructure deployment completed"
 
       - name: Get Cloud Run URL
         id: cloud-run
-        working-directory: infrastructure/terraform/gcp
         run: |
-          URL=$(terraform output -raw cloud_run_service_url)
+          SERVICE_NAME="sqordia-production-api"
+          URL=$(gcloud run services describe "$SERVICE_NAME" \
+            --region=${{ env.GCP_REGION }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --format="value(status.url)" 2>/dev/null || echo "")
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "Cloud Run URL: $URL"
 
