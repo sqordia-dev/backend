@@ -21,7 +21,6 @@ env:
   CONTAINER_APP_NAME: ${{ secrets.AZURE_CONTAINER_APP_NAME || 'sqordia-production-api' }}
   IMAGE_NAME: api
   DOTNET_VERSION: '8.0.x'
-  TERRAFORM_VERSION: '1.6.0'
 
 jobs:
   check-secrets:
@@ -81,8 +80,8 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_tests }}
         run: dotnet test --no-build --configuration Release --verbosity normal
 
-  build-and-push-image:
-    name: Build and Push Docker Image
+  deploy-image:
+    name: Deploy Docker Image
     runs-on: ubuntu-latest
     needs: build-and-test
     permissions:
@@ -152,161 +151,6 @@ jobs:
           docker push ${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
 
-  terraform-plan:
-    name: Terraform Plan
-    runs-on: ubuntu-latest
-    needs: build-and-push-image
-    permissions:
-      contents: read
-      id-token: write
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-        continue-on-error: true
-        id: azure_login_oidc
-
-      - name: Azure Login (Service Principal Fallback)
-        if: steps.azure_login_oidc.outcome == 'failure'
-        run: |
-          if [ -z "${{ secrets.AZURE_CLIENT_SECRET }}" ]; then
-            echo "⚠️ AZURE_CLIENT_SECRET not set, skipping service principal fallback"
-            exit 1
-          fi
-          
-          az login --service-principal \
-            --username "${{ secrets.AZURE_CLIENT_ID }}" \
-            --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
-            --tenant "${{ secrets.AZURE_TENANT_ID }}"
-          az account set --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}"
-        continue-on-error: true
-        id: azure_login_secret
-
-      - name: Set Azure subscription
-        if: steps.azure_login_oidc.outcome == 'success' || steps.azure_login_secret.outcome == 'success'
-        run: |
-          az account set --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-
-      - name: Terraform Init
-        working-directory: infrastructure/terraform/azure
-        run: terraform init -input=false
-
-      - name: Terraform Validate
-        working-directory: infrastructure/terraform/azure
-        run: terraform validate
-
-      - name: Terraform Plan
-        working-directory: infrastructure/terraform/azure
-        env:
-          ARM_SUBSCRIPTION_ID: ${{ env.AZURE_SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_OIDC: "true"
-          TF_VAR_azure_subscription_id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-          TF_VAR_azure_location: ${{ env.AZURE_LOCATION }}
-          TF_VAR_postgresql_admin_password: ${{ secrets.AZURE_POSTGRESQL_ADMIN_PASSWORD }}
-        run: terraform plan -out=tfplan -input=false
-        continue-on-error: true
-        id: terraform_plan
-
-      - name: Upload Terraform Plan
-        if: steps.terraform_plan.outcome == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-plan
-          path: infrastructure/terraform/azure/tfplan
-          retention-days: 1
-
-  terraform-apply:
-    name: Terraform Apply
-    runs-on: ubuntu-latest
-    needs: terraform-plan
-    permissions:
-      contents: read
-      id-token: write
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-        continue-on-error: true
-        id: azure_login_oidc
-
-      - name: Azure Login (Service Principal Fallback)
-        if: steps.azure_login_oidc.outcome == 'failure'
-        run: |
-          if [ -z "${{ secrets.AZURE_CLIENT_SECRET }}" ]; then
-            echo "⚠️ AZURE_CLIENT_SECRET not set, skipping service principal fallback"
-            exit 1
-          fi
-          
-          az login --service-principal \
-            --username "${{ secrets.AZURE_CLIENT_ID }}" \
-            --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
-            --tenant "${{ secrets.AZURE_TENANT_ID }}"
-          az account set --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}"
-        continue-on-error: true
-        id: azure_login_secret
-
-      - name: Set Azure subscription
-        if: steps.azure_login_oidc.outcome == 'success' || steps.azure_login_secret.outcome == 'success'
-        run: |
-          az account set --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-
-      - name: Download Terraform Plan
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-plan
-          path: infrastructure/terraform/azure
-        continue-on-error: true
-        id: download_plan
-
-      - name: Terraform Init
-        working-directory: infrastructure/terraform/azure
-        run: terraform init -input=false
-
-      - name: Terraform Apply
-        working-directory: infrastructure/terraform/azure
-        env:
-          ARM_SUBSCRIPTION_ID: ${{ env.AZURE_SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_OIDC: "true"
-          TF_VAR_azure_subscription_id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-          TF_VAR_azure_location: ${{ env.AZURE_LOCATION }}
-          TF_VAR_postgresql_admin_password: ${{ secrets.AZURE_POSTGRESQL_ADMIN_PASSWORD }}
-        run: |
-          if [ -f "tfplan" ]; then
-            echo "✅ Using existing Terraform plan"
-            terraform apply -auto-approve tfplan
-          else
-            echo "⚠️ No Terraform plan found, creating and applying plan directly"
-            terraform apply -auto-approve
-          fi
-
       - name: Update Container App with new image
         run: |
           echo "=== Updating Container App ==="
@@ -324,7 +168,7 @@ jobs:
   deploy-functions:
     name: Deploy Azure Functions
     runs-on: ubuntu-latest
-    needs: terraform-apply
+    needs: deploy-image
     permissions:
       contents: read
       id-token: write
@@ -381,7 +225,7 @@ jobs:
   health-check:
     name: Health Check
     runs-on: ubuntu-latest
-    needs: [terraform-apply, deploy-functions]
+    needs: [deploy-image, deploy-functions]
     permissions:
       contents: read
       id-token: write
