@@ -441,7 +441,7 @@ jobs:
 
       - name: Deployment Summary
         run: |
-          echo "## 🚀 Azure Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## Azure Deployment Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Container App URL:** ${{ steps.container-app.outputs.url }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
