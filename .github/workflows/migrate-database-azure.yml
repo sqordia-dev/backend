@@ -43,13 +43,29 @@ jobs:
         id: azure_login_oidc
 
       - name: Azure Login (Service Principal Fallback)
-        if: steps.azure_login_oidc.outcome == 'failure'
+        if: steps.azure_login_oidc.outcome == 'failure' && secrets.AZURE_CLIENT_SECRET != ''
         run: |
           az login --service-principal \
-            --username ${{ secrets.AZURE_CLIENT_ID }} \
-            --password ${{ secrets.AZURE_CLIENT_SECRET }} \
-            --tenant ${{ secrets.AZURE_TENANT_ID }}
-          az account set --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}
+            --username "${{ secrets.AZURE_CLIENT_ID }}" \
+            --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
+            --tenant "${{ secrets.AZURE_TENANT_ID }}"
+          az account set --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}"
+        continue-on-error: true
+        id: azure_login_secret
+
+      - name: Fail if all authentication methods failed
+        if: steps.azure_login_oidc.outcome == 'failure' && (secrets.AZURE_CLIENT_SECRET == '' || steps.azure_login_secret.outcome == 'failure')
+        run: |
+          echo "❌ All authentication methods failed:" >> $GITHUB_STEP_SUMMARY
+          echo "- OIDC authentication failed" >> $GITHUB_STEP_SUMMARY
+          if [ -z "${{ secrets.AZURE_CLIENT_SECRET }}" ]; then
+            echo "- Service Principal fallback not available (AZURE_CLIENT_SECRET not set)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Solution:** Set up federated credentials (OIDC) or configure AZURE_CLIENT_SECRET secret" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Service Principal authentication also failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          exit 1
 
       - name: Set Azure subscription
         if: steps.azure_login_oidc.outcome == 'success'
