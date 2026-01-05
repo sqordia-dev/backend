@@ -209,6 +209,10 @@ jobs:
 
       - name: Terraform Plan
         working-directory: infrastructure/terraform/azure
+        env:
+          TF_VAR_azure_subscription_id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_azure_location: ${{ env.AZURE_LOCATION }}
+          TF_VAR_postgresql_admin_password: ${{ secrets.AZURE_POSTGRESQL_ADMIN_PASSWORD }}
         run: terraform plan -out=tfplan -input=false
         continue-on-error: true
         id: terraform_plan
@@ -282,6 +286,10 @@ jobs:
 
       - name: Terraform Apply
         working-directory: infrastructure/terraform/azure
+        env:
+          TF_VAR_azure_subscription_id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_azure_location: ${{ env.AZURE_LOCATION }}
+          TF_VAR_postgresql_admin_password: ${{ secrets.AZURE_POSTGRESQL_ADMIN_PASSWORD }}
         run: |
           if [ -f "tfplan" ]; then
             echo "✅ Using existing Terraform plan"
