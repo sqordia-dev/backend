@@ -273,6 +273,8 @@ jobs:
         with:
           name: terraform-plan
           path: infrastructure/terraform/azure
+        continue-on-error: true
+        id: download_plan
 
       - name: Terraform Init
         working-directory: infrastructure/terraform/azure
@@ -282,9 +284,11 @@ jobs:
         working-directory: infrastructure/terraform/azure
         run: |
           if [ -f "tfplan" ]; then
+            echo "✅ Using existing Terraform plan"
             terraform apply -auto-approve tfplan
           else
-            echo "⚠️ No Terraform plan found, skipping apply"
+            echo "⚠️ No Terraform plan found, creating and applying plan directly"
+            terraform apply -auto-approve
           fi
 
       - name: Update Container App with new image
