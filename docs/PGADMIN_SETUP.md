@@ -1,12 +1,12 @@
-# PgAdmin Setup Guide
+# PgAdmin Setup Guide for GCP Cloud SQL
 
-Complete guide for connecting to RDS PostgreSQL database using PgAdmin.
+Complete guide for connecting to GCP Cloud SQL PostgreSQL database using PgAdmin.
 
 ## Prerequisites
 
-1. **RDS must be publicly accessible** (see [Enabling Public Access](#enabling-public-access))
-2. **Your IP address must be allowed** in the RDS security group
-3. **PgAdmin installed** on your local machine ([Download pgAdmin](https://www.pgadmin.org/download/))
+1. **Your IP address must be authorized** in Cloud SQL authorized networks (see [Authorizing Your IP](#authorizing-your-ip))
+2. **PgAdmin installed** on your local machine ([Download pgAdmin](https://www.pgadmin.org/download/))
+3. **Cloud SQL password** from GitHub Secrets or deployment configuration
 
 ## Quick Setup
 
@@ -15,15 +15,16 @@ Complete guide for connecting to RDS PostgreSQL database using PgAdmin.
 Run the helper script to get all connection details:
 
 ```powershell
-.\scripts\get-rds-connection-info.ps1
+.\scripts\get-cloud-sql-connection-info.ps1
 ```
 
 This will display:
-- Host/Address
+- Host/Address (Public IP)
 - Port
 - Database name
 - Username
-- Password (if available)
+- Connection status
+- Your current IP and authorization status
 
 ### Step 2: Install PgAdmin
 
@@ -37,18 +38,19 @@ This will display:
 2. Select **"Create"** → **"Server"**
 
 3. **General Tab:**
-   - **Name**: `Sqordia Production` (or any name you prefer)
+   - **Name**: `Sqordia GCP Production` (or any name you prefer)
 
 4. **Connection Tab:**
-   - **Host name/address**: `sqordia-db-production.c326icw2wbit.ca-central-1.rds.amazonaws.com`
+   - **Host name/address**: [Get from script - Cloud SQL Public IP]
    - **Port**: `5432`
    - **Maintenance database**: `SqordiaDb`
-   - **Username**: `sqordia_admin`
-   - **Password**: [Your RDS password - set in `TF_VAR_rds_password`]
+   - **Username**: `sqordia_admin` (or `postgres` if sqordia_admin doesn't exist)
+   - **Password**: [Your Cloud SQL password from GitHub Secrets: `CLOUD_SQL_PASSWORD`]
+   - ✅ **Save password** (optional, for convenience)
 
 5. **SSL Tab:**
    - **SSL mode**: Select **"Require"** from dropdown
-   - This is **required** for RDS connections
+   - This is **required** for Cloud SQL connections
 
 6. **Advanced Tab** (optional):
    - **DB restriction**: Leave empty to see all databases
@@ -66,98 +68,150 @@ This will display:
 
 ### Default Values
 
-- **Host**: `sqordia-db-production.c326icw2wbit.ca-central-1.rds.amazonaws.com`
+- **Host**: [Cloud SQL Public IP - get from script]
 - **Port**: `5432`
 - **Database**: `SqordiaDb`
-- **Username**: `sqordia_admin`
-- **Password**: Set via `TF_VAR_rds_password` environment variable or Terraform
+- **Username**: `sqordia_admin` (preferred) or `postgres` (default)
+- **Password**: From GitHub Secrets: `CLOUD_SQL_PASSWORD`
+- **SSL Mode**: `Require`
 
 ### Connection String Format
 
 ```
-Host=sqordia-db-production.c326icw2wbit.ca-central-1.rds.amazonaws.com;Port=5432;Database=SqordiaDb;Username=sqordia_admin;Password=YOUR_PASSWORD;SSL Mode=Require;Trust Server Certificate=true
+Host=YOUR_CLOUD_SQL_IP;Port=5432;Database=SqordiaDb;Username=sqordia_admin;Password=YOUR_PASSWORD;SSL Mode=Require;Trust Server Certificate=true
 ```
 
-## Enabling Public Access
+**Note**: If `sqordia_admin` user doesn't exist, use `postgres` as the username.
 
-By default, RDS is in a private subnet and not publicly accessible. To enable PgAdmin access:
+## Creating sqordia_admin User
 
-### Option 1: Using Terraform Variables (Recommended)
+If the `sqordia_admin` user doesn't exist, you can create it:
 
-1. Edit `infrastructure/terraform/terraform.tfvars`:
-
-```hcl
-rds_publicly_accessible = true
-rds_allowed_ip_addresses = ["YOUR_IP_ADDRESS/32"]
-```
-
-   Replace `YOUR_IP_ADDRESS` with your public IP. To find your IP:
-   ```powershell
-   (Invoke-WebRequest -Uri "https://api.ipify.org").Content
-   ```
-
-2. Apply Terraform changes:
+### Option 1: Using Helper Script (Recommended)
 
 ```powershell
-cd infrastructure/terraform
-terraform plan
-terraform apply
+.\scripts\create-sqordia-admin-user.ps1 -Password "YOUR_PASSWORD"
 ```
 
-3. Wait for RDS modification to complete (5-10 minutes)
+This script will:
+- Check if the user exists
+- Create the user if it doesn't exist
+- Update the password if the user already exists
 
-### Option 2: Using AWS Console
+### Option 2: Using gcloud CLI
 
-1. Go to **AWS Console** → **RDS** → **Databases**
-2. Select your RDS instance (`sqordia-db-production`)
-3. Click **"Modify"**
-4. Scroll to **"Connectivity"** section
-5. Expand **"Additional connectivity configuration"**
-6. Check **"Publicly accessible"**
-7. Click **"Continue"** → **"Apply immediately"**
+```powershell
+gcloud sql users create sqordia_admin `
+    --instance=sqordia-production-db `
+    --project=project-b79ef08c-1eb8-47ea-80e `
+    --password=YOUR_PASSWORD
+```
 
-8. Update Security Group:
-   - Go to **RDS** → **Security** → Click on the security group
-   - Click **"Edit inbound rules"**
-   - Add rule:
-     - **Type**: PostgreSQL
-     - **Port**: 5432
-     - **Source**: Your IP address (e.g., `1.2.3.4/32`)
-   - Click **"Save rules"**
+### Verify Users
+
+To see all database users:
+
+```powershell
+gcloud sql users list --instance=sqordia-production-db --project=project-b79ef08c-1eb8-47ea-80e
+```
+
+## Authorizing Your IP
+
+Cloud SQL requires your IP address to be in the authorized networks list. To authorize your IP:
+
+### Option 1: Using gcloud CLI (Recommended)
+
+1. Get your current IP:
+   ```powershell
+   $myIp = (Invoke-WebRequest -Uri "https://api.ipify.org" -UseBasicParsing).Content
+   Write-Host "Your IP: $myIp"
+   ```
+
+2. Authorize your IP:
+   ```powershell
+   gcloud sql instances patch sqordia-production-db `
+       --project="project-b79ef08c-1eb8-47ea-80e" `
+       --authorized-networks=$myIp/32 `
+       --quiet
+   ```
+
+### Option 2: Using GCP Console
+
+1. Go to **GCP Console** → **SQL** → **Instances**
+2. Click on your instance: `sqordia-production-db`
+3. Click **"EDIT"**
+4. Scroll to **"Connections"** section
+5. Under **"Authorized networks"**, click **"ADD NETWORK"**
+6. Enter:
+   - **Name**: `My IP` (or any name)
+   - **Network**: `YOUR_IP/32` (replace YOUR_IP with your public IP)
+7. Click **"DONE"** → **"SAVE"**
+8. Wait for the update to complete (1-2 minutes)
 
 ## Troubleshooting
 
 ### Connection Timeout
 
-**Problem**: Cannot connect to RDS from PgAdmin
+**Problem**: Cannot connect to Cloud SQL from PgAdmin
 
 **Solutions**:
-1. Verify RDS is publicly accessible:
+1. Verify your IP is authorized:
    ```powershell
-   aws rds describe-db-instances --db-instance-identifier sqordia-db-production --query 'DBInstances[0].PubliclyAccessible'
+   .\scripts\get-cloud-sql-connection-info.ps1
    ```
-   Should return `true`
+   Check if your IP appears in authorized networks
 
-2. Check security group rules:
-   - Ensure your IP is allowed in the security group
-   - Verify port 5432 is open
-
-3. Check RDS status:
-   - RDS must be in `available` state (not `modifying` or `backing-up`)
-
-4. Test network connectivity:
+2. Check Cloud SQL instance status:
    ```powershell
-   Test-NetConnection -ComputerName sqordia-db-production.c326icw2wbit.ca-central-1.rds.amazonaws.com -Port 5432
+   gcloud sql instances describe sqordia-production-db --project=project-b79ef08c-1eb8-47ea-80e --format="value(state)"
    ```
+   Should return `RUNNABLE`
+
+3. Test network connectivity:
+   ```powershell
+   # Get the IP first
+   $ip = gcloud sql instances describe sqordia-production-db --project=project-b79ef08c-1eb8-47ea-80e --format="value(ipAddresses[0].ipAddress)"
+   Test-NetConnection -ComputerName $ip -Port 5432
+   ```
+
+4. Verify public IP is enabled:
+   ```powershell
+   gcloud sql instances describe sqordia-production-db --project=project-b79ef08c-1eb8-47ea-80e --format="value(settings.ipConfiguration.ipv4Enabled)"
+   ```
+   Should return `True`
 
 ### Authentication Failed
 
 **Problem**: "FATAL: password authentication failed"
 
 **Solutions**:
-1. Verify username: Should be `sqordia_admin`
-2. Verify password: Check `TF_VAR_rds_password` environment variable
-3. Reset password if needed (via AWS Console or Terraform)
+1. Verify username: Should be `sqordia_admin` (preferred) or `postgres` (default)
+2. Check if user exists:
+   ```powershell
+   gcloud sql users list --instance=sqordia-production-db --project=project-b79ef08c-1eb8-47ea-80e
+   ```
+3. Create `sqordia_admin` user if it doesn't exist:
+   ```powershell
+   gcloud sql users create sqordia_admin `
+       --instance=sqordia-production-db `
+       --project=project-b79ef08c-1eb8-47ea-80e `
+       --password=YOUR_PASSWORD
+   ```
+4. Verify password: Check GitHub Secrets `CLOUD_SQL_PASSWORD` or deployment configuration
+5. Reset password if needed:
+   ```powershell
+   # For sqordia_admin
+   gcloud sql users set-password sqordia_admin `
+       --instance=sqordia-production-db `
+       --project=project-b79ef08c-1eb8-47ea-80e `
+       --password=NEW_PASSWORD
+   
+   # Or for postgres
+   gcloud sql users set-password postgres `
+       --instance=sqordia-production-db `
+       --project=project-b79ef08c-1eb8-47ea-80e `
+       --password=NEW_PASSWORD
+   ```
 
 ### SSL Connection Required
 
@@ -184,27 +238,26 @@ terraform apply
 
 ## Security Best Practices
 
-1. **Limit IP Access**: Only allow your specific IP address in security group**
+1. **Limit IP Access**: Only authorize specific IP addresses
    - Use `/32` CIDR notation for single IP
-   - Example: `["1.2.3.4/32"]`
+   - Example: `1.2.3.4/32`
+   - Remove IPs when no longer needed
 
-2. **Use Strong Passwords**: Ensure RDS password is strong and stored securely
+2. **Use Strong Passwords**: Ensure Cloud SQL password is strong and stored securely in GitHub Secrets
 
-3. **Disable Public Access When Not Needed**: 
-   - Set `rds_publicly_accessible = false` when not using PgAdmin
-   - Re-enable only when needed
+3. **Use SSL**: Always require SSL connections (already configured)
 
-4. **Use SSL**: Always require SSL connections (already configured)
+4. **Rotate Passwords**: Regularly rotate Cloud SQL passwords
 
-5. **Rotate Passwords**: Regularly rotate RDS passwords
+5. **Monitor Access**: Review Cloud SQL logs for connection attempts
 
-6. **Monitor Access**: Review CloudWatch logs for connection attempts
+6. **Use Private IP When Possible**: For applications within GCP, use private IP instead of public IP
 
 ## Verifying Connection
 
 After connecting, verify the database structure:
 
-1. Expand **Servers** → **Sqordia Production** → **Databases** → **SqordiaDb** → **Schemas** → **public** → **Tables**
+1. Expand **Servers** → **Sqordia GCP Production** → **Databases** → **SqordiaDb** → **Schemas** → **public** → **Tables**
 2. You should see application tables if migrations have run
 3. Check `__EFMigrationsHistory` table to see applied migrations
 
@@ -213,27 +266,49 @@ After connecting, verify the database structure:
 If you prefer command line:
 
 ```powershell
+# Get the Cloud SQL IP first
+$ip = gcloud sql instances describe sqordia-production-db --project=project-b79ef08c-1eb8-47ea-80e --format="value(ipAddresses[0].ipAddress)"
+
 # Set password as environment variable
 $env:PGPASSWORD = "YOUR_PASSWORD"
 
-# Connect
-psql -h sqordia-db-production.c326icw2wbit.ca-central-1.rds.amazonaws.com `
+# Connect (using sqordia_admin)
+psql -h $ip `
      -p 5432 `
      -U sqordia_admin `
      -d SqordiaDb `
      --set=sslmode=require
+
+# Or using postgres if sqordia_admin doesn't exist
+psql -h $ip `
+     -p 5432 `
+     -U postgres `
+     -d SqordiaDb `
+     --set=sslmode=require
 ```
+
+## Quick Reference
+
+| Setting | Value |
+|---------|-------|
+| Host | [Get from script] |
+| Port | `5432` |
+| Database | `SqordiaDb` |
+| Username | `sqordia_admin` (or `postgres`) |
+| Password | From GitHub Secrets |
+| SSL Mode | `Require` |
 
 ## Next Steps
 
-1. ✅ Connect to RDS using PgAdmin
-2. ✅ Verify database tables exist
-3. ✅ Run migrations if needed: `.\scripts\run-db-migrations.ps1`
-4. ✅ Check migration status: `.\scripts\check-migration-status.ps1`
+1. ✅ Run `.\scripts\get-cloud-sql-connection-info.ps1` to get connection details
+2. ✅ Authorize your IP address if needed
+3. ✅ Connect to Cloud SQL using PgAdmin
+4. ✅ Verify database tables exist
+5. ✅ Run migrations if needed via GitHub Actions workflow
 
 ## Related Documentation
 
-- [Database Connection Guide](DATABASE_CONNECTION.md) - General database connection information
+- [GCP Database Connection Guide](GCP_DATABASE_CONNECTION.md) - Detailed GCP connection information
 - [Migration Guide](MIGRATION_GUIDE.md) - Running database migrations
-- [ECS Fargate Deployment](ECS_FARGATE_DEPLOYMENT.md) - Backend deployment information
+- [GCP Deployment Guide](GCP_COMPLETION_SUMMARY.md) - GCP deployment overview
 

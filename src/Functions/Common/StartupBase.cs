@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace Sqordia.Functions.Common;
 
 /// <summary>
-/// Base startup configuration for GCP Cloud Functions
+/// Base startup configuration for Azure Functions
 /// </summary>
 public static class StartupBase
 {
@@ -53,7 +53,7 @@ public static class StartupBase
 }
 
 /// <summary>
-/// Common database configuration for GCP Cloud Functions
+/// Common database configuration for Azure Functions
 /// </summary>
 public class DatabaseConfiguration
 {

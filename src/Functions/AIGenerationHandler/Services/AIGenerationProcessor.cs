@@ -1,4 +1,4 @@
-using Google.Cloud.SecretManager.V1;
+using Azure.Security.KeyVault.Secrets;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
@@ -9,20 +9,20 @@ using System.Text.Json;
 namespace Sqordia.Functions.AIGenerationHandler.Services;
 
 /// <summary>
-/// Service implementation for processing AI business plan generation jobs (GCP version)
+/// Service implementation for processing AI business plan generation jobs (Azure version)
 /// </summary>
 public class AIGenerationProcessor : IAIGenerationProcessor
 {
-    private readonly SecretManagerServiceClient _secretManagerClient;
+    private readonly SecretClient _secretClient;
     private readonly ILogger<AIGenerationProcessor> _logger;
     private readonly AIGenerationConfiguration _config;
 
     public AIGenerationProcessor(
-        SecretManagerServiceClient secretManagerClient,
+        SecretClient secretClient,
         ILogger<AIGenerationProcessor> logger,
         IOptions<AIGenerationConfiguration> config)
     {
-        _secretManagerClient = secretManagerClient;
+        _secretClient = secretClient;
         _logger = logger;
         _config = config.Value;
     }
@@ -81,13 +81,12 @@ public class AIGenerationProcessor : IAIGenerationProcessor
                 _ => _config.OpenAISecretName
             };
 
-            var secretVersionName = new SecretVersionName(_config.GcpProjectId, secretName, "latest");
-            var secretVersion = await _secretManagerClient.AccessSecretVersionAsync(secretVersionName, cancellationToken: cancellationToken);
-            return secretVersion.Payload.Data.ToStringUtf8();
+            var secret = await _secretClient.GetSecretAsync(secretName, cancellationToken: cancellationToken);
+            return secret.Value.Value;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to retrieve API key for provider {Provider}", provider);
+            _logger.LogError(ex, "Failed to retrieve API key for provider {Provider} from Key Vault", provider);
             return null;
         }
     }

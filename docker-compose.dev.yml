@@ -18,7 +18,7 @@ services:
       - ConnectionStrings__DefaultConnection=Host=sqordia-db;Port=5432;Database=SqordiaDb;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres};
       
       # JWT Settings
-      - JwtSettings__Secret=${JWT_SECRET:}
+      - JwtSettings__Secret=${JWT_SECRET:-fZCrXaY7jlvsqKSLpJeRbdw6TDoFIA8yB4OziUgVWH95tmQE21xh3NGkPncMu0}
       - JwtSettings__Issuer=${JWT_ISSUER:-Sqordia}
       - JwtSettings__Audience=${JWT_AUDIENCE:-SqordiaUsers}
       - JwtSettings__ExpirationMinutes=${JWT_EXPIRATION_MINUTES:-60}

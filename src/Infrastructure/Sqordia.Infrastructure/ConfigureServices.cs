@@ -3,8 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
-using Google.Cloud.Storage.V1;
-using Google.Cloud.PubSub.V1;
+using Azure.Storage.Blobs;
+using Azure.Messaging.ServiceBus;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Security;
 using Sqordia.Application.Services;
@@ -24,51 +24,48 @@ public static class ConfigureServices
         // HTTP Context for getting client IP address
         services.AddHttpContextAccessor();
 
-        // Email service configuration - GCP Pub/Sub
-        // Check if we're in a test environment or if GCP credentials are available
+        // Email service configuration - Azure Service Bus
+        // Check if we're in a test environment
         var isTestEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Testing"
                              || Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Test"
                              || configuration["ASPNETCORE_ENVIRONMENT"] == "Testing"
                              || configuration["ASPNETCORE_ENVIRONMENT"] == "Test"
-                             || Environment.GetEnvironmentVariable("SKIP_GCP_SERVICES") == "true"
-                             || configuration["SkipGcpServices"] == "true";
+                             || Environment.GetEnvironmentVariable("SKIP_AZURE_SERVICES") == "true"
+                             || configuration["SkipAzureServices"] == "true";
         
-        var gcpProjectId = Environment.GetEnvironmentVariable("GCP__ProjectId")
-                          ?? configuration["GCP:ProjectId"];
+        var serviceBusConnectionString = Environment.GetEnvironmentVariable("AzureServiceBus__ConnectionString")
+                                      ?? configuration["AzureServiceBus:ConnectionString"];
         
-        var emailTopic = Environment.GetEnvironmentVariable("PubSub__EmailTopic")
-                      ?? configuration["PubSub:EmailTopic"];
+        var emailTopic = Environment.GetEnvironmentVariable("AzureServiceBus__EmailTopic")
+                      ?? configuration["AzureServiceBus:EmailTopic"];
 
-        // Only initialize GCP services if not in test environment and configuration is available
-        if (!isTestEnvironment && !string.IsNullOrEmpty(gcpProjectId) && !string.IsNullOrEmpty(emailTopic))
+        // Only initialize Azure Service Bus if not in test environment and configuration is available
+        if (!isTestEnvironment && !string.IsNullOrEmpty(serviceBusConnectionString) && !string.IsNullOrEmpty(emailTopic))
         {
             try
             {
-                var topicName = TopicName.FromProjectTopic(gcpProjectId, emailTopic);
-                
-                // Create PublisherClient for Pub/Sub
-                var publisherClient = PublisherClient.Create(topicName);
-                services.AddSingleton(publisherClient);
+                // Create ServiceBusClient for Service Bus
+                var serviceBusClient = new ServiceBusClient(serviceBusConnectionString);
+                services.AddSingleton(serviceBusClient);
                 
                 services.AddTransient<IEmailService>(sp =>
-                    new PubSubEmailService(
-                        publisherClient,
+                    new ServiceBusEmailService(
+                        serviceBusClient,
                         emailTopic,
-                        sp.GetRequiredService<ILogger<PubSubEmailService>>(),
+                        sp.GetRequiredService<ILogger<ServiceBusEmailService>>(),
                         sp.GetRequiredService<ILocalizationService>()));
             }
-            catch (Exception ex) when (ex.Message.Contains("credentials", StringComparison.OrdinalIgnoreCase) 
+            catch (Exception ex) when (ex.Message.Contains("connection", StringComparison.OrdinalIgnoreCase) 
                                    || ex.Message.Contains("authentication", StringComparison.OrdinalIgnoreCase)
-                                   || ex.Message.Contains("Application Default Credentials", StringComparison.OrdinalIgnoreCase)
                                    || ex is InvalidOperationException)
             {
-                // If credentials are not available, fall back to mock email service
+                // If connection is not available, fall back to mock email service
                 services.AddTransient<IEmailService, MockEmailService>();
             }
         }
         else
         {
-            // Use mock email service for tests or when GCP is not configured
+            // Use mock email service for tests or when Azure Service Bus is not configured
             services.AddTransient<IEmailService, MockEmailService>();
         }
 
@@ -159,37 +156,40 @@ public static class ConfigureServices
         // Subscription service
         services.AddScoped<Sqordia.Application.Services.ISubscriptionService, SubscriptionService>();
 
-        // Storage service configuration - GCP Cloud Storage
-        var storageGcpProjectId = Environment.GetEnvironmentVariable("GCP__ProjectId")
-                                 ?? configuration["GCP:ProjectId"];
+        // Storage service configuration - Azure Blob Storage
+        var storageConnectionString = Environment.GetEnvironmentVariable("AzureStorage__ConnectionString")
+                                   ?? configuration["AzureStorage:ConnectionString"];
         
-        var bucketName = Environment.GetEnvironmentVariable("CloudStorage__BucketName")
-                      ?? configuration["CloudStorage:BucketName"];
+        var containerName = Environment.GetEnvironmentVariable("AzureStorage__ContainerName")
+                          ?? configuration["AzureStorage:ContainerName"]
+                          ?? "documents";
 
-        // Only initialize GCP storage if not in test environment and configuration is available
-        if (!isTestEnvironment && !string.IsNullOrEmpty(storageGcpProjectId) && !string.IsNullOrEmpty(bucketName))
+        // Only initialize Azure Blob Storage if not in test environment and configuration is available
+        if (!isTestEnvironment && !string.IsNullOrEmpty(storageConnectionString))
         {
             try
             {
-                var cloudStorageSettings = new CloudStorageSettings
+                var azureStorageSettings = new AzureStorageSettings
                 {
-                    BucketName = bucketName,
-                    ProjectId = storageGcpProjectId
+                    ContainerName = containerName,
+                    ConnectionString = storageConnectionString,
+                    AccountName = Environment.GetEnvironmentVariable("AzureStorage__AccountName")
+                               ?? configuration["AzureStorage:AccountName"]
+                               ?? string.Empty
                 };
-                services.AddSingleton(Options.Create(cloudStorageSettings));
+                services.AddSingleton(Options.Create(azureStorageSettings));
                 
-                // Create StorageClient for Cloud Storage
-                var storageClient = StorageClient.Create();
-                services.AddSingleton(storageClient);
+                // Create BlobServiceClient for Azure Blob Storage
+                var blobServiceClient = new BlobServiceClient(storageConnectionString);
+                services.AddSingleton(blobServiceClient);
                 
-                services.AddScoped<IStorageService, CloudStorageService>();
+                services.AddScoped<IStorageService, AzureBlobStorageService>();
             }
-            catch (Exception ex) when (ex.Message.Contains("credentials", StringComparison.OrdinalIgnoreCase) 
+            catch (Exception ex) when (ex.Message.Contains("connection", StringComparison.OrdinalIgnoreCase) 
                                    || ex.Message.Contains("authentication", StringComparison.OrdinalIgnoreCase)
-                                   || ex.Message.Contains("Application Default Credentials", StringComparison.OrdinalIgnoreCase)
                                    || ex is InvalidOperationException)
             {
-                // If credentials are not available, use in-memory storage service
+                // If connection is not available, use in-memory storage service
                 services.AddScoped<IStorageService, InMemoryStorageService>();
             }
         }

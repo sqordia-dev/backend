@@ -5,7 +5,8 @@ namespace Sqordia.Functions.ExportHandler.Configuration;
 /// </summary>
 public class ExportConfiguration
 {
-    public string StorageBucketName { get; set; } = string.Empty;
-    public string GcpProjectId { get; set; } = string.Empty;
+    public string StorageAccountName { get; set; } = string.Empty;
+    public string StorageConnectionString { get; set; } = string.Empty;
+    public string ContainerName { get; set; } = "exports";
 }
 

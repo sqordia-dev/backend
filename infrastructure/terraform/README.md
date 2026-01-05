@@ -8,6 +8,7 @@ This directory contains Terraform configurations organized by cloud platform.
 terraform/
 ├── aws/          # AWS infrastructure (ECS, RDS, Lambda, etc.)
 ├── gcp/          # GCP infrastructure (Cloud Run, Cloud SQL, etc.)
+├── azure/        # Azure infrastructure (Container Apps, PostgreSQL, etc.)
 └── README.md      # This file
 ```
 
@@ -15,6 +16,7 @@ terraform/
 
 - **AWS**: See [aws/README.md](./aws/README.md)
 - **GCP**: See [gcp/README.md](./gcp/README.md)
+- **Azure**: See [azure/README.md](./azure/README.md)
 
 ## Quick Start
 
@@ -29,6 +31,14 @@ terraform apply
 ### GCP Deployment
 ```bash
 cd gcp
+terraform init
+terraform plan
+terraform apply
+```
+
+### Azure Deployment
+```bash
+cd azure
 terraform init
 terraform plan
 terraform apply

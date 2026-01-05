@@ -1,5 +1,4 @@
-using Google.Cloud.PubSub.V1;
-using Google.Protobuf;
+using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sqordia.Application.Common.Interfaces;
@@ -9,39 +8,45 @@ using System.Text.Json;
 namespace Sqordia.Infrastructure.Services;
 
 /// <summary>
-/// GCP Pub/Sub email service configuration
+/// Azure Service Bus email service configuration
 /// </summary>
-public class PubSubEmailSettings
+public class ServiceBusEmailSettings
 {
     public string EmailTopic { get; set; } = string.Empty;
-    public string ProjectId { get; set; } = string.Empty;
+    public string ConnectionString { get; set; } = string.Empty;
 }
 
 /// <summary>
-/// Email service that sends emails via GCP Pub/Sub topic (processed by Cloud Functions)
+/// Email service that sends emails via Azure Service Bus topic (processed by Azure Functions)
 /// </summary>
-public class PubSubEmailService : IEmailService
+public class ServiceBusEmailService : IEmailService, IDisposable
 {
-    private readonly PublisherClient? _publisherClient;
+    private readonly ServiceBusClient? _serviceBusClient;
+    private readonly ServiceBusSender? _serviceBusSender;
     private readonly string? _emailTopic;
-    private readonly ILogger<PubSubEmailService> _logger;
+    private readonly ILogger<ServiceBusEmailService> _logger;
     private readonly ILocalizationService _localizationService;
 
-    public PubSubEmailService(
-        PublisherClient? publisherClient,
+    public ServiceBusEmailService(
+        ServiceBusClient? serviceBusClient,
         string? emailTopic,
-        ILogger<PubSubEmailService> logger,
+        ILogger<ServiceBusEmailService> logger,
         ILocalizationService localizationService)
     {
-        _publisherClient = publisherClient;
+        _serviceBusClient = serviceBusClient;
         _emailTopic = emailTopic;
         _logger = logger;
         _localizationService = localizationService;
+        
+        if (_serviceBusClient != null && !string.IsNullOrWhiteSpace(_emailTopic))
+        {
+            _serviceBusSender = _serviceBusClient.CreateSender(_emailTopic);
+        }
     }
 
     private async Task SendToTopicAsync(string emailType, string toEmail, string? toName, string subject, string body, string? htmlBody = null, Dictionary<string, string>? metadata = null)
     {
-        if (string.IsNullOrWhiteSpace(_emailTopic) || _publisherClient == null)
+        if (string.IsNullOrWhiteSpace(_emailTopic) || _serviceBusSender == null)
         {
             _logger.LogWarning(
                 "Email topic not configured. Email would be sent: Type={EmailType}, To={ToEmail}, Subject={Subject}",
@@ -65,15 +70,16 @@ public class PubSubEmailService : IEmailService
             };
 
             var messageBody = JsonSerializer.Serialize(message);
-            var pubsubMessage = new PubsubMessage
+            var serviceBusMessage = new ServiceBusMessage(messageBody)
             {
-                Data = ByteString.CopyFromUtf8(messageBody)
+                MessageId = jobId,
+                Subject = emailType
             };
 
-            var messageId = await _publisherClient.PublishAsync(pubsubMessage);
+            await _serviceBusSender.SendMessageAsync(serviceBusMessage);
             _logger.LogInformation(
-                "Email job {JobId} published successfully. Type={EmailType}, To={ToEmail}, MessageId={MessageId}",
-                jobId, emailType, toEmail, messageId);
+                "Email job {JobId} published successfully. Type={EmailType}, To={ToEmail}",
+                jobId, emailType, toEmail);
         }
         catch (Exception ex)
         {
@@ -102,6 +108,12 @@ public class PubSubEmailService : IEmailService
     {
         var tasks = to.Select(email => SendToTopicAsync("html", email.Value, null, subject, string.Empty, htmlBody));
         await Task.WhenAll(tasks);
+    }
+
+    public void Dispose()
+    {
+        // Only dispose the sender, not the client (which is a singleton)
+        _serviceBusSender?.DisposeAsync().AsTask().Wait();
     }
 
     public async Task SendWelcomeWithVerificationAsync(string email, string firstName, string lastName, string userName, string verificationToken)

@@ -15,10 +15,8 @@ public static class Startup
     /// <summary>
     /// Configure services for dependency injection
     /// </summary>
-    public static IServiceProvider ConfigureServices()
+    public static void ConfigureServices(IServiceCollection services)
     {
-        var services = new ServiceCollection();
-
         // Configuration
         var configuration = StartupBase.BuildConfiguration();
         var databaseConfig = StartupBase.GetDatabaseConfiguration(configuration);
@@ -40,8 +38,6 @@ public static class Startup
 
         // Application Services
         services.AddScoped<IEmailProcessor, EmailProcessor>();
-
-        return services.BuildServiceProvider();
     }
 }
 

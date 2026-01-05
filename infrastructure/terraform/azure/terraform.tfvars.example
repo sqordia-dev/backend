@@ -1,0 +1,54 @@
+# Azure Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars to version control
+
+# Azure Configuration
+azure_subscription_id = "00000000-0000-0000-0000-000000000000" # Your Azure Subscription ID
+azure_location        = "canadacentral" # Canada Central for CAD pricing
+
+# Environment
+environment  = "production"
+project_name = "sqordia"
+
+# PostgreSQL Configuration
+postgresql_sku_name        = "B_Standard_B1ms"  # Basic tier, Standard, B1ms (1 vCore, 2GB RAM)
+postgresql_storage_mb      = 32768        # 32GB (minimum for Flexible Server)
+postgresql_database_name   = "SqordiaDb"
+postgresql_admin_username  = "sqordia_admin"
+postgresql_admin_password   = "CHANGE_ME" # Set a strong password
+postgresql_version         = "15"
+
+# Container Apps Configuration
+container_apps_cpu          = 0.5
+container_apps_memory       = "1.0"
+container_apps_min_replicas = 0  # 0 for cost optimization, 1 to avoid cold starts
+container_apps_max_replicas = 10
+
+# Azure Functions Configuration
+functions_timeout = 300  # 5 minutes
+functions_memory_mb = 512
+
+# Blob Storage Configuration
+blob_storage_account_tier             = "Standard"
+blob_storage_account_replication_type  = "LRS"  # Locally Redundant Storage
+blob_storage_access_tier              = "Hot"
+
+# Service Bus Configuration
+service_bus_sku = "Basic"  # Free tier eligible
+
+# Container Registry Configuration
+container_registry_sku = "Basic"
+
+# Key Vault Configuration
+key_vault_sku = "standard"
+
+# Log Analytics Configuration
+log_analytics_retention_days = 7
+
+# Common Tags
+common_tags = {
+  Project     = "Sqordia"
+  ManagedBy   = "Terraform"
+  Environment = "production"
+}
+

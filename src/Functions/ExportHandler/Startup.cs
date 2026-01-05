@@ -1,4 +1,4 @@
-using Google.Cloud.Storage.V1;
+using Azure.Storage.Blobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -16,37 +16,37 @@ public static class Startup
     /// <summary>
     /// Configure services for dependency injection
     /// </summary>
-    public static IServiceProvider ConfigureServices()
+    public static void ConfigureServices(IServiceCollection services)
     {
-        var services = new ServiceCollection();
-
         // Configuration
         var configuration = StartupBase.BuildConfiguration();
         var databaseConfig = StartupBase.GetDatabaseConfiguration(configuration);
 
-        var gcpProjectId = configuration["GCP__ProjectId"] 
-                        ?? configuration["GCP:ProjectId"] 
-                        ?? Environment.GetEnvironmentVariable("GOOGLE_CLOUD_PROJECT") 
-                        ?? throw new InvalidOperationException("GCP ProjectId is not configured");
+        var storageConnectionString = configuration["AzureStorage__ConnectionString"] 
+                                   ?? configuration["AzureStorage:ConnectionString"] 
+                                   ?? throw new InvalidOperationException("Azure Storage connection string is not configured");
+
+        var storageAccountName = configuration["AzureStorage__AccountName"] 
+                              ?? configuration["AzureStorage:AccountName"] 
+                              ?? throw new InvalidOperationException("Azure Storage account name is not configured");
 
         var exportConfig = new ExportConfiguration
         {
-            StorageBucketName = configuration["Storage__BucketName"] ?? configuration["Storage:BucketName"] ?? "sqordia-exports",
-            GcpProjectId = gcpProjectId
+            StorageAccountName = storageAccountName,
+            StorageConnectionString = storageConnectionString,
+            ContainerName = configuration["AzureStorage__ContainerName"] ?? configuration["AzureStorage:ContainerName"] ?? "exports"
         };
 
         services.AddSingleton(Options.Create(exportConfig));
 
-        // GCP Services
-        services.AddSingleton(StorageClient.Create());
+        // Azure Blob Storage Services
+        services.AddSingleton(new BlobServiceClient(storageConnectionString));
 
         // Common services
         StartupBase.ConfigureCommonServices(services, configuration);
 
         // Application Services
         services.AddScoped<IExportProcessor, ExportProcessor>();
-
-        return services.BuildServiceProvider();
     }
 }
 

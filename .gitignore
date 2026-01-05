@@ -80,6 +80,12 @@ Thumbs.db
 # Azure secrets file with actual credentials (DO NOT COMMIT)
 docs/AZURE_SECRETS_GENERATED.md
 docs/GITHUB_SECRETS_VALUES.md
+docs/AZURE_GITHUB_SECRETS.md
+docs/AZURE_GITHUB_SECRETS.md
+docs/GCP_GITHUB_ACTIONS_SETUP.md
+docs/AZURE_APPSETTINGS_UPDATE.md
+docs/AZURE_GITHUB_ACTIONS.md
+docs/PGADMIN_SETUP.md
 # Development configuration with actual secrets
 src/WebAPI/appsettings.Development.json
 src/WebAPI/Properties/launchSettings.json

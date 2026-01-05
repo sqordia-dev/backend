@@ -9,6 +9,6 @@ public class AIGenerationConfiguration
     public string ClaudeSecretName { get; set; } = "claude-api-key";
     public string GeminiSecretName { get; set; } = "gemini-api-key";
     public string DefaultAiProvider { get; set; } = "openai";
-    public string GcpProjectId { get; set; } = string.Empty;
+    public string KeyVaultUrl { get; set; } = string.Empty;
 }
 

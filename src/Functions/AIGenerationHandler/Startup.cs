@@ -1,4 +1,4 @@
-using Google.Cloud.SecretManager.V1;
+using Azure.Security.KeyVault.Secrets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -16,18 +16,15 @@ public static class Startup
     /// <summary>
     /// Configure services for dependency injection
     /// </summary>
-    public static IServiceProvider ConfigureServices()
+    public static void ConfigureServices(IServiceCollection services)
     {
-        var services = new ServiceCollection();
-
         // Configuration
         var configuration = StartupBase.BuildConfiguration();
         var databaseConfig = StartupBase.GetDatabaseConfiguration(configuration);
 
-        var gcpProjectId = configuration["GCP__ProjectId"] 
-                        ?? configuration["GCP:ProjectId"] 
-                        ?? Environment.GetEnvironmentVariable("GOOGLE_CLOUD_PROJECT") 
-                        ?? throw new InvalidOperationException("GCP ProjectId is not configured");
+        var keyVaultUrl = configuration["AzureKeyVault__VaultUrl"] 
+                       ?? configuration["AzureKeyVault:VaultUrl"] 
+                       ?? throw new InvalidOperationException("Azure Key Vault URL is not configured");
 
         var aiConfig = new AIGenerationConfiguration
         {
@@ -35,21 +32,19 @@ public static class Startup
             ClaudeSecretName = configuration["AI__ClaudeSecretName"] ?? configuration["AI:ClaudeSecretName"] ?? "claude-api-key",
             GeminiSecretName = configuration["AI__GeminiSecretName"] ?? configuration["AI:GeminiSecretName"] ?? "gemini-api-key",
             DefaultAiProvider = configuration["AI__DefaultProvider"] ?? configuration["AI:DefaultProvider"] ?? "openai",
-            GcpProjectId = gcpProjectId
+            KeyVaultUrl = keyVaultUrl
         };
 
         services.AddSingleton(Options.Create(aiConfig));
 
-        // GCP Services
-        services.AddSingleton(SecretManagerServiceClient.Create());
+        // Azure Key Vault Services
+        services.AddSingleton(new SecretClient(new Uri(keyVaultUrl), new Azure.Identity.DefaultAzureCredential()));
 
         // Common services
         StartupBase.ConfigureCommonServices(services, configuration);
 
         // Application Services
         services.AddScoped<IAIGenerationProcessor, AIGenerationProcessor>();
-
-        return services.BuildServiceProvider();
     }
 }
 

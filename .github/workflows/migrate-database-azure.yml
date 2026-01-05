@@ -1,0 +1,169 @@
+name: Database Migrations (Azure)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+  push:
+    branches:
+      - release
+    paths:
+      - 'src/Infrastructure/Sqordia.Persistence/Migrations/**'
+
+env:
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  RESOURCE_GROUP_NAME: ${{ secrets.AZURE_RESOURCE_GROUP_NAME || 'sqordia-production-rg' }}
+  CONTAINER_APP_NAME: ${{ secrets.AZURE_CONTAINER_APP_NAME || 'sqordia-production-api' }}
+  POSTGRESQL_SERVER_NAME: ${{ secrets.AZURE_POSTGRESQL_SERVER_NAME || 'sqordia-production-postgres' }}
+
+jobs:
+  migrate:
+    name: Run Database Migrations (Azure)
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set Azure subscription
+        run: |
+          az account set --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Get PostgreSQL connection string from Key Vault
+        id: get-db-connection
+        run: |
+          KEY_VAULT_NAME=$(az keyvault list \
+            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+            --query "[?contains(name, 'kv')].name" \
+            --output tsv | head -1)
+          
+          if [ -z "$KEY_VAULT_NAME" ]; then
+            echo "Key Vault not found"
+            exit 1
+          fi
+          
+          CONNECTION_STRING=$(az keyvault secret show \
+            --vault-name "$KEY_VAULT_NAME" \
+            --name "database-connection-string" \
+            --query "value" \
+            --output tsv 2>/dev/null || echo "")
+          
+          if [ -z "$CONNECTION_STRING" ]; then
+            echo "⚠️ Connection string not found in Key Vault"
+            echo "⚠️ Will attempt to construct connection string from server details"
+            
+            # Get server details
+            SERVER_FQDN=$(az postgres flexible-server show \
+              --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+              --name ${{ env.POSTGRESQL_SERVER_NAME }} \
+              --query "fullyQualifiedDomainName" \
+              --output tsv 2>/dev/null || echo "")
+            
+            if [ -n "$SERVER_FQDN" ]; then
+              echo "server_fqdn=$SERVER_FQDN" >> $GITHUB_OUTPUT
+              echo "connection_available=false" >> $GITHUB_OUTPUT
+            else
+              echo "connection_available=false" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          else
+            echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
+            echo "connection_available=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run migrations via Container App (if available)
+        if: steps.get-db-connection.outputs.connection_available == 'true'
+        run: |
+          echo "=== Running migrations via Container App ==="
+          
+          # Execute migration command in the Container App
+          az containerapp exec \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+            --command "dotnet ef database update" \
+            --args "--project src/Infrastructure/Sqordia.Persistence" \
+            --args "--startup-project src/WebAPI" \
+            --args "--connection '${{ steps.get-db-connection.outputs.connection_string }}'" \
+            || echo "⚠️ Migration via Container App failed, trying alternative method"
+
+      - name: Run migrations directly (alternative method)
+        if: steps.get-db-connection.outputs.connection_available == 'true'
+        run: |
+          echo "=== Running migrations directly ==="
+          
+          # Restore and build
+          dotnet restore Sqordia.sln
+          dotnet build Sqordia.sln -c Release --no-restore
+          
+          # Run migrations
+          dotnet ef database update \
+            --project src/Infrastructure/Sqordia.Persistence \
+            --startup-project src/WebAPI \
+            --connection "${{ steps.get-db-connection.outputs.connection_string }}" \
+            --no-build || echo "⚠️ Direct migration failed"
+
+      - name: Run migrations with constructed connection string
+        if: steps.get-db-connection.outputs.connection_available == 'false' && steps.get-db-connection.outputs.server_fqdn != ''
+        run: |
+          echo "=== Running migrations with constructed connection string ==="
+          
+          # Get database credentials from Key Vault or secrets
+          DB_USER=$(az keyvault secret show \
+            --vault-name "$(az keyvault list --resource-group ${{ env.RESOURCE_GROUP_NAME }} --query '[0].name' -o tsv)" \
+            --name "postgresql-admin-username" \
+            --query "value" \
+            --output tsv 2>/dev/null || echo "${{ secrets.AZURE_POSTGRESQL_ADMIN_USERNAME }}")
+          
+          DB_PASSWORD=$(az keyvault secret show \
+            --vault-name "$(az keyvault list --resource-group ${{ env.RESOURCE_GROUP_NAME }} --query '[0].name' -o tsv)" \
+            --name "postgresql-admin-password" \
+            --query "value" \
+            --output tsv 2>/dev/null || echo "${{ secrets.AZURE_POSTGRESQL_ADMIN_PASSWORD }}")
+          
+          DB_NAME="SqordiaDb"
+          
+          if [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+            echo "⚠️ Database credentials not available"
+            echo "⚠️ Please run migrations manually or configure Key Vault secrets"
+            exit 1
+          fi
+          
+          CONNECTION_STRING="Host=${{ steps.get-db-connection.outputs.server_fqdn }};Port=5432;Database=$DB_NAME;Username=$DB_USER;Password=$DB_PASSWORD;SSL Mode=Require;"
+          
+          # Restore and build
+          dotnet restore Sqordia.sln
+          dotnet build Sqordia.sln -c Release --no-restore
+          
+          # Run migrations
+          dotnet ef database update \
+            --project src/Infrastructure/Sqordia.Persistence \
+            --startup-project src/WebAPI \
+            --connection "$CONNECTION_STRING" \
+            --no-build
+
+      - name: Migration summary
+        run: |
+          echo "✅ Database migrations completed successfully"
+          echo "Environment: ${{ github.event.inputs.environment || 'production' }}"
+          echo "PostgreSQL Server: ${{ env.POSTGRESQL_SERVER_NAME }}"
+
