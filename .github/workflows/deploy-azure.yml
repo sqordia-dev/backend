@@ -103,8 +103,14 @@ jobs:
         id: azure_login_oidc
 
       - name: Azure Login (Service Principal Fallback)
-        if: steps.azure_login_oidc.outcome == 'failure' && secrets.AZURE_CLIENT_SECRET != ''
+        if: steps.azure_login_oidc.outcome == 'failure'
         run: |
+          if [ -z "${{ secrets.AZURE_CLIENT_SECRET }}" ]; then
+            echo "⚠️ AZURE_CLIENT_SECRET not set, skipping service principal fallback"
+            echo "OIDC authentication failed and no fallback available" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
           az login --service-principal \
             --username "${{ secrets.AZURE_CLIENT_ID }}" \
             --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
@@ -114,7 +120,7 @@ jobs:
         id: azure_login_secret
 
       - name: Fail if all authentication methods failed
-        if: steps.azure_login_oidc.outcome == 'failure' && (secrets.AZURE_CLIENT_SECRET == '' || (secrets.AZURE_CLIENT_SECRET != '' && steps.azure_login_secret.outcome == 'failure'))
+        if: steps.azure_login_oidc.outcome == 'failure' && (steps.azure_login_secret.outcome == 'failure' || steps.azure_login_secret.outcome == 'skipped')
         run: |
           echo "❌ All authentication methods failed:" >> $GITHUB_STEP_SUMMARY
           echo "- OIDC authentication failed" >> $GITHUB_STEP_SUMMARY
@@ -168,8 +174,13 @@ jobs:
         id: azure_login_oidc
 
       - name: Azure Login (Service Principal Fallback)
-        if: steps.azure_login_oidc.outcome == 'failure' && secrets.AZURE_CLIENT_SECRET != ''
+        if: steps.azure_login_oidc.outcome == 'failure'
         run: |
+          if [ -z "${{ secrets.AZURE_CLIENT_SECRET }}" ]; then
+            echo "⚠️ AZURE_CLIENT_SECRET not set, skipping service principal fallback"
+            exit 1
+          fi
+          
           az login --service-principal \
             --username "${{ secrets.AZURE_CLIENT_ID }}" \
             --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
@@ -232,8 +243,13 @@ jobs:
         id: azure_login_oidc
 
       - name: Azure Login (Service Principal Fallback)
-        if: steps.azure_login_oidc.outcome == 'failure' && secrets.AZURE_CLIENT_SECRET != ''
+        if: steps.azure_login_oidc.outcome == 'failure'
         run: |
+          if [ -z "${{ secrets.AZURE_CLIENT_SECRET }}" ]; then
+            echo "⚠️ AZURE_CLIENT_SECRET not set, skipping service principal fallback"
+            exit 1
+          fi
+          
           az login --service-principal \
             --username "${{ secrets.AZURE_CLIENT_ID }}" \
             --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
@@ -307,8 +323,13 @@ jobs:
         id: azure_login_oidc
 
       - name: Azure Login (Service Principal Fallback)
-        if: steps.azure_login_oidc.outcome == 'failure' && secrets.AZURE_CLIENT_SECRET != ''
+        if: steps.azure_login_oidc.outcome == 'failure'
         run: |
+          if [ -z "${{ secrets.AZURE_CLIENT_SECRET }}" ]; then
+            echo "⚠️ AZURE_CLIENT_SECRET not set, skipping service principal fallback"
+            exit 1
+          fi
+          
           az login --service-principal \
             --username "${{ secrets.AZURE_CLIENT_ID }}" \
             --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
@@ -356,8 +377,13 @@ jobs:
         id: azure_login_oidc
 
       - name: Azure Login (Service Principal Fallback)
-        if: steps.azure_login_oidc.outcome == 'failure' && secrets.AZURE_CLIENT_SECRET != ''
+        if: steps.azure_login_oidc.outcome == 'failure'
         run: |
+          if [ -z "${{ secrets.AZURE_CLIENT_SECRET }}" ]; then
+            echo "⚠️ AZURE_CLIENT_SECRET not set, skipping service principal fallback"
+            exit 1
+          fi
+          
           az login --service-principal \
             --username "${{ secrets.AZURE_CLIENT_ID }}" \
             --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
