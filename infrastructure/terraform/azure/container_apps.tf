@@ -1,8 +1,8 @@
 # User Assigned Identity for Container Apps (defined first for dependencies)
 resource "azurerm_user_assigned_identity" "container_apps" {
   name                = "${var.project_name}-${var.environment}-container-apps-identity"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
 
   tags = var.common_tags
 }
@@ -10,8 +10,8 @@ resource "azurerm_user_assigned_identity" "container_apps" {
 # Log Analytics Workspace (required for Container Apps)
 resource "azurerm_log_analytics_workspace" "main" {
   name                = "${var.project_name}-${var.environment}-logs"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
   sku                 = "PerGB2018"
   retention_in_days    = max(var.log_analytics_retention_days, 30)  # Minimum 30 days for PerGB2018 SKU
 
@@ -26,8 +26,8 @@ resource "azurerm_log_analytics_workspace" "main" {
 # Container Apps Environment
 resource "azurerm_container_app_environment" "main" {
   name                       = "${var.project_name}-${var.environment}-env"
-  location                   = azurerm_resource_group.main.location
-  resource_group_name        = azurerm_resource_group.main.name
+  location                   = data.azurerm_resource_group.main.location
+  resource_group_name        = data.azurerm_resource_group.main.name
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
 
   tags = merge(
@@ -42,7 +42,7 @@ resource "azurerm_container_app_environment" "main" {
 resource "azurerm_container_app" "api" {
   name                         = "${var.project_name}-${var.environment}-api"
   container_app_environment_id = azurerm_container_app_environment.main.id
-  resource_group_name          = azurerm_resource_group.main.name
+  resource_group_name          = data.azurerm_resource_group.main.name
   revision_mode                = "Single"
 
   template {

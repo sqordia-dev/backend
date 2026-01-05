@@ -1,8 +1,8 @@
 # Key Vault
 resource "azurerm_key_vault" "main" {
   name                = "${var.project_name}-${var.environment}-kv" # Must be globally unique
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
   tenant_id           = data.azurerm_client_config.current.tenant_id
   sku_name            = var.key_vault_sku
 

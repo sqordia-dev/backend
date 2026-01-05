@@ -1,7 +1,7 @@
 # PostgreSQL Server
 resource "azurerm_postgresql_flexible_server" "main" {
   name                   = "${var.project_name}-${var.environment}-postgres"
-  resource_group_name    = azurerm_resource_group.main.name
+  resource_group_name    = data.azurerm_resource_group.main.name
   location               = var.azure_location
   version                = var.postgresql_version
   delegated_subnet_id    = null # Public access for now, can be changed to private endpoint

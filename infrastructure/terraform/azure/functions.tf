@@ -1,8 +1,8 @@
 # Storage Account for Functions (required)
 resource "azurerm_storage_account" "functions" {
   name                     = "${var.project_name}${var.environment}func" # Must be globally unique
-  resource_group_name      = azurerm_resource_group.main.name
-  location                 = azurerm_resource_group.main.location
+  resource_group_name      = data.azurerm_resource_group.main.name
+  location                 = data.azurerm_resource_group.main.location
   account_tier             = "Standard"
   account_replication_type = "LRS"
   account_kind             = "StorageV2"
@@ -18,8 +18,8 @@ resource "azurerm_storage_account" "functions" {
 # App Service Plan for Functions (Consumption plan)
 resource "azurerm_service_plan" "functions" {
   name                = "${var.project_name}-${var.environment}-functions-plan"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
+  location            = data.azurerm_resource_group.main.location
   os_type             = "Linux"
   sku_name            = "Y1" # Consumption plan
 
@@ -34,8 +34,8 @@ resource "azurerm_service_plan" "functions" {
 # Email Handler Function App
 resource "azurerm_linux_function_app" "email_handler" {
   name                = "${var.project_name}-${var.environment}-email-handler"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
+  location            = data.azurerm_resource_group.main.location
   service_plan_id     = azurerm_service_plan.functions.id
   storage_account_name = azurerm_storage_account.functions.name
 
@@ -66,8 +66,8 @@ resource "azurerm_linux_function_app" "email_handler" {
 # AI Generation Handler Function App
 resource "azurerm_linux_function_app" "ai_generation_handler" {
   name                = "${var.project_name}-${var.environment}-ai-generation-handler"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
+  location            = data.azurerm_resource_group.main.location
   service_plan_id     = azurerm_service_plan.functions.id
   storage_account_name = azurerm_storage_account.functions.name
 
@@ -99,8 +99,8 @@ resource "azurerm_linux_function_app" "ai_generation_handler" {
 # Export Handler Function App
 resource "azurerm_linux_function_app" "export_handler" {
   name                = "${var.project_name}-${var.environment}-export-handler"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
+  location            = data.azurerm_resource_group.main.location
   service_plan_id     = azurerm_service_plan.functions.id
   storage_account_name = azurerm_storage_account.functions.name
 

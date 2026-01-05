@@ -1,8 +1,8 @@
 # Service Bus Namespace
 resource "azurerm_servicebus_namespace" "main" {
   name                = "${var.project_name}-${var.environment}-servicebus"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
   sku                 = var.service_bus_sku
 
   tags = merge(

@@ -1,8 +1,8 @@
 # Storage Account
 resource "azurerm_storage_account" "main" {
   name                     = "${var.project_name}${var.environment}storage" # Storage account names must be globally unique and lowercase
-  resource_group_name      = azurerm_resource_group.main.name
-  location                 = azurerm_resource_group.main.location
+  resource_group_name      = data.azurerm_resource_group.main.name
+  location                 = data.azurerm_resource_group.main.location
   account_tier             = var.blob_storage_account_tier
   account_replication_type = var.blob_storage_account_replication_type
   account_kind             = "StorageV2"
@@ -31,6 +31,6 @@ resource "azurerm_storage_container" "documents" {
 # Note: In production, use Managed Identity instead of access keys
 data "azurerm_storage_account" "main" {
   name                = azurerm_storage_account.main.name
-  resource_group_name = azurerm_resource_group.main.name
+  resource_group_name = data.azurerm_resource_group.main.name
 }
 
