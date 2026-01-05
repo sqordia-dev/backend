@@ -64,7 +64,7 @@ jobs:
         id: azure_login_secret
 
       - name: Fail if all authentication methods failed
-        if: steps.azure_login_oidc.outcome == 'failure' && (secrets.AZURE_CLIENT_SECRET == '' || steps.azure_login_secret.outcome == 'failure')
+        if: steps.azure_login_oidc.outcome == 'failure' && (secrets.AZURE_CLIENT_SECRET == '' || (secrets.AZURE_CLIENT_SECRET != '' && steps.azure_login_secret.outcome == 'failure'))
         run: |
           echo "❌ All authentication methods failed:" >> $GITHUB_STEP_SUMMARY
           echo "- OIDC authentication failed" >> $GITHUB_STEP_SUMMARY
