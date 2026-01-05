@@ -207,18 +207,6 @@ jobs:
         working-directory: infrastructure/terraform/azure
         run: terraform validate
 
-      - name: Import Existing Resources
-        working-directory: infrastructure/terraform/azure
-        env:
-          ARM_SUBSCRIPTION_ID: ${{ env.AZURE_SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_OIDC: "true"
-        run: |
-          # Import existing resource group if it exists
-          terraform import -input=false azurerm_resource_group.main /subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/sqordia-production-rg || echo "Resource group already in state or does not exist"
-        continue-on-error: true
-
       - name: Terraform Plan
         working-directory: infrastructure/terraform/azure
         env:
