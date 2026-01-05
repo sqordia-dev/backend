@@ -209,6 +209,11 @@ jobs:
 
       - name: Import Existing Resources
         working-directory: infrastructure/terraform/azure
+        env:
+          ARM_SUBSCRIPTION_ID: ${{ env.AZURE_SUBSCRIPTION_ID }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_USE_OIDC: "true"
         run: |
           # Import existing resource group if it exists
           terraform import -input=false azurerm_resource_group.main /subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/sqordia-production-rg || echo "Resource group already in state or does not exist"
@@ -217,6 +222,10 @@ jobs:
       - name: Terraform Plan
         working-directory: infrastructure/terraform/azure
         env:
+          ARM_SUBSCRIPTION_ID: ${{ env.AZURE_SUBSCRIPTION_ID }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_USE_OIDC: "true"
           TF_VAR_azure_subscription_id: ${{ env.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_azure_location: ${{ env.AZURE_LOCATION }}
           TF_VAR_postgresql_admin_password: ${{ secrets.AZURE_POSTGRESQL_ADMIN_PASSWORD }}
@@ -294,6 +303,10 @@ jobs:
       - name: Terraform Apply
         working-directory: infrastructure/terraform/azure
         env:
+          ARM_SUBSCRIPTION_ID: ${{ env.AZURE_SUBSCRIPTION_ID }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_USE_OIDC: "true"
           TF_VAR_azure_subscription_id: ${{ env.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_azure_location: ${{ env.AZURE_LOCATION }}
           TF_VAR_postgresql_admin_password: ${{ secrets.AZURE_POSTGRESQL_ADMIN_PASSWORD }}
