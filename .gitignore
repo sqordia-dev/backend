@@ -118,3 +118,4 @@ secrets.json
 # PowerShell scripts (may contain sensitive information)
 *.ps1
 docs/AZURE_FEDERATED_CREDENTIALS_SETUP.md
+.claude/settings.local.json
