@@ -44,7 +44,7 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Run tests
-        if: ${{ !inputs.skip_tests }}
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_tests }}
         run: dotnet test --no-build --configuration Release --verbosity normal
 
   build-and-push-image:
