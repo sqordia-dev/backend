@@ -20,15 +20,14 @@ env:
   CONTAINER_REGISTRY_NAME: ${{ secrets.AZURE_CONTAINER_REGISTRY_NAME || 'sqordiaproductionacr' }}
   CONTAINER_APP_NAME: ${{ secrets.AZURE_CONTAINER_APP_NAME || 'sqordia-production-api' }}
   IMAGE_NAME: api
+  DOTNET_VERSION: '8.0.x'
+  TERRAFORM_VERSION: '1.6.0'
 
 jobs:
-  build-and-deploy:
-    name: Build and Deploy to Azure
+  build-and-test:
+    name: Build and Test
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,12 +35,29 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Run tests (optional)
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Run tests
         if: ${{ !inputs.skip_tests }}
-        run: |
-          dotnet test --no-build --verbosity normal || echo "Tests failed but continuing deployment"
+        run: dotnet test --no-build --configuration Release --verbosity normal
+
+  build-and-push-image:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -78,14 +94,9 @@ jobs:
           exit 1
 
       - name: Set Azure subscription
-        if: steps.azure_login_oidc.outcome == 'success'
+        if: steps.azure_login_oidc.outcome == 'success' || steps.azure_login_secret.outcome == 'success'
         run: |
           az account set --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.6.0"
 
       - name: Login to Azure Container Registry
         run: |
@@ -101,59 +112,230 @@ jobs:
           docker push ${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
 
-      - name: Deploy Azure Infrastructure (Terraform)
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    needs: build-and-push-image
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+        continue-on-error: true
+        id: azure_login_oidc
+
+      - name: Azure Login (Service Principal Fallback)
+        if: steps.azure_login_oidc.outcome == 'failure' && secrets.AZURE_CLIENT_SECRET != ''
         run: |
-          echo "=== Deploying Azure Infrastructure ==="
-          cd infrastructure/terraform/azure
-          
-          # Initialize Terraform
-          terraform init -input=false
-          
-          # Plan changes
-          terraform plan -out=tfplan -input=false || {
-            echo "⚠️ Terraform plan failed or no changes detected"
-            exit 0
-          }
-          
-          # Apply changes (only if plan succeeded)
+          az login --service-principal \
+            --username "${{ secrets.AZURE_CLIENT_ID }}" \
+            --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
+            --tenant "${{ secrets.AZURE_TENANT_ID }}"
+          az account set --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}"
+        continue-on-error: true
+        id: azure_login_secret
+
+      - name: Set Azure subscription
+        if: steps.azure_login_oidc.outcome == 'success' || steps.azure_login_secret.outcome == 'success'
+        run: |
+          az account set --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform Init
+        working-directory: infrastructure/terraform/azure
+        run: terraform init -input=false
+
+      - name: Terraform Validate
+        working-directory: infrastructure/terraform/azure
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: infrastructure/terraform/azure
+        run: terraform plan -out=tfplan -input=false
+        continue-on-error: true
+        id: terraform_plan
+
+      - name: Upload Terraform Plan
+        if: steps.terraform_plan.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: infrastructure/terraform/azure/tfplan
+          retention-days: 1
+
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+        continue-on-error: true
+        id: azure_login_oidc
+
+      - name: Azure Login (Service Principal Fallback)
+        if: steps.azure_login_oidc.outcome == 'failure' && secrets.AZURE_CLIENT_SECRET != ''
+        run: |
+          az login --service-principal \
+            --username "${{ secrets.AZURE_CLIENT_ID }}" \
+            --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
+            --tenant "${{ secrets.AZURE_TENANT_ID }}"
+          az account set --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}"
+        continue-on-error: true
+        id: azure_login_secret
+
+      - name: Set Azure subscription
+        if: steps.azure_login_oidc.outcome == 'success' || steps.azure_login_secret.outcome == 'success'
+        run: |
+          az account set --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: infrastructure/terraform/azure
+
+      - name: Terraform Init
+        working-directory: infrastructure/terraform/azure
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        working-directory: infrastructure/terraform/azure
+        run: |
           if [ -f "tfplan" ]; then
-            terraform apply -auto-approve tfplan || echo "⚠️ Terraform apply completed with warnings"
+            terraform apply -auto-approve tfplan
+          else
+            echo "⚠️ No Terraform plan found, skipping apply"
           fi
-          
-          echo "✅ Infrastructure deployment completed"
 
       - name: Update Container App with new image
         run: |
           echo "=== Updating Container App ==="
-          
-          # Update the container image using az containerapp update
           az containerapp update \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
             --image ${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} || {
             echo "⚠️ Container App update failed, trying alternative method..."
-            # Alternative: Update via revision
             az containerapp revision restart \
               --name ${{ env.CONTAINER_APP_NAME }} \
               --resource-group ${{ env.RESOURCE_GROUP_NAME }} || echo "Revision restart skipped"
           }
-          
           echo "✅ Container App updated"
+
+  deploy-functions:
+    name: Deploy Azure Functions
+    runs-on: ubuntu-latest
+    needs: terraform-apply
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+        continue-on-error: true
+        id: azure_login_oidc
+
+      - name: Azure Login (Service Principal Fallback)
+        if: steps.azure_login_oidc.outcome == 'failure' && secrets.AZURE_CLIENT_SECRET != ''
+        run: |
+          az login --service-principal \
+            --username "${{ secrets.AZURE_CLIENT_ID }}" \
+            --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
+            --tenant "${{ secrets.AZURE_TENANT_ID }}"
+          az account set --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}"
+        continue-on-error: true
+        id: azure_login_secret
+
+      - name: Set Azure subscription
+        if: steps.azure_login_oidc.outcome == 'success' || steps.azure_login_secret.outcome == 'success'
+        run: |
+          az account set --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Build and Deploy Azure Functions
         run: |
           echo "=== Building and Deploying Azure Functions ==="
-          
-          # Make script executable
           chmod +x scripts/deploy-azure-functions.sh
-          
-          # Deploy functions using the script
           ./scripts/deploy-azure-functions.sh ${{ env.RESOURCE_GROUP_NAME }} ${{ env.AZURE_LOCATION }} || {
             echo "⚠️ Functions deployment failed or skipped"
             echo "Functions can be deployed manually via Azure Portal or Azure Functions Core Tools"
           }
-          
           echo "✅ Functions deployment completed"
+
+  health-check:
+    name: Health Check
+    runs-on: ubuntu-latest
+    needs: [terraform-apply, deploy-functions]
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+        continue-on-error: true
+        id: azure_login_oidc
+
+      - name: Azure Login (Service Principal Fallback)
+        if: steps.azure_login_oidc.outcome == 'failure' && secrets.AZURE_CLIENT_SECRET != ''
+        run: |
+          az login --service-principal \
+            --username "${{ secrets.AZURE_CLIENT_ID }}" \
+            --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
+            --tenant "${{ secrets.AZURE_TENANT_ID }}"
+          az account set --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}"
+        continue-on-error: true
+        id: azure_login_secret
+
+      - name: Set Azure subscription
+        if: steps.azure_login_oidc.outcome == 'success' || steps.azure_login_secret.outcome == 'success'
+        run: |
+          az account set --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}
 
       - name: Get Container App URL
         id: container-app
@@ -165,7 +347,6 @@ jobs:
             --output tsv 2>/dev/null || echo "")
           
           if [ -z "$URL" ]; then
-            # Try alternative query
             URL=$(az containerapp show \
               --name ${{ env.CONTAINER_APP_NAME }} \
               --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
@@ -197,4 +378,3 @@ jobs:
           echo "**Container Registry:** ${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.event.head_commit.message }}" >> $GITHUB_STEP_SUMMARY
-
