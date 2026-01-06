@@ -77,7 +77,7 @@ VALUES (
     'User',
     'admin@sqordia.com',
     'admin@sqordia.com',
-    '$2a$11$A0bIb8AicZpummTj/P1R0ulYPvlEBsanmULeaf7m2969WfbBDcdWm', -- BCrypt hash for: Sqordia2025! (generated fresh)
+    '$2a$11$y1Hy2TKboroe4nri8acIRuRjgJG1F7zJB8CaEKyBFqbEifOTuo.4q', -- BCrypt hash for: Sqordia2025! (generated fresh)
     true, -- IsEmailConfirmed
     NOW() AT TIME ZONE 'UTC', -- EmailConfirmedAt
     true, -- IsActive

@@ -29,7 +29,7 @@ VALUES (
     'User',
     'admin@sqordia.com',
     'admin@sqordia.com',
-    '$2a$11$mQQQUzX12zagdYn5YrbKN.PvvUZ8XHn7DsqjAvoYsXsVXJ6SSdKFa', -- Password: Sqordia2025!
+    '$2a$11$y1Hy2TKboroe4nri8acIRuRjgJG1F7zJB8CaEKyBFqbEifOTuo.4q', -- Password: Sqordia2025!
     true, -- IsEmailConfirmed
     NOW() AT TIME ZONE 'UTC', -- EmailConfirmedAt
     true, -- IsActive
