@@ -26,6 +26,11 @@ public class Subscription : BaseAuditableEntity
     public bool IsTrial { get; private set; }
     public DateTime? TrialEndDate { get; private set; }
     
+    // Stripe integration
+    public string? StripeCustomerId { get; private set; }
+    public string? StripeSubscriptionId { get; private set; }
+    public string? StripePriceId { get; private set; }
+    
     // Navigation properties
     public User User { get; private set; } = null!;
     public Organization Organization { get; private set; } = null!;
@@ -100,6 +105,16 @@ public class Subscription : BaseAuditableEntity
         if (Status == SubscriptionStatus.Active)
         {
             EndDate = newEndDate;
+        }
+    }
+    
+    public void SetStripeIds(string customerId, string subscriptionId, string? priceId = null)
+    {
+        StripeCustomerId = customerId;
+        StripeSubscriptionId = subscriptionId;
+        if (!string.IsNullOrEmpty(priceId))
+        {
+            StripePriceId = priceId;
         }
     }
     

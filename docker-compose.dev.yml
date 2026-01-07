@@ -15,7 +15,7 @@ services:
       
       # Database Connection - Using local PostgreSQL container
       # The service name 'sqordia-db' is used to connect to the PostgreSQL container
-      - ConnectionStrings__DefaultConnection=Host=sqordia-db;Port=5432;Database=SqordiaDb;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres};
+      - ConnectionStrings__DefaultConnection=Host=sqordia-db;Port=5432;Database=SqordiaDb;Username=sqordia;Password=${POSTGRES_PASSWORD:-Sq0rd1aDev2024X};
       
       # JWT Settings
       - JwtSettings__Secret=${JWT_SECRET:-fZCrXaY7jlvsqKSLpJeRbdw6TDoFIA8yB4OziUgVWH95tmQE21xh3NGkPncMu0}
@@ -49,9 +49,14 @@ services:
       
       # Disable HTTPS redirect for Docker development
       - DISABLE_HTTPS_REDIRECT=true
+      
+      # Enable database seeding on startup (for local development)
+      - Database__RunSeedsOnStartup=true
     volumes:
       # Mount logs directory if needed
       - ./logs:/app/logs
+      # Mount seed script for easy updates during development
+      - ./scripts/seed-all.sql:/app/scripts/seed-all.sql:ro
     networks:
       - sqordia-network
     depends_on:
@@ -70,18 +75,18 @@ services:
     image: postgres:16-alpine
     container_name: sqordia-db-dev
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_USER=sqordia
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-Sq0rd1aDev2024X}
       - POSTGRES_DB=SqordiaDb
     ports:
-      - "5432:5432"  # Expose PostgreSQL port for external tools (pgAdmin, DBeaver, etc.)
+      - "5433:5432"  # Expose PostgreSQL port for external tools (pgAdmin, DBeaver, etc.)
     volumes:
       - sqordia-db-data:/var/lib/postgresql/data
     networks:
       - sqordia-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U sqordia"]
       interval: 10s
       timeout: 5s
       retries: 15

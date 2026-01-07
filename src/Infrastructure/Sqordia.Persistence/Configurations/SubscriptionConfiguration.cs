@@ -25,6 +25,16 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
         builder.Property(s => s.Amount)
             .HasPrecision(18, 2)
             .IsRequired();
+        
+        // Stripe fields
+        builder.Property(s => s.StripeCustomerId)
+            .HasMaxLength(255);
+            
+        builder.Property(s => s.StripeSubscriptionId)
+            .HasMaxLength(255);
+            
+        builder.Property(s => s.StripePriceId)
+            .HasMaxLength(255);
             
         // Indexes
         builder.HasIndex(s => s.UserId);
@@ -32,6 +42,8 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
         builder.HasIndex(s => s.SubscriptionPlanId);
         builder.HasIndex(s => s.Status);
         builder.HasIndex(s => new { s.OrganizationId, s.Status });
+        builder.HasIndex(s => s.StripeCustomerId);
+        builder.HasIndex(s => s.StripeSubscriptionId);
         
         // Relationships
         builder.HasOne(s => s.User)

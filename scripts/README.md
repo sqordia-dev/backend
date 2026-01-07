@@ -32,10 +32,12 @@ This directory contains PowerShell scripts for deployment, monitoring, and maint
 - `run-seed-scripts.ps1` - Run seed scripts
 - `run-seed-database.ps1` - Run database seeding
 - `run-seed-database-dotnet.ps1` - Run database seeding via .NET
+- `run-seed-questionnaire.ps1` - Run questionnaire seed script
 - `execute-seed-sql.ps1` - Execute seed SQL scripts
 - `test-db-connection.ps1` - Test database connection
 - `check-migration-status.ps1` - Check migration status
-- `seed-database.sql` - Database seed script
+- `seed-database.sql` - Database seed script (roles, permissions, admin user)
+- `seed-questionnaire.sql` - Questionnaire seed script (templates and questions)
 
 ## Database Admin Scripts
 

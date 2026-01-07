@@ -21,7 +21,7 @@
     <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.0" />
     <PackageReference Include="Npgsql" Version="8.0.3" />
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
-    <PackageReference Include="MailKit" Version="4.8.0" />
+    <PackageReference Include="Azure.Communication.Email" Version="1.1.0" />
   </ItemGroup>
 
   <ItemGroup>

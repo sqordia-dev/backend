@@ -34,6 +34,9 @@ WORKDIR /app
 # Copy published application
 COPY --from=publish /app/publish .
 
+# Copy seed script for database initialization
+COPY --from=build /src/scripts/seed-all.sql /app/scripts/seed-all.sql
+
 # Set environment variables for Docker
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ASPNETCORE_URLS=http://+:8080

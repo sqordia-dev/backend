@@ -37,6 +37,9 @@ public static class WebApplicationExtensions
             
             logger.LogInformation("Database migrations completed successfully.");
 
+            // Seed database after migrations (only in Development or if explicitly enabled)
+            await app.SeedDatabaseAsync();
+
             // Load critical settings after migrations
             await LoadCriticalSettingsAsync(services, logger);
         }

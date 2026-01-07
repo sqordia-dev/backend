@@ -1,15 +1,23 @@
 namespace Sqordia.Functions.EmailHandler.Configuration;
 
 /// <summary>
-/// Email function configuration settings
+/// Email function configuration settings for Azure Communication Services Email
 /// </summary>
 public class EmailConfiguration
 {
+    /// <summary>
+    /// Azure Communication Services connection string
+    /// </summary>
+    public string ConnectionString { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Sender email address (must be verified in Azure Communication Services)
+    /// </summary>
     public string FromEmail { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Sender display name
+    /// </summary>
     public string FromName { get; set; } = "Sqordia";
-    public string SmtpHost { get; set; } = "smtp.gmail.com";
-    public int SmtpPort { get; set; } = 587;
-    public string? SmtpUsername { get; set; }
-    public string? SmtpPassword { get; set; }
 }
 

@@ -119,3 +119,13 @@ secrets.json
 *.ps1
 docs/AZURE_FEDERATED_CREDENTIALS_SETUP.md
 .claude/settings.local.json
+src/WebAPI/appsettings.json
+.gitignore
+docs/DEV_DATABASE_COST_ESTIMATE.md
+docs/DOCKER_LOCAL_SETUP.md
+docs/TEST_STRIPE_CHECKOUT.md
+docs/AZURE_COMMUNICATION_SERVICES_EMAIL_SETUP.md
+.gitignore
+scripts/get-stripe-prices.sh
+docs/STRIPE_SETUP.md
+scripts/test-stripe-checkout.http

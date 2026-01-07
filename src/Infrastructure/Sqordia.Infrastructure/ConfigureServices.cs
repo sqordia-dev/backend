@@ -155,6 +155,9 @@ public static class ConfigureServices
         
         // Subscription service
         services.AddScoped<Sqordia.Application.Services.ISubscriptionService, SubscriptionService>();
+        
+        // Stripe service
+        services.AddScoped<Sqordia.Application.Services.IStripeService, StripeService>();
 
         // Storage service configuration - Azure Blob Storage
         var storageConnectionString = Environment.GetEnvironmentVariable("AzureStorage__ConnectionString")

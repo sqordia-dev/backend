@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Models;
@@ -19,15 +20,21 @@ public class SubscriptionService : ISubscriptionService
     private readonly IApplicationDbContext _context;
     private readonly ILogger<SubscriptionService> _logger;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IStripeService _stripeService;
+    private readonly IConfiguration _configuration;
 
     public SubscriptionService(
         IApplicationDbContext context,
         ILogger<SubscriptionService> logger,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IStripeService stripeService,
+        IConfiguration configuration)
     {
         _context = context;
         _logger = logger;
         _currentUserService = currentUserService;
+        _stripeService = stripeService;
+        _configuration = configuration;
     }
 
     public async Task<Result<List<SubscriptionPlanDto>>> GetPlansAsync(CancellationToken cancellationToken = default)

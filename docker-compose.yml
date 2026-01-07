@@ -6,18 +6,18 @@ services:
     image: postgres:16-alpine
     container_name: sqordia-db-dev
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_USER=sqordia
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-Sq0rd1aDev2024X}
       - POSTGRES_DB=SqordiaDb
     ports:
-      - "5432:5432"
+      - "5433:5432"  # Expose PostgreSQL port for external tools (pgAdmin, DBeaver, etc.)
     volumes:
       - sqordia-db-data:/var/lib/postgresql/data
     networks:
       - sqordia-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U sqordia"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -27,31 +27,68 @@ services:
     build:
       context: .
       dockerfile: src/WebAPI/Dockerfile
+    container_name: sqordia-api-dev
     ports:
-      - "5241:80"
-      - "7148:443"
+      - "5241:8080"  # Map host port 5241 to container port 8080
     environment:
+      # Environment
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:80;https://+:443
-      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
-      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
-      - ConnectionStrings__DefaultConnection=Host=sqordia-db;Port=5432;Database=SqordiaDb;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres};
-      - JwtSettings__Secret=${JWT_SECRET}
-      - JwtSettings__Issuer=Sqordia
-      - JwtSettings__Audience=SqordiaUsers
-      - JwtSettings__ExpirationMinutes=60
+      - ASPNETCORE_URLS=http://+:8080
+      
+      # Database Connection
+      - ConnectionStrings__DefaultConnection=Host=sqordia-db;Port=5432;Database=SqordiaDb;Username=sqordia;Password=${POSTGRES_PASSWORD:-Sq0rd1aDev2024X};
+      
+      # JWT Settings
+      - JwtSettings__Secret=${JWT_SECRET:-fZCrXaY7jlvsqKSLpJeRbdw6TDoFIA8yB4OziUgVWH95tmQE21xh3NGkPncMu0}
+      - JwtSettings__Issuer=${JWT_ISSUER:-Sqordia}
+      - JwtSettings__Audience=${JWT_AUDIENCE:-SqordiaUsers}
+      - JwtSettings__ExpirationMinutes=${JWT_EXPIRATION_MINUTES:-60}
+      
+      # Google OAuth (optional)
+      - GoogleOAuth__ClientId=${GOOGLE_OAUTH_CLIENT_ID:-}
+      - GoogleOAuth__ClientSecret=${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      
+      # OpenAI Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OpenAI__ApiKey=${OPENAI_API_KEY:-}
-      - OpenAI__Model=gpt-4
-      - SendGrid__ApiKey=${SENDGRID_API_KEY:-}
-      - SendGrid__FromEmail=sqordia.dev@gmail.com
-      - SendGrid__FromName=Sqordia
+      - OpenAI__Model=${OPENAI_MODEL:-gpt-4}
+      - AI__OpenAI__ApiKey=${OPENAI_API_KEY:-}
+      - AI__OpenAI__Model=${OPENAI_MODEL:-gpt-4}
+      
+      # Alternative AI Providers (optional)
+      - AI__Claude__ApiKey=${CLAUDE_API_KEY:-}
+      - AI__Gemini__ApiKey=${GEMINI_API_KEY:-}
+      
+      # SendGrid Configuration
+      - SendGrid__FromEmail=${SENDGRID_FROM_EMAIL:-sqordia.dev@gmail.com}
+      - SendGrid__FromName=${SENDGRID_FROM_NAME:-Sqordia}
+      
+      # AWS Storage (optional)
+      - AwsStorage__BucketName=${S3_BUCKET_NAME:-sqordia-documents}
+      - AwsStorage__Region=${AWS_REGION:-ca-central-1}
+      
+      # Disable HTTPS redirect for Docker development
+      - DISABLE_HTTPS_REDIRECT=true
+      
+      # Enable database seeding on startup (for local development)
+      - Database__RunSeedsOnStartup=true
     volumes:
-      - ~/.aspnet/https:/https:ro
+      # Mount logs directory if needed
+      - ./logs:/app/logs
+      # Mount seed script for easy updates during development
+      - ./scripts/seed-all.sql:/app/scripts/seed-all.sql:ro
     depends_on:
       sqordia-db:
         condition: service_healthy
     networks:
       - sqordia-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   sqordia-db-data:
