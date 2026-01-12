@@ -29,9 +29,9 @@ public class AdminDashboardService : IAdminDashboardService
             _logger.LogInformation("Generating system overview for admin dashboard");
 
             var now = DateTime.UtcNow;
-            var today = now.Date;
+            var today = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Utc);
             var weekStart = today.AddDays(-(int)today.DayOfWeek);
-            var monthStart = new DateTime(now.Year, now.Month, 1);
+            var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
             // User statistics
             var totalUsers = await _context.Users.CountAsync(cancellationToken);

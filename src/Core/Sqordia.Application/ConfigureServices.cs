@@ -24,6 +24,7 @@ public static class ConfigureServices
             services.AddScoped<IRoleManagementService, RoleManagementService>();
             services.AddScoped<ITwoFactorService, TwoFactorService>();
             services.AddScoped<ISecurityManagementService, SecurityManagementService>();
+            services.AddScoped<IActivityLogService, ActivityLogService>();
             services.AddScoped<IOrganizationService, OrganizationService>();
 
             // Business Plan services

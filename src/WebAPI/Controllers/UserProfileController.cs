@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Sqordia.Application.Services;
 using Sqordia.Contracts.Requests.User;
@@ -38,6 +39,19 @@ public class UserProfileController : BaseApiController
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
     {
         var result = await _userProfileService.UpdateProfileAsync(request);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Upload a profile picture
+    /// </summary>
+    /// <param name="file">Profile picture file</param>
+    /// <returns>URL of the uploaded profile picture</returns>
+    [HttpPost("upload-picture")]
+    [Authorize]
+    public async Task<IActionResult> UploadProfilePicture(IFormFile file)
+    {
+        var result = await _userProfileService.UploadProfilePictureAsync(file);
         return HandleResult(result);
     }
 

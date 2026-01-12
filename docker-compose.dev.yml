@@ -15,7 +15,7 @@ services:
       
       # Database Connection - Using local PostgreSQL container
       # The service name 'sqordia-db' is used to connect to the PostgreSQL container
-      - ConnectionStrings__DefaultConnection=Host=sqordia-db;Port=5432;Database=SqordiaDb;Username=sqordia;Password=${POSTGRES_PASSWORD:-Sq0rd1aDev2024X};
+      - ConnectionStrings__DefaultConnection=Host=sqordia-db;Port=5432;Database=SqordiaDb;Username=sqordia;Password=${POSTGRES_PASSWORD:-SqordiaDev2025!};
       
       # JWT Settings
       - JwtSettings__Secret=${JWT_SECRET:-fZCrXaY7jlvsqKSLpJeRbdw6TDoFIA8yB4OziUgVWH95tmQE21xh3NGkPncMu0}
@@ -76,7 +76,7 @@ services:
     container_name: sqordia-db-dev
     environment:
       - POSTGRES_USER=sqordia
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-Sq0rd1aDev2024X}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-SqordiaDev2025!}
       - POSTGRES_DB=SqordiaDb
     ports:
       - "5433:5432"  # Expose PostgreSQL port for external tools (pgAdmin, DBeaver, etc.)

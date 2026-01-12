@@ -10,7 +10,7 @@ public class User : BaseAuditableEntity
     public string LastName { get; private set; } = null!;
     public EmailAddress Email { get; private set; } = null!;
     public string UserName { get; private set; } = null!;
-    public string PasswordHash { get; private set; } = null!;
+    public string? PasswordHash { get; private set; }
     public bool IsEmailConfirmed { get; private set; }
     public DateTime? EmailConfirmedAt { get; private set; }
     public bool IsActive { get; private set; }

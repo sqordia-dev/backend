@@ -7,7 +7,7 @@ services:
     container_name: sqordia-db-dev
     environment:
       - POSTGRES_USER=sqordia
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-Sq0rd1aDev2024X}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-SqordiaDev2025!}
       - POSTGRES_DB=SqordiaDb
     ports:
       - "5433:5432"  # Expose PostgreSQL port for external tools (pgAdmin, DBeaver, etc.)
@@ -17,7 +17,7 @@ services:
       - sqordia-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sqordia"]
+      test: ["CMD-SHELL", "pg_isready -U sqordia -d SqordiaDb"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -36,7 +36,7 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       
       # Database Connection
-      - ConnectionStrings__DefaultConnection=Host=sqordia-db;Port=5432;Database=SqordiaDb;Username=sqordia;Password=${POSTGRES_PASSWORD:-Sq0rd1aDev2024X};
+      - ConnectionStrings__DefaultConnection=Host=sqordia-db;Port=5432;Database=SqordiaDb;Username=sqordia;Password=${POSTGRES_PASSWORD:-SqordiaDev2025!}
       
       # JWT Settings
       - JwtSettings__Secret=${JWT_SECRET:-fZCrXaY7jlvsqKSLpJeRbdw6TDoFIA8yB4OziUgVWH95tmQE21xh3NGkPncMu0}

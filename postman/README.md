@@ -24,16 +24,16 @@ This directory contains Postman collections for testing the Sqordia API in diffe
 
 **Purpose:** Testing against production deployment
 
-**Base URL:** `https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app`
+**Base URL:** `https://sqordia-production-api.proudwater-90136d2c.canadacentral.azurecontainerapps.io`
 
 **Usage:**
 - Import into Postman
 - Use for testing production API
-- Swagger UI available at: `https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app/swagger`
+- Swagger UI available at: `https://sqordia-production-api.proudwater-90136d2c.canadacentral.azurecontainerapps.io/swagger`
 - Update admin credentials if different from local
 
 **Default Variables:**
-- `base_url`: `https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app`
+- `base_url`: `https://sqordia-production-api.proudwater-90136d2c.canadacentral.azurecontainerapps.io`
 - `admin_email`: `admin@sqordia.com` (update if different)
 - `admin_password`: `Sqordia2025!` (update if different)
 
@@ -250,7 +250,7 @@ Both collections are organized into folders:
 
 ```json
 {
-  "base_url": "http://34.19.252.60:8080",
+  "base_url": "https://sqordia-production-api.proudwater-90136d2c.canadacentral.azurecontainerapps.io",
   "admin_email": "admin@sqordia.com",
   "admin_password": "Sqordia2025!"
 }
@@ -303,7 +303,7 @@ When API endpoints change:
 
 For API documentation:
 - Swagger UI: `http://localhost:5241/swagger` (local)
-- Swagger UI: `http://34.19.252.60:8080/swagger` (production)
+- Swagger UI: `https://sqordia-production-api.proudwater-90136d2c.canadacentral.azurecontainerapps.io/swagger` (production)
 
 For setup help:
 - See `docs/LOCAL_DEVELOPMENT_SETUP.md`

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Services;
+using Sqordia.Domain.Entities;
 using Sqordia.Domain.Enums;
 using Stripe;
 using System.Text;
@@ -125,34 +126,143 @@ public class StripeWebhookController : ControllerBase
         }
 
         // Get the subscription from Stripe
-        var subscriptionService = new SubscriptionService();
-        var stripeSubscription = await subscriptionService.GetAsync(session.SubscriptionId, cancellationToken: cancellationToken);
+        var stripeSubscriptionService = new Stripe.SubscriptionService();
+        var stripeSubscription = await stripeSubscriptionService.GetAsync(session.SubscriptionId, cancellationToken: cancellationToken);
 
-        // Find or create subscription in database
+        // Get organization and find the owner/admin user
+        var organization = await _context.Organizations
+            .FirstOrDefaultAsync(o => o.Id == organizationId, cancellationToken);
+
+        if (organization == null)
+        {
+            _logger.LogWarning("Organization {OrganizationId} not found for checkout session {SessionId}", organizationId, session.Id);
+            return;
+        }
+
+        // Get the first admin/owner user from the organization
+        var organizationMember = await _context.OrganizationMembers
+            .Include(om => om.User)
+            .Where(om => om.OrganizationId == organizationId && 
+                        (om.Role == OrganizationRole.Owner || om.Role == OrganizationRole.Admin) &&
+                        !om.IsDeleted)
+            .OrderBy(om => om.Role == OrganizationRole.Owner ? 0 : 1)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (organizationMember == null)
+        {
+            _logger.LogWarning("No owner/admin found for organization {OrganizationId}", organizationId);
+            return;
+        }
+
+        var userId = organizationMember.UserId;
+
+        // Get the subscription plan
+        var plan = await _context.SubscriptionPlans
+            .FirstOrDefaultAsync(p => p.Id == subscriptionPlanId && p.IsActive && !p.IsDeleted, cancellationToken);
+
+        if (plan == null)
+        {
+            _logger.LogWarning("Subscription plan {PlanId} not found", subscriptionPlanId);
+            return;
+        }
+
+        // Find existing subscription (check by Stripe subscription ID first, then by organization)
         var subscription = await _context.Subscriptions
-            .FirstOrDefaultAsync(s => s.OrganizationId == organizationId && 
-                                     s.Status == SubscriptionStatus.Active && 
-                                     !s.IsDeleted, 
-                                 cancellationToken);
+            .FirstOrDefaultAsync(s => s.StripeSubscriptionId == stripeSubscription.Id, cancellationToken);
+
+        if (subscription == null)
+        {
+            // Check for existing active subscription for this organization
+            subscription = await _context.Subscriptions
+                .FirstOrDefaultAsync(s => s.OrganizationId == organizationId && 
+                                         s.Status == SubscriptionStatus.Active && 
+                                         !s.IsDeleted, 
+                                     cancellationToken);
+        }
 
         if (subscription != null)
         {
-            // Update existing subscription with Stripe IDs
+            // Update existing subscription with Stripe IDs and new plan
             subscription.SetStripeIds(
                 stripeSubscription.CustomerId,
                 stripeSubscription.Id,
                 stripeSubscription.Items.Data[0].Price.Id);
             
-            subscription.Renew(stripeSubscription.CurrentPeriodEnd);
+            // Update plan if changed
+            if (subscription.SubscriptionPlanId != subscriptionPlanId)
+            {
+                // Cancel old subscription
+                subscription.Cancel(subscription.EndDate);
+                
+                // Create new subscription with new plan
+                var newSubscription = new Sqordia.Domain.Entities.Subscription(
+                    userId,
+                    organizationId,
+                    subscriptionPlanId,
+                    isYearly,
+                    CalculatePrice(plan, isYearly),
+                    stripeSubscription.CurrentPeriodStart,
+                    stripeSubscription.CurrentPeriodEnd,
+                    isTrial: plan.PlanType == SubscriptionPlanType.Free,
+                    currency: plan.Currency);
+                
+                newSubscription.SetStripeIds(
+                    stripeSubscription.CustomerId,
+                    stripeSubscription.Id,
+                    stripeSubscription.Items.Data[0].Price.Id);
+                
+                _context.Subscriptions.Add(newSubscription);
+            }
+            else
+            {
+                subscription.Renew(stripeSubscription.CurrentPeriodEnd);
+            }
         }
         else
         {
-            // This should not happen if subscription was created before checkout
-            // But handle it gracefully
-            _logger.LogWarning("No subscription found for organization {OrganizationId} after checkout", organizationId);
+            // Create new subscription
+            subscription = new Sqordia.Domain.Entities.Subscription(
+                userId,
+                organizationId,
+                subscriptionPlanId,
+                isYearly,
+                CalculatePrice(plan, isYearly),
+                stripeSubscription.CurrentPeriodStart,
+                stripeSubscription.CurrentPeriodEnd,
+                isTrial: plan.PlanType == SubscriptionPlanType.Free,
+                currency: plan.Currency);
+            
+            subscription.SetStripeIds(
+                stripeSubscription.CustomerId,
+                stripeSubscription.Id,
+                stripeSubscription.Items.Data[0].Price.Id);
+            
+            _context.Subscriptions.Add(subscription);
+            _logger.LogInformation("Created new subscription {SubscriptionId} for organization {OrganizationId}", 
+                subscription.Id, organizationId);
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private decimal CalculatePrice(Sqordia.Domain.Entities.SubscriptionPlan plan, bool isYearly)
+    {
+        if (isYearly && plan.BillingCycle == BillingCycle.Monthly)
+        {
+            return plan.Price * 12;
+        }
+        else if (isYearly && plan.BillingCycle == BillingCycle.Yearly)
+        {
+            return plan.Price;
+        }
+        else if (!isYearly && plan.BillingCycle == BillingCycle.Monthly)
+        {
+            return plan.Price;
+        }
+        else
+        {
+            return plan.Price / 12;
+        }
     }
 
     private async Task HandleSubscriptionUpdated(Event stripeEvent, CancellationToken cancellationToken)

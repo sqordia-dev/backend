@@ -8,6 +8,7 @@ public interface IUserProfileService
 {
     Task<Result<UserProfileResponse>> GetProfileAsync(CancellationToken cancellationToken = default);
     Task<Result<UserProfileResponse>> UpdateProfileAsync(UpdateProfileRequest request, CancellationToken cancellationToken = default);
+    Task<Result<string>> UploadProfilePictureAsync(IFormFile file, CancellationToken cancellationToken = default);
     Task<Result> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken = default);
     Task<Result> DeleteAccountAsync(CancellationToken cancellationToken = default);
 }

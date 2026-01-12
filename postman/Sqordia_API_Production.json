@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Sqordia API - Production",
-    "description": "Complete API collection for Sqordia PRODUCTION environment. Base URL: https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app. Includes AI Analysis endpoints (Strategy Suggestions, Risk Mitigation, Business Mentor). All endpoints use API version v1. Questionnaire endpoints support bilingual (French/English) responses. Swagger UI available at /swagger.",
+    "description": "Complete API collection for Sqordia PRODUCTION environment. Base URL: https://sqordia-production-api.proudwater-90136d2c.canadacentral.azurecontainerapps.io. Includes AI Analysis endpoints (Strategy Suggestions, Risk Mitigation, Business Mentor). All endpoints use API version v1. Questionnaire endpoints support bilingual (French/English) responses. Swagger UI available at /swagger.",
     "version": "11.2.0",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
@@ -18,9 +18,9 @@
   "variable": [
     {
       "key": "base_url",
-      "value": "https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app",
+      "value": "https://sqordia-production-api.proudwater-90136d2c.canadacentral.azurecontainerapps.io",
       "type": "string",
-      "description": "Production API base URL (Google Cloud Run)"
+      "description": "Production API base URL (Azure Container Apps)"
     },
     {
       "key": "jwt_token",

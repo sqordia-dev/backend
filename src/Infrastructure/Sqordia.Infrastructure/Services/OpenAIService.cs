@@ -149,6 +149,7 @@ public class OpenAIService : IAIService
 
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
     {
+        // Check if the client is initialized (API key configured and client created)
         if (_chatClient == null)
         {
             _logger.LogWarning("OpenAI service unavailable: _chatClient is null. ApiKey configured: {HasKey}, ApiKey length: {Length}, Model: {Model}", 
@@ -158,27 +159,14 @@ public class OpenAIService : IAIService
             return false;
         }
 
-        try
-        {
-            // Simple test to check if the service is accessible
-            var messages = new List<ChatMessage>
-            {
-                ChatMessage.CreateUserMessage("Test")
-            };
-
-            var options = new ChatCompletionOptions
-            {
-                MaxOutputTokenCount = 10
-            };
-
-            await _chatClient.CompleteChatAsync(messages, options, cancellationToken);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "OpenAI service availability check failed");
-            return false;
-        }
+        // If client is initialized, consider it available
+        // We don't make an actual API call here to avoid:
+        // 1. Unnecessary API costs
+        // 2. Rate limiting issues
+        // 3. Network failures that don't indicate service unavailability
+        // The actual API call will happen when generating content, and errors will be handled there
+        _logger.LogDebug("OpenAI service is available (client initialized)");
+        return true;
     }
 
     public async Task<QuestionSuggestionResponse> GenerateQuestionSuggestionsAsync(

@@ -18,6 +18,7 @@ public class UserProfileService : IUserProfileService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<UserProfileService> _logger;
     private readonly ILocalizationService _localizationService;
+    private readonly IStorageService _storageService;
 
     public UserProfileService(
         IApplicationDbContext context,
@@ -25,7 +26,8 @@ public class UserProfileService : IUserProfileService
         ISecurityService securityService,
         IHttpContextAccessor httpContextAccessor,
         ILogger<UserProfileService> logger,
-        ILocalizationService localizationService)
+        ILocalizationService localizationService,
+        IStorageService storageService)
     {
         _context = context;
         _mapper = mapper;
@@ -33,6 +35,7 @@ public class UserProfileService : IUserProfileService
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
         _localizationService = localizationService;
+        _storageService = storageService;
     }
 
     public async Task<Result<UserProfileResponse>> GetProfileAsync(CancellationToken cancellationToken = default)
@@ -144,6 +147,56 @@ public class UserProfileService : IUserProfileService
         {
             _logger.LogError(ex, "Error updating user profile");
             return Result.Failure<UserProfileResponse>(Error.InternalServerError("General.InternalServerError", _localizationService.GetString("General.InternalServerError")));
+        }
+    }
+
+    public async Task<Result<string>> UploadProfilePictureAsync(IFormFile file, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var userId = _httpContextAccessor.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+            {
+                return Result.Failure<string>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
+            }
+
+            // Validate file
+            if (file == null || file.Length == 0)
+            {
+                return Result.Failure<string>(Error.Validation("Profile.Error.InvalidFile", _localizationService.GetString("Profile.Error.InvalidFile")));
+            }
+
+            // Validate file size (max 5MB)
+            const long maxFileSize = 5 * 1024 * 1024; // 5MB
+            if (file.Length > maxFileSize)
+            {
+                return Result.Failure<string>(Error.Validation("Profile.Error.FileTooLarge", _localizationService.GetString("Profile.Error.FileTooLarge")));
+            }
+
+            // Validate file type (images only)
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+            var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(fileExtension))
+            {
+                return Result.Failure<string>(Error.Validation("Profile.Error.InvalidFileType", _localizationService.GetString("Profile.Error.InvalidFileType")));
+            }
+
+            // Generate unique file key
+            var fileKey = $"profile-pictures/{userGuid}/{Guid.NewGuid()}{fileExtension}";
+
+            // Upload file to storage
+            using var fileStream = file.OpenReadStream();
+            var contentType = file.ContentType ?? "image/jpeg";
+            var fileUrl = await _storageService.UploadFileAsync(fileKey, fileStream, contentType, cancellationToken);
+
+            _logger.LogInformation("Profile picture uploaded successfully for user {UserId}: {FileUrl}", userId, fileUrl);
+
+            return Result<string>.Success(fileUrl);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading profile picture");
+            return Result.Failure<string>(Error.InternalServerError("General.InternalServerError", _localizationService.GetString("General.InternalServerError")));
         }
     }
 

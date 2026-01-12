@@ -37,7 +37,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired();
 
         builder.Property(u => u.PasswordHash)
-            .IsRequired();
+            .IsRequired(false); // Nullable for OAuth users
 
         builder.Property(u => u.IsEmailConfirmed)
             .IsRequired();

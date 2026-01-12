@@ -170,9 +170,9 @@ DELETE /api/v1/business-plans/{id}   # Delete business plan
 Full API documentation available at `/swagger` in all environments.
 
 **Production API:**
-- Base URL: `https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app`
-- Swagger UI: `https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app/swagger`
-- Health Check: `https://sqordia-production-api-r3bgqpt5kq-pd.a.run.app/health`
+- Base URL: `https://sqordia-production-api.proudwater-90136d2c.canadacentral.azurecontainerapps.io`
+- Swagger UI: `https://sqordia-production-api.proudwater-90136d2c.canadacentral.azurecontainerapps.io/swagger`
+- Health Check: `https://sqordia-production-api.proudwater-90136d2c.canadacentral.azurecontainerapps.io/health`
 
 ## Docker Development
 

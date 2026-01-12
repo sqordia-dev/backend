@@ -48,14 +48,12 @@ public class SettingsConfiguration : IEntityTypeConfiguration<Settings>
         // SettingType (enum stored as int)
         builder.Property(s => s.SettingType)
             .IsRequired()
-            .HasConversion<int>()
-            .HasDefaultValue(SettingType.Config);
+            .HasConversion<int>();
 
         // DataType (enum stored as int)
         builder.Property(s => s.DataType)
             .IsRequired()
-            .HasConversion<int>()
-            .HasDefaultValue(SettingDataType.String);
+            .HasConversion<int>();
 
         // IsEncrypted
         builder.Property(s => s.IsEncrypted)
