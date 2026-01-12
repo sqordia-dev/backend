@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Sqordia.Application.Common.Models;
 using Sqordia.Contracts.Requests.User;
 using Sqordia.Contracts.Responses.User;

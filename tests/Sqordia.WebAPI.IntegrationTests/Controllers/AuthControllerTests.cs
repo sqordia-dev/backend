@@ -3,11 +3,13 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Sqordia.Application.Common.Models;
 using Sqordia.Application.Services;
 using Sqordia.Contracts.Requests.Auth;
 using Sqordia.Contracts.Responses.Auth;
+using WebAPI.Configuration;
 using WebAPI.Controllers;
 using System.Security.Claims;
 using Xunit;
@@ -19,6 +21,7 @@ public class AuthControllerTests
     private readonly IFixture _fixture;
     private readonly Mock<IAuthenticationService> _authenticationServiceMock;
     private readonly Mock<ILogger<AuthController>> _loggerMock;
+    private readonly Mock<IOptions<GoogleOAuthSettings>> _googleOAuthSettingsMock;
     private readonly AuthController _sut;
 
     public AuthControllerTests()
@@ -30,8 +33,20 @@ public class AuthControllerTests
 
         _authenticationServiceMock = new Mock<IAuthenticationService>();
         _loggerMock = new Mock<ILogger<AuthController>>();
+        
+        var googleOAuthSettings = new GoogleOAuthSettings
+        {
+            ClientId = "test-client-id",
+            ClientSecret = "test-client-secret",
+            RedirectUri = "http://localhost/test"
+        };
+        _googleOAuthSettingsMock = new Mock<IOptions<GoogleOAuthSettings>>();
+        _googleOAuthSettingsMock.Setup(x => x.Value).Returns(googleOAuthSettings);
 
-        _sut = new AuthController(_authenticationServiceMock.Object);
+        _sut = new AuthController(
+            _authenticationServiceMock.Object,
+            _googleOAuthSettingsMock.Object,
+            _loggerMock.Object);
     }
 
     [Fact]
@@ -373,7 +388,10 @@ public class AuthControllerTests
     {
         // Arrange
         // Create controller without valid user claims
-        var controller = new AuthController(_authenticationServiceMock.Object);
+        var controller = new AuthController(
+            _authenticationServiceMock.Object,
+            _googleOAuthSettingsMock.Object,
+            _loggerMock.Object);
         
         // Mock HttpContext without valid claims
         var httpContext = new Mock<HttpContext>();
