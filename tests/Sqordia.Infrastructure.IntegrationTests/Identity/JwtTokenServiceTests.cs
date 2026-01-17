@@ -96,6 +96,7 @@ public class JwtTokenServiceTests : IDisposable
         var userId = _fixture.Create<Guid>();
         var ipAddress = _fixture.Create<string>();
         var refreshToken = await _sut.GenerateRefreshTokenAsync(userId, ipAddress);
+        await _context.SaveChangesAsync(); // Save the token to the database
 
         // Act
         var retrievedToken = await _sut.GetRefreshTokenAsync(refreshToken.Token);
@@ -126,6 +127,7 @@ public class JwtTokenServiceTests : IDisposable
         var userId = _fixture.Create<Guid>();
         var ipAddress = _fixture.Create<string>();
         var refreshToken = await _sut.GenerateRefreshTokenAsync(userId, ipAddress);
+        await _context.SaveChangesAsync(); // Save the token to the database
 
         // Act
         await _sut.RevokeRefreshTokenAsync(refreshToken, ipAddress);
@@ -145,6 +147,7 @@ public class JwtTokenServiceTests : IDisposable
         var userId = _fixture.Create<Guid>();
         var ipAddress = _fixture.Create<string>();
         var refreshToken = await _sut.GenerateRefreshTokenAsync(userId, ipAddress);
+        await _context.SaveChangesAsync(); // Save the token to the database
         var replacedByToken = _fixture.Create<string>();
 
         // Act
