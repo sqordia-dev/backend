@@ -263,11 +263,17 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
 
         foreach (var response in responses.OrderBy(r => r.QuestionTemplate.Order))
         {
-            sb.AppendLine($"Question {response.QuestionTemplate.Order}: {response.QuestionTemplate.QuestionText}");
+            // Use shorter question format to save tokens
+            var questionText = response.QuestionTemplate.QuestionText;
+            // Truncate very long questions (keep first 200 chars)
+            if (questionText.Length > 200)
+            {
+                questionText = questionText.Substring(0, 197) + "...";
+            }
             
             var answer = response.QuestionTemplate.QuestionType switch
             {
-                QuestionType.ShortText or QuestionType.LongText => response.ResponseText,
+                QuestionType.ShortText or QuestionType.LongText => TruncateText(response.ResponseText, 500),
                 QuestionType.Number => response.NumericValue?.ToString(),
                 QuestionType.Currency => $"${response.NumericValue:N2}",
                 QuestionType.Percentage => $"{response.NumericValue}%",
@@ -275,13 +281,26 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
                 QuestionType.YesNo => response.BooleanValue?.ToString(),
                 QuestionType.SingleChoice or QuestionType.MultipleChoice => response.SelectedOptions,
                 QuestionType.Scale => response.NumericValue?.ToString(),
-                _ => response.ResponseText
+                _ => TruncateText(response.ResponseText, 500)
             };
 
-            sb.AppendLine($"Answer: {answer}\n");
+            // More concise format: Q{order}: {short question} | A: {answer}
+            sb.AppendLine($"Q{response.QuestionTemplate.Order}: {questionText} | A: {answer}");
         }
 
         return sb.ToString();
+    }
+
+    private string TruncateText(string? text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text))
+            return string.Empty;
+        
+        if (text.Length <= maxLength)
+            return text;
+        
+        // Truncate and add ellipsis
+        return text.Substring(0, maxLength - 3) + "...";
     }
 
     private async Task<string> GenerateSectionContentAsync(
@@ -294,10 +313,12 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
         var systemPrompt = await GetSystemPromptAsync(language, planType, cancellationToken);
         var userPrompt = await GetSectionPromptAsync(planType, sectionName, questionnaireContext, language, cancellationToken);
 
+        // Increased maxTokens for gpt-4o which supports longer outputs
+        // No limit on maxTokens - let the model generate comprehensive content
         var content = await _aiService.GenerateContentWithRetryAsync(
             systemPrompt,
             userPrompt,
-            maxTokens: 2000,
+            maxTokens: 4000, // Increased from 2000 for better quality sections
             temperature: 0.7f,
             maxRetries: 3,
             cancellationToken);

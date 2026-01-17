@@ -129,8 +129,8 @@ public class AuthenticationServiceTests : IDisposable
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
-        result.Value.Token.Should().Be(authResponse.Token);
-        result.Value.RefreshToken.Should().Be(refreshToken.Token);
+        result.Value!.Token.Should().Be(authResponse.Token);
+        result.Value!.RefreshToken.Should().Be(refreshToken.Token);
 
         _context.Users.Should().HaveCount(1);
         _context.EmailVerificationTokens.Should().HaveCount(1);
@@ -163,7 +163,7 @@ public class AuthenticationServiceTests : IDisposable
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().NotBeNull();
-        result.Error.Code.Should().Be("Auth.Error.EmailAlreadyExists");
+        result.Error!.Code.Should().Be("Auth.Error.EmailAlreadyExists");
     }
 
     [Fact]
@@ -200,8 +200,8 @@ public class AuthenticationServiceTests : IDisposable
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
-        result.Value.Token.Should().Be(authResponse.Token);
-        result.Value.RefreshToken.Should().Be(refreshToken.Token);
+        result.Value!.Token.Should().Be(authResponse.Token);
+        result.Value!.RefreshToken.Should().Be(refreshToken.Token);
     }
 
     [Fact]
@@ -230,7 +230,7 @@ public class AuthenticationServiceTests : IDisposable
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().NotBeNull();
-        result.Error.Code.Should().Be("Auth.Error.InvalidCredentials");
+        result.Error!.Code.Should().Be("Auth.Error.InvalidCredentials");
     }
 
     [Fact]
@@ -260,7 +260,7 @@ public class AuthenticationServiceTests : IDisposable
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().NotBeNull();
-        result.Error.Code.Should().Be("Auth.Error.EmailNotVerified");
+        result.Error!.Code.Should().Be("Auth.Error.EmailNotVerified");
     }
 
     [Fact]
@@ -300,8 +300,8 @@ public class AuthenticationServiceTests : IDisposable
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
-        result.Value.Token.Should().Be(authResponse.Token);
-        result.Value.RefreshToken.Should().Be(newRefreshToken.Token);
+        result.Value!.Token.Should().Be(authResponse.Token);
+        result.Value!.RefreshToken.Should().Be(newRefreshToken.Token);
     }
 
     [Fact]
@@ -325,7 +325,7 @@ public class AuthenticationServiceTests : IDisposable
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().NotBeNull();
-        result.Error.Code.Should().Be("Auth.Error.InvalidToken");
+        result.Error!.Code.Should().Be("Auth.Error.InvalidToken");
     }
 
     [Fact]
@@ -449,7 +449,7 @@ public class AuthenticationServiceTests : IDisposable
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().NotBeNull();
-        result.Error.Code.Should().Be("Auth.Error.InvalidToken");
+        result.Error!.Code.Should().Be("Auth.Error.InvalidToken");
     }
 
     [Fact]
@@ -502,7 +502,7 @@ public class AuthenticationServiceTests : IDisposable
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().NotBeNull();
-        result.Error.Code.Should().Be("Auth.Error.InvalidToken");
+        result.Error!.Code.Should().Be("Auth.Error.InvalidToken");
     }
 
     [Fact]
@@ -542,7 +542,7 @@ public class AuthenticationServiceTests : IDisposable
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().NotBeNull();
-        result.Error.Code.Should().Be("Auth.Error.UserNotFound");
+        result.Error!.Code.Should().Be("Auth.Error.UserNotFound");
     }
 
     public void Dispose()

@@ -57,6 +57,13 @@ try
 
     builder.Services.AddApplicationConfiguration(builder.Configuration);
 
+    // Configure Kestrel server options for long-running requests (business plan generation)
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(10);
+        options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(2);
+    });
+
     builder.Services.AddApplicationServices();
     builder.Services.AddInfrastructureServices(builder.Configuration);
     builder.Services.AddPersistenceServices(builder.Configuration);

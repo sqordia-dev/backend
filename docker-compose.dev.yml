@@ -31,11 +31,13 @@ services:
       - GoogleOAuth__ClientSecret=${GOOGLE_OAUTH_CLIENT_SECRET:-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}
       
       # OpenAI Configuration
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OpenAI__ApiKey=${OPENAI_API_KEY:-}
-      - OpenAI__Model=${OPENAI_MODEL:-gpt-4}
-      - AI__OpenAI__ApiKey=${OPENAI_API_KEY:-}
-      - AI__OpenAI__Model=${OPENAI_MODEL:-gpt-4}
+      # If OPENAI_API_KEY is not set in environment, use the value from appsettings.json
+      # To override, set OPENAI_API_KEY in your .env file or system environment
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-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}
+      - OpenAI__ApiKey=${OPENAI_API_KEY:-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}
+      - OpenAI__Model=${OPENAI_MODEL:-gpt-4o}
+      - AI__OpenAI__ApiKey=${OPENAI_API_KEY:-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}
+      - AI__OpenAI__Model=${OPENAI_MODEL:-gpt-4o}
       
       # Alternative AI Providers (optional)
       - AI__Claude__ApiKey=${CLAUDE_API_KEY:-}

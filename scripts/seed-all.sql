@@ -189,6 +189,13 @@ BEGIN
 END $$;
 
 -- 2. DELETE EXISTING QUESTIONS FOR THIS TEMPLATE (to allow re-seeding)
+-- IMPORTANT: Delete QuestionnaireResponses first to avoid foreign key constraint violations
+DELETE FROM "QuestionnaireResponses" 
+WHERE "QuestionTemplateId" IN (
+    SELECT "Id" FROM "QuestionTemplates" 
+    WHERE "QuestionnaireTemplateId" = 'a1b2c3d4-e5f6-4789-a012-345678901234'::uuid
+);
+
 DELETE FROM "QuestionTemplates" 
 WHERE "QuestionnaireTemplateId" = 'a1b2c3d4-e5f6-4789-a012-345678901234'::uuid;
 
