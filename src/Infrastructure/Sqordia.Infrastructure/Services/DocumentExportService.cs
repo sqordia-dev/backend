@@ -427,12 +427,27 @@ public class DocumentExportService : IDocumentExportService
 
     private static string SanitizeFileName(string fileName)
     {
+        // Get platform-specific invalid characters
         var invalidChars = System.IO.Path.GetInvalidFileNameChars();
+        
+        // Also sanitize additional characters that are problematic across platforms
+        // even if not in the platform's invalid chars list (e.g., < > on Linux)
+        var additionalCharsToSanitize = new[] { '<', '>', '"' };
+        
         var sanitized = fileName;
+        
+        // Replace platform-specific invalid characters
         foreach (var c in invalidChars)
         {
             sanitized = sanitized.Replace(c, '_');
         }
+        
+        // Replace additional problematic characters
+        foreach (var c in additionalCharsToSanitize)
+        {
+            sanitized = sanitized.Replace(c, '_');
+        }
+        
         // Remove multiple consecutive underscores and trim
         while (sanitized.Contains("__"))
         {
