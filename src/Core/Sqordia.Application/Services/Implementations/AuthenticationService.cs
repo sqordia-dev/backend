@@ -229,11 +229,28 @@ public class AuthenticationService : IAuthenticationService
             // Record successful login
             await RecordLoginAttempt(user.Id, true, ipAddress, userAgent, null, cancellationToken);
 
+            // Revoke all active refresh tokens for this user to prevent duplicate key conflicts
+            var activeTokens = await _context.RefreshTokens
+                .Where(rt => rt.UserId == user.Id && rt.RevokedAt == null && rt.ExpiresAt > DateTime.UtcNow)
+                .ToListAsync(cancellationToken);
+
+            foreach (var oldToken in activeTokens)
+            {
+                oldToken.Revoke(ipAddress, "Revoked due to new login");
+            }
+
+            if (activeTokens.Count > 0)
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+                _logger.LogInformation("Revoked {Count} active refresh tokens for user {UserId}", activeTokens.Count, user.Id);
+            }
+
             // Generate JWT token and refresh token
             var accessToken = await _jwtTokenService.GenerateAccessTokenAsync(user);
             var refreshToken = await _jwtTokenService.GenerateRefreshTokenAsync(user.Id, ipAddress);
-            
-            // Create active session
+
+            // Save refresh token (will be saved along with active session)
+            // Create active session (this also saves changes, so refresh token will be saved)
             await CreateActiveSession(user.Id, refreshToken.Token, refreshToken.ExpiresAt, ipAddress, userAgent, cancellationToken);
 
             // Send login alert email (optional)
@@ -297,6 +314,9 @@ public class AuthenticationService : IAuthenticationService
             // Generate new tokens
             var accessToken = await _jwtTokenService.GenerateAccessTokenAsync(user);
             var newRefreshToken = await _jwtTokenService.GenerateRefreshTokenAsync(user.Id, GetClientIpAddress());
+            
+            // Save refresh token (no need to add, it's already added by GenerateRefreshTokenAsync)
+            await _context.SaveChangesAsync(cancellationToken);
 
             var response = new AuthResponse
             {
@@ -591,18 +611,30 @@ public class AuthenticationService : IAuthenticationService
             if (existingUser != null)
             {
                 _logger.LogInformation("Found existing Google user: {UserId}", existingUser.Id);
-                
+
                 // Update last login
                 existingUser.UpdateLastLogin();
+
+                // Revoke all active refresh tokens for this user to prevent duplicate key conflicts
+                var existingUserActiveTokens = await _context.RefreshTokens
+                    .Where(rt => rt.UserId == existingUser.Id && rt.RevokedAt == null && rt.ExpiresAt > DateTime.UtcNow)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var oldToken in existingUserActiveTokens)
+                {
+                    oldToken.Revoke(GetClientIpAddress(), "Revoked due to new login");
+                }
+
+                _logger.LogInformation("Revoked {Count} active refresh tokens for user {UserId}", existingUserActiveTokens.Count, existingUser.Id);
+
+                // Generate refresh token (adds to context but doesn't save)
+                var refreshTokenEntity = await _jwtTokenService.GenerateRefreshTokenAsync(existingUser.Id, GetClientIpAddress());
+
+                // Save both user update and refresh token in one call
                 await _context.SaveChangesAsync(cancellationToken);
 
                 // Generate JWT token
                 var token = await _jwtTokenService.GenerateAccessTokenAsync(existingUser);
-                var refreshTokenEntity = await _jwtTokenService.GenerateRefreshTokenAsync(existingUser.Id, GetClientIpAddress());
-
-                // Save refresh token
-                _context.RefreshTokens.Add(refreshTokenEntity);
-                await _context.SaveChangesAsync(cancellationToken);
 
                 var userResponse = _mapper.Map<UserDto>(existingUser);
                 var authResponse = new AuthResponse
@@ -623,20 +655,85 @@ public class AuthenticationService : IAuthenticationService
 
             if (emailUser != null)
             {
+                // If user is already a Google user with a different Google ID, return error
+                if (emailUser.IsGoogleUser && emailUser.GoogleId != googleId)
+                {
+                    _logger.LogWarning("Email {Email} is already associated with a different Google account", email);
+                    return Result.Failure<AuthResponse>(Error.Conflict(
+                        "Auth.Error.EmailAlreadyLinkedToDifferentGoogleAccount", 
+                        _localizationService.GetString("Auth.Error.EmailAlreadyLinkedToDifferentGoogleAccount")));
+                }
+
+                // If user is already a Google user with the same Google ID, just log them in
+                if (emailUser.IsGoogleUser && emailUser.GoogleId == googleId)
+                {
+                    _logger.LogInformation("Found existing Google user: {UserId}", emailUser.Id);
+                    emailUser.UpdateLastLogin();
+
+                    // Revoke all active refresh tokens for this user to prevent duplicate key conflicts
+                    var emailUserActiveTokens = await _context.RefreshTokens
+                        .Where(rt => rt.UserId == emailUser.Id && rt.RevokedAt == null && rt.ExpiresAt > DateTime.UtcNow)
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var oldToken in emailUserActiveTokens)
+                    {
+                        oldToken.Revoke(GetClientIpAddress(), "Revoked due to new login");
+                    }
+
+                    _logger.LogInformation("Revoked {Count} active refresh tokens for user {UserId}", emailUserActiveTokens.Count, emailUser.Id);
+
+                    // Generate refresh token (adds to context but doesn't save)
+                    var emailUserRefreshToken = await _jwtTokenService.GenerateRefreshTokenAsync(emailUser.Id, GetClientIpAddress());
+
+                    // Save both user update and refresh token in one call
+                    await _context.SaveChangesAsync(cancellationToken);
+
+                    var emailUserToken = await _jwtTokenService.GenerateAccessTokenAsync(emailUser);
+
+                    var emailUserResponse = _mapper.Map<UserDto>(emailUser);
+                    var emailUserAuthResponse = new AuthResponse
+                    {
+                        Token = emailUserToken,
+                        RefreshToken = emailUserRefreshToken.Token,
+                        User = emailUserResponse
+                    };
+
+                    return Result.Success(emailUserAuthResponse);
+                }
+
                 _logger.LogInformation("Found existing user with email {Email}, linking Google account", email);
-                
-                // Link Google account to existing user
+
+                // Link Google account to existing user (must be local provider)
                 emailUser.LinkGoogleAccount(googleId, profilePictureUrl);
+
+                // Confirm email if not already confirmed (Google emails are pre-verified)
+                if (!emailUser.IsEmailConfirmed)
+                {
+                    emailUser.ConfirmEmail();
+                }
+
                 emailUser.UpdateLastLogin();
+
+                // Revoke all active refresh tokens for this user to prevent duplicate key conflicts
+                var linkingUserActiveTokens = await _context.RefreshTokens
+                    .Where(rt => rt.UserId == emailUser.Id && rt.RevokedAt == null && rt.ExpiresAt > DateTime.UtcNow)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var oldToken in linkingUserActiveTokens)
+                {
+                    oldToken.Revoke(GetClientIpAddress(), "Revoked due to new login");
+                }
+
+                _logger.LogInformation("Revoked {Count} active refresh tokens for user {UserId}", linkingUserActiveTokens.Count, emailUser.Id);
+
+                // Generate refresh token (adds to context but doesn't save)
+                var refreshTokenEntity = await _jwtTokenService.GenerateRefreshTokenAsync(emailUser.Id, GetClientIpAddress());
+
+                // Save both user changes and refresh token in one call
                 await _context.SaveChangesAsync(cancellationToken);
 
                 // Generate JWT token
                 var token = await _jwtTokenService.GenerateAccessTokenAsync(emailUser);
-                var refreshTokenEntity = await _jwtTokenService.GenerateRefreshTokenAsync(emailUser.Id, GetClientIpAddress());
-
-                // Save refresh token
-                _context.RefreshTokens.Add(refreshTokenEntity);
-                await _context.SaveChangesAsync(cancellationToken);
 
                 var userResponse = _mapper.Map<UserDto>(emailUser);
                 var authResponse = new AuthResponse
@@ -656,14 +753,33 @@ public class AuthenticationService : IAuthenticationService
             var newUser = User.CreateGoogleUser(googleId, firstName, lastName, emailAddress, profilePictureUrl);
             
             _context.Users.Add(newUser);
+            
+            // Generate refresh token (adds to context but doesn't save)
+            // Note: We need to save the user first to get the ID, but we'll do it in one call
+            // Actually, we can't generate the refresh token before saving the user because we need the user ID
+            // So we'll save the user first, then generate and save the refresh token
             await _context.SaveChangesAsync(cancellationToken);
+
+            // Send welcome email (email is already verified by Google, so no verification needed)
+            try
+            {
+                _logger.LogInformation("Sending welcome email to new Google user: {Email}", email);
+                await _emailService.SendWelcomeEmailAsync(email, firstName, lastName);
+                _logger.LogInformation("Welcome email sent successfully to {Email}", email);
+            }
+            catch (Exception emailEx)
+            {
+                // Log email failure but don't fail registration
+                _logger.LogError(emailEx, "Failed to send welcome email to {Email}. User registration completed but email not sent.", email);
+            }
 
             // Generate JWT token
             var newToken = await _jwtTokenService.GenerateAccessTokenAsync(newUser);
+            
+            // Generate refresh token (adds to context but doesn't save)
             var newRefreshTokenEntity = await _jwtTokenService.GenerateRefreshTokenAsync(newUser.Id, GetClientIpAddress());
-
+            
             // Save refresh token
-            _context.RefreshTokens.Add(newRefreshTokenEntity);
             await _context.SaveChangesAsync(cancellationToken);
 
             var newUserResponse = _mapper.Map<UserDto>(newUser);
@@ -710,15 +826,22 @@ public class AuthenticationService : IAuthenticationService
 
             // Link Google account
             user.LinkGoogleAccount(googleId, profilePictureUrl);
+            
+            // Confirm email if not already confirmed (Google emails are pre-verified)
+            if (!user.IsEmailConfirmed)
+            {
+                user.ConfirmEmail();
+                _logger.LogInformation("Email confirmed for user {UserId} after linking Google account", userId);
+            }
+            
+            // Generate refresh token (adds to context but doesn't save)
+            var refreshTokenEntity = await _jwtTokenService.GenerateRefreshTokenAsync(user.Id, GetClientIpAddress());
+            
+            // Save both user changes and refresh token in one call
             await _context.SaveChangesAsync(cancellationToken);
 
             // Generate new JWT token
             var token = await _jwtTokenService.GenerateAccessTokenAsync(user);
-            var refreshTokenEntity = await _jwtTokenService.GenerateRefreshTokenAsync(user.Id, GetClientIpAddress());
-
-            // Save refresh token
-            _context.RefreshTokens.Add(refreshTokenEntity);
-            await _context.SaveChangesAsync(cancellationToken);
 
             var userResponse = _mapper.Map<UserDto>(user);
             var authResponse = new AuthResponse

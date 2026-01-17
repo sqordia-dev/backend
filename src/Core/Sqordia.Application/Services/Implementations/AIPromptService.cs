@@ -37,7 +37,8 @@ public class AIPromptService : IAIPromptService
             request.SystemPrompt,
             request.UserPromptTemplate,
             request.Variables,
-            request.Notes);
+            request.Notes,
+            request.SectionName);
 
         _context.AIPrompts.Add(prompt);
         await _context.SaveChangesAsync(cancellationToken);
@@ -75,6 +76,11 @@ public class AIPromptService : IAIPromptService
                 prompt.Activate();
             else
                 prompt.Deactivate();
+        }
+
+        if (request.SectionName != null)
+        {
+            prompt.SetSectionName(request.SectionName);
         }
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -118,6 +124,41 @@ public class AIPromptService : IAIPromptService
             .ToListAsync(cancellationToken);
 
         return prompts.Select(MapToDto).ToList();
+    }
+
+    public async Task<AIPromptDto?> GetPromptBySectionAsync(
+        string sectionName,
+        string planType,
+        string language,
+        string category = "ContentGeneration",
+        CancellationToken cancellationToken = default)
+    {
+        var prompt = await _context.AIPrompts
+            .Where(p => p.SectionName == sectionName
+                && p.PlanType == planType
+                && p.Language == language
+                && p.Category == category
+                && p.IsActive)
+            .OrderByDescending(p => p.Version)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return prompt != null ? MapToDto(prompt) : null;
+    }
+
+    public async Task<AIPromptDto?> GetSystemPromptAsync(
+        string planType,
+        string language,
+        CancellationToken cancellationToken = default)
+    {
+        var prompt = await _context.AIPrompts
+            .Where(p => p.Category == "SystemPrompt"
+                && p.PlanType == planType
+                && p.Language == language
+                && p.IsActive)
+            .OrderByDescending(p => p.Version)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return prompt != null ? MapToDto(prompt) : null;
     }
 
     public async Task<bool> DeletePromptAsync(string promptId, CancellationToken cancellationToken = default)
@@ -255,7 +296,8 @@ public class AIPromptService : IAIPromptService
             request.SystemPrompt,
             request.UserPromptTemplate,
             request.Variables,
-            request.Notes);
+            request.Notes,
+            request.SectionName);
 
         newPrompt.SetParentPrompt(parentPromptId);
         _context.AIPrompts.Add(newPrompt);
@@ -284,6 +326,7 @@ public class AIPromptService : IAIPromptService
             Category = prompt.Category,
             PlanType = prompt.PlanType,
             Language = prompt.Language,
+            SectionName = prompt.SectionName,
             SystemPrompt = prompt.SystemPrompt,
             UserPromptTemplate = prompt.UserPromptTemplate,
             Variables = prompt.Variables,

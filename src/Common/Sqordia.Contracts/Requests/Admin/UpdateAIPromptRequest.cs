@@ -44,6 +44,12 @@ public class UpdateAIPromptRequest
     public string? Notes { get; set; }
     
     /// <summary>
+    /// Section name this prompt is for (e.g., "ExecutiveSummary", "MarketAnalysis")
+    /// </summary>
+    [StringLength(100)]
+    public string? SectionName { get; set; }
+    
+    /// <summary>
     /// Whether this prompt is active
     /// </summary>
     public bool? IsActive { get; set; }

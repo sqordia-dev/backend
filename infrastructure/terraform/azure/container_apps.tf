@@ -104,6 +104,41 @@ resource "azurerm_container_app" "api" {
         name  = "AzureKeyVault__VaultUrl"
         value = azurerm_key_vault.main.vault_uri
       }
+
+      env {
+        name  = "GoogleOAuth__ClientId"
+        value = var.google_oauth_client_id
+      }
+
+      env {
+        name  = "GoogleOAuth__ClientSecret"
+        value = var.google_oauth_client_secret
+      }
+
+      env {
+        name  = "GoogleOAuth__RedirectUri"
+        value = var.google_oauth_redirect_uri != "" ? var.google_oauth_redirect_uri : "https://${var.project_name}.app/api/v1/auth/google/callback"
+      }
+
+      env {
+        name  = "JwtSettings__Secret"
+        value = var.jwt_secret
+      }
+
+      env {
+        name  = "JwtSettings__Issuer"
+        value = var.jwt_issuer
+      }
+
+      env {
+        name  = "JwtSettings__Audience"
+        value = var.jwt_audience
+      }
+
+      env {
+        name  = "JwtSettings__ExpirationInMinutes"
+        value = tostring(var.jwt_expiration_minutes)
+      }
     }
   }
 

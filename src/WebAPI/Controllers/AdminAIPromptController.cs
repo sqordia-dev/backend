@@ -12,10 +12,14 @@ namespace WebAPI.Controllers;
 public class AdminAIPromptController : BaseApiController
 {
     private readonly IAIPromptService _aiPromptService;
+    private readonly IPromptMigrationService _promptMigrationService;
 
-    public AdminAIPromptController(IAIPromptService aiPromptService)
+    public AdminAIPromptController(
+        IAIPromptService aiPromptService,
+        IPromptMigrationService promptMigrationService)
     {
         _aiPromptService = aiPromptService;
+        _promptMigrationService = promptMigrationService;
     }
 
     /// <summary>
@@ -316,6 +320,40 @@ public class AdminAIPromptController : BaseApiController
     {
         var versions = await _aiPromptService.GetPromptVersionsAsync(parentPromptId, cancellationToken);
         return Ok(versions);
+    }
+
+    /// <summary>
+    /// Migrate default hardcoded prompts to the database
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Migration result with count and list of migrated prompts</returns>
+    /// <remarks>
+    /// This endpoint migrates all hardcoded prompts from BusinessPlanGenerationService to the database.
+    /// Only prompts that don't already exist will be created. This is useful for initial setup or
+    /// when adding new default prompts.
+    /// 
+    /// Sample request:
+    ///     POST /api/v1/admin/ai-prompts/migrate-defaults
+    /// </remarks>
+    [HttpPost("migrate-defaults")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> MigrateDefaultPrompts(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var migratedPrompts = await _promptMigrationService.MigrateDefaultPromptsAsync(cancellationToken);
+            return Ok(new { 
+                migrated = migratedPrompts.Count, 
+                prompts = migratedPrompts 
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 }
 

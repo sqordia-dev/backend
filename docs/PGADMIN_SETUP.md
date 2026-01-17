@@ -1,8 +1,147 @@
-# PgAdmin Setup Guide for GCP Cloud SQL
+# PgAdmin Setup Guide
 
-Complete guide for connecting to GCP Cloud SQL PostgreSQL database using PgAdmin.
+Complete guide for connecting to PostgreSQL databases using PgAdmin - both local development and GCP Cloud SQL.
 
-## Prerequisites
+---
+
+## Local Database Connection (Development)
+
+This section covers connecting to your **local Docker PostgreSQL database** running on your machine.
+
+### Prerequisites
+
+1. **Docker container running**: The `sqordia-db-dev` container must be running
+2. **PgAdmin installed** on your local machine ([Download pgAdmin](https://www.pgadmin.org/download/))
+
+### Verify Database is Running
+
+Check if your local database container is running:
+
+```powershell
+docker ps --filter "name=sqordia-db"
+```
+
+You should see `sqordia-db-dev` container with status "Up" and port mapping `0.0.0.0:5433->5432/tcp`.
+
+If it's not running, start it with:
+
+```powershell
+cd backend
+docker-compose -f docker-compose.dev.yml up -d sqordia-db
+```
+
+### Connection Details for Local Database
+
+| Setting | Value |
+|---------|-------|
+| **Host name/address** | `localhost` |
+| **Port** | `5433` |
+| **Maintenance database** | `SqordiaDb` |
+| **Username** | `sqordia` |
+| **Password** | `SqordiaDev2025!` (default) |
+| **SSL Mode** | `Prefer` or `Allow` |
+
+**Note**: The password can be customized via the `POSTGRES_PASSWORD` environment variable. Check your `docker-compose.dev.yml` or `.env` file if you've changed it.
+
+### Step-by-Step: Connect to Local Database
+
+1. **Launch pgAdmin**
+   - Open pgAdmin on your local machine
+
+2. **Create Server Connection**
+   - In pgAdmin, right-click **"Servers"** in the left panel
+   - Select **"Create"** → **"Server"**
+
+3. **General Tab:**
+   - **Name**: `Sqordia Local Dev` (or any name you prefer)
+
+4. **Connection Tab:**
+   - **Host name/address**: `localhost`
+   - **Port**: `5433`
+   - **Maintenance database**: `SqordiaDb`
+   - **Username**: `sqordia`
+   - **Password**: `SqordiaDev2025!` (or your custom password)
+   - ✅ **Save password** (optional, for convenience)
+
+5. **SSL Tab:**
+   - **SSL mode**: Select **"Prefer"** or **"Allow"** from dropdown
+   - SSL is optional for local connections
+
+6. **Advanced Tab** (optional):
+   - **DB restriction**: Leave empty to see all databases
+   - Or enter `SqordiaDb` to restrict to this database only
+
+7. Click **"Save"**
+
+8. **Test Connection**
+   - pgAdmin will attempt to connect automatically
+   - If successful, you'll see the server in the left panel
+   - Expand the server to see databases, schemas, and tables
+
+### Troubleshooting Local Connection
+
+**Problem**: Cannot connect to localhost:5433
+
+**Solutions**:
+1. Verify Docker container is running:
+   ```powershell
+   docker ps --filter "name=sqordia-db"
+   ```
+
+2. Check if port 5433 is available:
+   ```powershell
+   netstat -an | findstr :5433
+   ```
+
+3. Restart the database container:
+   ```powershell
+   cd backend
+   docker-compose -f docker-compose.dev.yml restart sqordia-db
+   ```
+
+4. Check container logs for errors:
+   ```powershell
+   docker logs sqordia-db-dev
+   ```
+
+**Problem**: Authentication failed
+
+**Solutions**:
+1. Verify the password matches your `docker-compose.dev.yml` or `.env` file
+2. Default password is: `SqordiaDev2025!`
+3. If you changed it, check your environment variables:
+   ```powershell
+   echo $env:POSTGRES_PASSWORD
+   ```
+
+**Problem**: Database "SqordiaDb" does not exist
+
+**Solutions**:
+1. The database should be created automatically when the container starts
+2. Check if the database exists:
+   ```powershell
+   docker exec -it sqordia-db-dev psql -U sqordia -l
+   ```
+3. If it doesn't exist, recreate the container:
+   ```powershell
+   cd backend
+   docker-compose -f docker-compose.dev.yml down
+   docker-compose -f docker-compose.dev.yml up -d sqordia-db
+   ```
+
+### Quick Connection String Reference
+
+```
+Host=localhost;Port=5433;Database=SqordiaDb;Username=sqordia;Password=SqordiaDev2025!;SSL Mode=Prefer
+```
+
+---
+
+## GCP Cloud SQL Connection (Production)
+
+This section covers connecting to your **GCP Cloud SQL PostgreSQL database** in production.
+
+### Prerequisites
 
 1. **Your IP address must be authorized** in Cloud SQL authorized networks (see [Authorizing Your IP](#authorizing-your-ip))
 2. **PgAdmin installed** on your local machine ([Download pgAdmin](https://www.pgadmin.org/download/))

@@ -11,6 +11,7 @@ public class AIPromptDto
     public required string Category { get; set; }
     public required string PlanType { get; set; }
     public required string Language { get; set; }
+    public string? SectionName { get; set; } // e.g., "ExecutiveSummary", "MarketAnalysis"
     public required string SystemPrompt { get; set; }
     public required string UserPromptTemplate { get; set; }
     public required string Variables { get; set; }

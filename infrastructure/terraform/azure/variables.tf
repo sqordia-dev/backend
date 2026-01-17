@@ -144,6 +144,53 @@ variable "log_analytics_retention_days" {
   default     = 7
 }
 
+# Google OAuth Configuration
+variable "google_oauth_client_id" {
+  description = "Google OAuth Client ID"
+  type        = string
+  sensitive   = false
+  # No default - must be provided
+}
+
+variable "google_oauth_client_secret" {
+  description = "Google OAuth Client Secret"
+  type        = string
+  sensitive   = true
+  # No default - must be provided
+}
+
+variable "google_oauth_redirect_uri" {
+  description = "Google OAuth Redirect URI"
+  type        = string
+  default     = ""
+}
+
+# JWT Configuration
+variable "jwt_secret" {
+  description = "JWT Secret for token signing"
+  type        = string
+  sensitive   = true
+  # No default - must be provided
+}
+
+variable "jwt_issuer" {
+  description = "JWT Issuer"
+  type        = string
+  default     = "Sqordia"
+}
+
+variable "jwt_audience" {
+  description = "JWT Audience"
+  type        = string
+  default     = "SqordiaUsers"
+}
+
+variable "jwt_expiration_minutes" {
+  description = "JWT expiration time in minutes"
+  type        = number
+  default     = 60
+}
+
 # Tags
 variable "common_tags" {
   description = "Common tags to apply to all resources"

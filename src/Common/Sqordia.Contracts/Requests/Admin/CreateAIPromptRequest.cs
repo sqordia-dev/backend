@@ -43,6 +43,12 @@ public class CreateAIPromptRequest
     public required string Language { get; set; }
     
     /// <summary>
+    /// Section name this prompt is for (e.g., "ExecutiveSummary", "MarketAnalysis")
+    /// </summary>
+    [StringLength(100)]
+    public string? SectionName { get; set; }
+    
+    /// <summary>
     /// The system prompt that defines the AI's role and behavior
     /// </summary>
     [Required]

@@ -62,7 +62,7 @@ try
     builder.Services.AddPersistenceServices(builder.Configuration);
     builder.Services.AddApiServices(builder.Configuration);
     builder.Services.AddAuthenticationServices(builder.Configuration);
-    builder.Services.AddCorsServices();
+    builder.Services.AddCorsServices(builder.Configuration, builder.Environment);
     builder.Services.AddLocalizationServices();
     builder.Services.AddRateLimitingServices(builder.Configuration);
     builder.Services.AddHealthCheckServices();

@@ -13,6 +13,7 @@ public class AIPrompt : BaseAuditableEntity
     public string Category { get; private set; } = null!; // e.g., "QuestionSuggestions", "SectionImprovement", "ContentGeneration"
     public string PlanType { get; private set; } = null!; // e.g., "BusinessPlan", "StrategicPlan", "LeanCanvas"
     public string Language { get; private set; } = null!; // "fr" or "en"
+    public string? SectionName { get; private set; } // e.g., "ExecutiveSummary", "MarketAnalysis" - for direct section mapping
     public string SystemPrompt { get; private set; } = null!;
     public string UserPromptTemplate { get; private set; } = null!;
     public string Variables { get; private set; } = string.Empty; // JSON string of available variables
@@ -36,7 +37,8 @@ public class AIPrompt : BaseAuditableEntity
         string systemPrompt,
         string userPromptTemplate,
         string? variables = null,
-        string? notes = null)
+        string? notes = null,
+        string? sectionName = null)
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));
         Description = description ?? throw new ArgumentNullException(nameof(description));
@@ -47,6 +49,7 @@ public class AIPrompt : BaseAuditableEntity
         UserPromptTemplate = userPromptTemplate ?? throw new ArgumentNullException(nameof(userPromptTemplate));
         Variables = variables ?? string.Empty;
         Notes = notes;
+        SectionName = sectionName;
         IsActive = true;
         Version = 1;
         UsageCount = 0;
@@ -103,5 +106,10 @@ public class AIPrompt : BaseAuditableEntity
     public void SetParentPrompt(string parentPromptId)
     {
         ParentPromptId = parentPromptId;
+    }
+
+    public void SetSectionName(string? sectionName)
+    {
+        SectionName = sectionName;
     }
 }

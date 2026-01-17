@@ -2,6 +2,7 @@ using AutoFixture;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -22,6 +23,7 @@ public class AuthControllerTests
     private readonly Mock<IAuthenticationService> _authenticationServiceMock;
     private readonly Mock<ILogger<AuthController>> _loggerMock;
     private readonly Mock<IOptions<GoogleOAuthSettings>> _googleOAuthSettingsMock;
+    private readonly Mock<IConfiguration> _configurationMock;
     private readonly AuthController _sut;
 
     public AuthControllerTests()
@@ -33,6 +35,7 @@ public class AuthControllerTests
 
         _authenticationServiceMock = new Mock<IAuthenticationService>();
         _loggerMock = new Mock<ILogger<AuthController>>();
+        _configurationMock = new Mock<IConfiguration>();
         
         var googleOAuthSettings = new GoogleOAuthSettings
         {
@@ -46,7 +49,8 @@ public class AuthControllerTests
         _sut = new AuthController(
             _authenticationServiceMock.Object,
             _googleOAuthSettingsMock.Object,
-            _loggerMock.Object);
+            _loggerMock.Object,
+            _configurationMock.Object);
     }
 
     [Fact]
@@ -391,7 +395,8 @@ public class AuthControllerTests
         var controller = new AuthController(
             _authenticationServiceMock.Object,
             _googleOAuthSettingsMock.Object,
-            _loggerMock.Object);
+            _loggerMock.Object,
+            _configurationMock.Object);
         
         // Mock HttpContext without valid claims
         var httpContext = new Mock<HttpContext>();

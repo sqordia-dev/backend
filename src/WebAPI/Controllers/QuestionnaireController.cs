@@ -210,9 +210,12 @@ public class QuestionnaireController : BaseApiController
             _logger.LogInformation("AI service availability check result: {IsAvailable}", isAvailable);
             if (!isAvailable)
             {
-                _logger.LogWarning("AI service unavailable when trying to generate suggestions for plan {PlanId}, question {QuestionId}. Service type: {ServiceType}", 
+                _logger.LogWarning("AI service unavailable when trying to generate suggestions for plan {PlanId}, question {QuestionId}. Service type: {ServiceType}. " +
+                    "This usually means the OpenAI API key is not configured or invalid. Check appsettings.json or environment variables.", 
                     businessPlanId, questionId, _aiService?.GetType().Name ?? "NULL");
-                return BadRequest(new { error = "AI service is currently unavailable. Please try again later." });
+                return BadRequest(new { 
+                    error = "AI service is currently unavailable. Please check that the OpenAI API key is configured correctly in appsettings.json or environment variables." 
+                });
             }
 
             // Generate suggestions using AI

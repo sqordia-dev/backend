@@ -50,6 +50,8 @@ This directory contains PowerShell scripts for deployment, monitoring, and maint
 - `update-admin-password.ps1` - Update admin password
 - `drop-all-tables.sql` - Drop all tables
 - `ResetQuestionnaireSeeding.sql` - Reset questionnaire seeding
+- `reset-admin-subscription.sql` - Reset Admin user subscription to Free plan
+- `run-reset-admin-subscription.ps1` - Run reset admin subscription script
 
 ## Utility Scripts
 

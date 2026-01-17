@@ -60,9 +60,34 @@ public class AzureBlobStorageService : IStorageService
 
             await blobClient.UploadAsync(content, uploadOptions, cancellationToken);
 
-            var url = blobClient.Uri.ToString();
-            _logger.LogInformation("File uploaded to Azure Blob Storage: {Key}", key);
-            return url;
+            // Generate a SAS token URL for profile pictures to make them accessible
+            // For profile pictures, we use a long expiration (1 year) since they should persist
+            // For other files, you might want shorter expiration
+            var isProfilePicture = key.StartsWith("profile-pictures/", StringComparison.OrdinalIgnoreCase);
+            
+            if (isProfilePicture)
+            {
+                // Generate SAS token URL with 1 year expiration for profile pictures
+                var sasBuilder = new BlobSasBuilder
+                {
+                    BlobContainerName = _settings.ContainerName,
+                    BlobName = key,
+                    Resource = "b",
+                    ExpiresOn = DateTimeOffset.UtcNow.AddYears(1)
+                };
+                sasBuilder.SetPermissions(BlobSasPermissions.Read);
+                
+                var sasUrl = blobClient.GenerateSasUri(sasBuilder);
+                _logger.LogInformation("File uploaded to Azure Blob Storage with SAS URL: {Key}", key);
+                return sasUrl.ToString();
+            }
+            else
+            {
+                // For other files, return direct URL (may require authentication depending on container settings)
+                var url = blobClient.Uri.ToString();
+                _logger.LogInformation("File uploaded to Azure Blob Storage: {Key}", key);
+                return url;
+            }
         }
         catch (Exception ex)
         {

@@ -81,23 +81,30 @@ public static class WebApplicationExtensions
             app.UseHttpsRedirection();
         }
 
-        // Custom middleware - Error handling should be first
+        // CORS - MUST be before error handling to ensure preflight requests get CORS headers
+        app.UseCors("AllowAll");
+        
+        // Custom middleware - Error handling should be after CORS
         app.UseMiddleware<ErrorHandlingMiddleware>();
+        
         app.UseMiddleware<RequestLoggingMiddleware>();
         app.UseMiddleware<PerformanceMiddleware>();
 
         // Localization middleware - Must be before MVC
         app.UseRequestLocalization();
 
-        // Rate limiting middleware
-        app.UseIpRateLimiting();
+        // Rate limiting middleware - Skip for OPTIONS requests
+        app.UseWhen(context => context.Request.Method != "OPTIONS", appBuilder =>
+        {
+            appBuilder.UseIpRateLimiting();
+        });
 
-        // CORS
-        app.UseCors("AllowAll");
-
-        // Authentication & Authorization
-        app.UseAuthentication();
-        app.UseAuthorization();
+        // Authentication & Authorization - Skip for OPTIONS requests
+        app.UseWhen(context => context.Request.Method != "OPTIONS", appBuilder =>
+        {
+            appBuilder.UseAuthentication();
+            appBuilder.UseAuthorization();
+        });
 
         // Map controllers
         app.MapControllers();

@@ -24,8 +24,11 @@ services:
       - JwtSettings__ExpirationMinutes=${JWT_EXPIRATION_MINUTES:-60}
       
       # Google OAuth (optional - set via environment variables)
-      - GoogleOAuth__ClientId=${GOOGLE_OAUTH_CLIENT_ID:-}
-      - GoogleOAuth__ClientSecret=${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      # For local development, you can set these in your .env file or environment
+      # Client ID: 787375969256-r1qbhjb39t2r77ro1evr849ph75s8i4n.apps.googleusercontent.com
+      # NOTE: Explicitly set to override any system environment variables
+      - GoogleOAuth__ClientId=787375969256-r1qbhjb39t2r77ro1evr849ph75s8i4n.apps.googleusercontent.com
+      - GoogleOAuth__ClientSecret=${GOOGLE_OAUTH_CLIENT_SECRET:-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}
       
       # OpenAI Configuration
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
@@ -38,10 +41,20 @@ services:
       - AI__Claude__ApiKey=${CLAUDE_API_KEY:-}
       - AI__Gemini__ApiKey=${GEMINI_API_KEY:-}
       
-      # SendGrid Configuration (using appsettings.Development.json via mounted volume)
+      # Azure Communication Services Email Configuration (preferred)
+      # Set AzureCommunicationServices__ConnectionString to use Azure Communication Services Email
+      - AzureCommunicationServices__ConnectionString=${AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING:-}
+      - AzureCommunicationServices__FromEmail=${AZURE_COMMUNICATION_SERVICES_FROM_EMAIL:-sqordia.dev@gmail.com}
+      - AzureCommunicationServices__FromName=${AZURE_COMMUNICATION_SERVICES_FROM_NAME:-Sqordia}
+      
+      # Alternative: SendGrid Configuration (using appsettings.Development.json via mounted volume)
       # Only set if environment variable is provided, otherwise use appsettings file
       - SendGrid__FromEmail=${SENDGRID_FROM_EMAIL:-sqordia.dev@gmail.com}
       - SendGrid__FromName=${SENDGRID_FROM_NAME:-Sqordia}
+      
+      # Azure Service Bus Configuration (fallback if Azure Communication Services is not configured)
+      - AzureServiceBus__ConnectionString=${AZURE_SERVICE_BUS_CONNECTION_STRING:-}
+      - AzureServiceBus__EmailTopic=${AZURE_SERVICE_BUS_EMAIL_TOPIC:-email-jobs}
       
       # AWS Storage (optional)
       - AwsStorage__BucketName=${S3_BUCKET_NAME:-sqordia-documents}
@@ -49,6 +62,9 @@ services:
       
       # Disable HTTPS redirect for Docker development
       - DISABLE_HTTPS_REDIRECT=true
+      
+      # Frontend URL for CORS (development)
+      - FRONTEND_BASE_URL=http://localhost:5173
       
       # Enable database seeding on startup (for local development)
       - Database__RunSeedsOnStartup=true
@@ -86,7 +102,7 @@ services:
       - sqordia-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sqordia"]
+      test: ["CMD-SHELL", "pg_isready -U sqordia -d SqordiaDb"]
       interval: 10s
       timeout: 5s
       retries: 15

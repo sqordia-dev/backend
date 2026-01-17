@@ -1,18 +1,87 @@
 -- ============================================================================
--- Sqordia Complete Database Seed Script (PostgreSQL)
+-- Sqordia Database Clear and Reseed Script (PostgreSQL)
 -- ============================================================================
--- This script seeds the database with all essential data:
---   Part 1: Roles, Permissions, and Admin User
---   Part 2: Questionnaire Templates and Questions
+-- This script:
+--   1. Deletes all data from all tables (respecting foreign key constraints)
+--   2. Runs the seed script to populate with fresh data
 --
--- Password: Sqordia2025!
--- Idempotent: Safe to run multiple times (uses ON CONFLICT)
+-- WARNING: This will delete ALL data from the database!
 -- ============================================================================
 
 BEGIN;
 
 -- ============================================================================
--- PART 1: ROLES, PERMISSIONS, AND ADMIN USER
+-- PART 1: DELETE ALL DATA FROM TABLES
+-- ============================================================================
+-- Delete in order to respect foreign key constraints (child tables first)
+
+-- Delete junction/relationship tables first
+TRUNCATE TABLE "RolePermissions" CASCADE;
+TRUNCATE TABLE "UserRoles" CASCADE;
+TRUNCATE TABLE "OrganizationMembers" CASCADE;
+TRUNCATE TABLE "BusinessPlanShares" CASCADE;
+TRUNCATE TABLE "TemplateRatings" CASCADE;
+TRUNCATE TABLE "TemplateUsages" CASCADE;
+
+-- Delete token and session tables
+TRUNCATE TABLE "RefreshTokens" CASCADE;
+TRUNCATE TABLE "EmailVerificationTokens" CASCADE;
+TRUNCATE TABLE "PasswordResetTokens" CASCADE;
+TRUNCATE TABLE "TwoFactorAuths" CASCADE;
+TRUNCATE TABLE "LoginHistories" CASCADE;
+TRUNCATE TABLE "ActiveSessions" CASCADE;
+
+-- Delete business plan related tables
+TRUNCATE TABLE "PlanSectionComments" CASCADE;
+TRUNCATE TABLE "SmartObjectives" CASCADE;
+TRUNCATE TABLE "BusinessPlanVersions" CASCADE;
+TRUNCATE TABLE "BusinessPlanFinancialProjections" CASCADE;
+TRUNCATE TABLE "QuestionnaireResponses" CASCADE;
+TRUNCATE TABLE "QuestionTemplates" CASCADE;
+TRUNCATE TABLE "QuestionnaireTemplates" CASCADE;
+TRUNCATE TABLE "BusinessPlans" CASCADE;
+TRUNCATE TABLE "OBNLBusinessPlans" CASCADE;
+
+-- Delete OBNL related tables
+TRUNCATE TABLE "ImpactMeasurements" CASCADE;
+TRUNCATE TABLE "GrantApplications" CASCADE;
+TRUNCATE TABLE "OBNLCompliances" CASCADE;
+
+-- Delete template related tables
+TRUNCATE TABLE "TemplateCustomizations" CASCADE;
+TRUNCATE TABLE "TemplateFields" CASCADE;
+TRUNCATE TABLE "TemplateSections" CASCADE;
+TRUNCATE TABLE "Templates" CASCADE;
+
+-- Delete financial related tables
+TRUNCATE TABLE "InvestmentAnalyses" CASCADE;
+TRUNCATE TABLE "FinancialKPIs" CASCADE;
+TRUNCATE TABLE "TaxCalculations" CASCADE;
+TRUNCATE TABLE "FinancialProjectionItems" CASCADE;
+TRUNCATE TABLE "TaxRules" CASCADE;
+TRUNCATE TABLE "ExchangeRates" CASCADE;
+TRUNCATE TABLE "Currencies" CASCADE;
+
+-- Delete subscription related tables
+TRUNCATE TABLE "Subscriptions" CASCADE;
+TRUNCATE TABLE "SubscriptionPlans" CASCADE;
+
+-- Delete organization and user tables
+TRUNCATE TABLE "Organizations" CASCADE;
+TRUNCATE TABLE "Users" CASCADE;
+
+-- Delete role and permission tables
+TRUNCATE TABLE "Roles" CASCADE;
+TRUNCATE TABLE "Permissions" CASCADE;
+
+-- Delete AI and other tables
+TRUNCATE TABLE "AIPrompts" CASCADE;
+TRUNCATE TABLE "AuditLogs" CASCADE;
+TRUNCATE TABLE "Settings" CASCADE;
+TRUNCATE TABLE "ContentPages" CASCADE;
+
+-- ============================================================================
+-- PART 2: RUN SEED SCRIPT
 -- ============================================================================
 
 -- 1. CREATE ROLES
@@ -44,7 +113,6 @@ ON CONFLICT ("Id") DO UPDATE SET
 
 -- 3. CREATE ADMIN USER
 -- Password: Sqordia2025!
--- Hash generated using BCrypt.Net.BCrypt.HashPassword("Sqordia2025!")
 INSERT INTO "Users" (
     "Id", 
     "FirstName", 
@@ -73,19 +141,19 @@ VALUES (
     'admin@sqordia.com',
     'admin@sqordia.com',
     '$2a$11$y1Hy2TKboroe4nri8acIRuRjgJG1F7zJB8CaEKyBFqbEifOTuo.4q', -- BCrypt hash for: Sqordia2025!
-    true, -- IsEmailConfirmed
-    NOW() AT TIME ZONE 'UTC', -- EmailConfirmedAt
-    true, -- IsActive
-    'Entrepreneur', -- UserType (valid values: Entrepreneur, OBNL, Consultant)
-    0, -- AccessFailedCount
-    true, -- LockoutEnabled
-    NULL, -- LockoutEnd (not locked)
-    false, -- PhoneNumberVerified
-    false, -- RequirePasswordChange
-    'local', -- Provider
-    NOW() AT TIME ZONE 'UTC', -- PasswordLastChangedAt
-    NOW() AT TIME ZONE 'UTC', -- Created
-    false -- IsDeleted
+    true,
+    NOW() AT TIME ZONE 'UTC',
+    true,
+    'Entrepreneur',
+    0,
+    true,
+    NULL,
+    false,
+    false,
+    'local',
+    NOW() AT TIME ZONE 'UTC',
+    NOW() AT TIME ZONE 'UTC',
+    false
 )
 ON CONFLICT ("Id") DO UPDATE SET
     "PasswordHash" = EXCLUDED."PasswordHash",
@@ -101,7 +169,7 @@ INSERT INTO "UserRoles" ("Id", "UserId", "RoleId")
 SELECT 
     gen_random_uuid(),
     '1367e88c-d3a2-46c4-928b-40156092d0bf'::uuid,
-    'c1b7baaa-ae55-43f6-a735-ae543d1502f5'::uuid -- Admin role
+    'c1b7baaa-ae55-43f6-a735-ae543d1502f5'::uuid
 WHERE NOT EXISTS (
     SELECT 1 FROM "UserRoles" 
     WHERE "UserId" = '1367e88c-d3a2-46c4-928b-40156092d0bf'::uuid 
@@ -112,7 +180,7 @@ WHERE NOT EXISTS (
 INSERT INTO "RolePermissions" ("Id", "RoleId", "PermissionId")
 SELECT 
     gen_random_uuid() as "Id",
-    'c1b7baaa-ae55-43f6-a735-ae543d1502f5'::uuid as "RoleId", -- Admin role
+    'c1b7baaa-ae55-43f6-a735-ae543d1502f5'::uuid as "RoleId",
     "Id" as "PermissionId"
 FROM "Permissions"
 WHERE NOT EXISTS (
@@ -125,7 +193,7 @@ WHERE NOT EXISTS (
 INSERT INTO "RolePermissions" ("Id", "RoleId", "PermissionId")
 SELECT 
     gen_random_uuid() as "Id",
-    '42c48a39-c6e2-418e-b52f-6c62a44fdb59'::uuid as "RoleId", -- Collaborateur role
+    '42c48a39-c6e2-418e-b52f-6c62a44fdb59'::uuid as "RoleId",
     "Id" as "PermissionId"
 FROM "Permissions"
 WHERE "Name" LIKE '%.Read'
@@ -139,7 +207,7 @@ AND NOT EXISTS (
 INSERT INTO "RolePermissions" ("Id", "RoleId", "PermissionId")
 SELECT 
     gen_random_uuid() as "Id",
-    '738845f7-f705-41c3-9d17-4858d8f49e73'::uuid as "RoleId", -- Lecteur role
+    '738845f7-f705-41c3-9d17-4858d8f49e73'::uuid as "RoleId",
     "Id" as "PermissionId"
 FROM "Permissions"
 WHERE "Name" LIKE '%.Read'
@@ -149,11 +217,7 @@ AND NOT EXISTS (
     AND "PermissionId" = "Permissions"."Id"
 );
 
--- ============================================================================
--- PART 2: QUESTIONNAIRE TEMPLATES AND QUESTIONS
--- ============================================================================
-
--- 1. CREATE QUESTIONNAIRE TEMPLATE FOR BUSINESS PLAN
+-- 8. CREATE QUESTIONNAIRE TEMPLATE FOR BUSINESS PLAN
 DO $$
 DECLARE
     v_template_id UUID := 'a1b2c3d4-e5f6-4789-a012-345678901234'::uuid;
@@ -188,12 +252,7 @@ BEGIN
         "LastModified" = v_now;
 END $$;
 
--- 2. DELETE EXISTING QUESTIONS FOR THIS TEMPLATE (to allow re-seeding)
-DELETE FROM "QuestionTemplates" 
-WHERE "QuestionnaireTemplateId" = 'a1b2c3d4-e5f6-4789-a012-345678901234'::uuid;
-
--- 3. INSERT ALL 20 QUESTIONS
--- Section 1: Mission, vision, valeurs et contexte / Mission, vision, values and context (Questions 1-4)
+-- 9. INSERT ALL 20 QUESTIONS
 INSERT INTO "QuestionTemplates" (
     "Id", 
     "QuestionnaireTemplateId", 
@@ -220,7 +279,6 @@ VALUES
         true,
         'Mission, vision, valeurs et contexte'
     ),
-    
     -- Question 2
     (
         'c2d3e4f5-a6b7-4789-c012-345678901234'::uuid,
@@ -234,7 +292,6 @@ VALUES
         true,
         'Mission, vision, valeurs et contexte'
     ),
-    
     -- Question 3
     (
         'd3e4f5a6-b7c8-4789-d012-345678901234'::uuid,
@@ -248,7 +305,6 @@ VALUES
         true,
         'Mission, vision, valeurs et contexte'
     ),
-    
     -- Question 4
     (
         'e4f5a6b7-c8d9-4789-e012-345678901234'::uuid,
@@ -262,8 +318,6 @@ VALUES
         true,
         'Mission, vision, valeurs et contexte'
     ),
-
--- Section 2: Analyse stratégique / Strategic Analysis (Questions 5-8)
     -- Question 5
     (
         'f5a6b7c8-d9e0-4789-f012-345678901234'::uuid,
@@ -277,7 +331,6 @@ VALUES
         true,
         'Analyse stratégique'
     ),
-    
     -- Question 6
     (
         'a6b7c8d9-e0f1-4789-a112-345678901234'::uuid,
@@ -291,7 +344,6 @@ VALUES
         true,
         'Analyse stratégique'
     ),
-    
     -- Question 7
     (
         'b7c8d9e0-f1a2-4789-b112-345678901234'::uuid,
@@ -305,7 +357,6 @@ VALUES
         true,
         'Analyse stratégique'
     ),
-    
     -- Question 8
     (
         'c8d9e0f1-a2b3-4789-c112-345678901234'::uuid,
@@ -319,8 +370,6 @@ VALUES
         true,
         'Analyse stratégique'
     ),
-
--- Section 3: Bénéficiaires, besoins et impact / Beneficiaries, needs and impact (Questions 9-12)
     -- Question 9
     (
         'd9e0f1a2-b3c4-4789-d112-345678901234'::uuid,
@@ -334,7 +383,6 @@ VALUES
         true,
         'Bénéficiaires, besoins et impact'
     ),
-    
     -- Question 10
     (
         'e0f1a2b3-c4d5-4789-e112-345678901234'::uuid,
@@ -348,7 +396,6 @@ VALUES
         true,
         'Bénéficiaires, besoins et impact'
     ),
-    
     -- Question 11
     (
         'f1a2b3c4-d5e6-4789-f112-345678901234'::uuid,
@@ -362,7 +409,6 @@ VALUES
         true,
         'Bénéficiaires, besoins et impact'
     ),
-    
     -- Question 12
     (
         'a2b3c4d5-e6f7-4789-a212-345678901234'::uuid,
@@ -376,8 +422,6 @@ VALUES
         true,
         'Bénéficiaires, besoins et impact'
     ),
-
--- Section 4: Orientations, objectifs et plan d'action / Strategic directions, objectives and action plan (Questions 13-16)
     -- Question 13
     (
         'b3c4d5e6-f7a8-4789-b212-345678901234'::uuid,
@@ -391,7 +435,6 @@ VALUES
         true,
         'Orientations, objectifs et plan d''action'
     ),
-    
     -- Question 14
     (
         'c4d5e6f7-a8b9-4789-c212-345678901234'::uuid,
@@ -405,7 +448,6 @@ VALUES
         true,
         'Orientations, objectifs et plan d''action'
     ),
-    
     -- Question 15
     (
         'd5e6f7a8-b9c0-4789-d212-345678901234'::uuid,
@@ -419,7 +461,6 @@ VALUES
         true,
         'Orientations, objectifs et plan d''action'
     ),
-    
     -- Question 16
     (
         'e6f7a8b9-c0d1-4789-e212-345678901234'::uuid,
@@ -433,8 +474,6 @@ VALUES
         true,
         'Orientations, objectifs et plan d''action'
     ),
-
--- Section 5: Gouvernance, financement et pérennité / Governance, funding and sustainability (Questions 17-20)
     -- Question 17
     (
         'f7a8b9c0-d1e2-4789-f212-345678901234'::uuid,
@@ -448,7 +487,6 @@ VALUES
         true,
         'Gouvernance, financement et pérennité'
     ),
-    
     -- Question 18
     (
         'a8b9c0d1-e2f3-4789-a312-345678901234'::uuid,
@@ -462,7 +500,6 @@ VALUES
         true,
         'Gouvernance, financement et pérennité'
     ),
-    
     -- Question 19
     (
         'b9c0d1e2-f3a4-4789-b312-345678901234'::uuid,
@@ -476,7 +513,6 @@ VALUES
         true,
         'Gouvernance, financement et pérennité'
     ),
-    
     -- Question 20
     (
         'c0d1e2f3-a4b5-4789-c312-345678901234'::uuid,
@@ -491,31 +527,7 @@ VALUES
         'Gouvernance, financement et pérennité'
     );
 
--- ============================================================================
--- VERIFICATION
--- ============================================================================
-DO $$
-DECLARE
-    v_question_count INTEGER;
-BEGIN
-    SELECT COUNT(*) INTO v_question_count
-    FROM "QuestionTemplates"
-    WHERE "QuestionnaireTemplateId" = 'a1b2c3d4-e5f6-4789-a012-345678901234'::uuid;
-    
-    IF v_question_count = 20 THEN
-        RAISE NOTICE '✓ SUCCESS: All 20 questions have been successfully inserted!';
-    ELSE
-        RAISE WARNING 'Expected 20 questions, but % were inserted.', v_question_count;
-    END IF;
-END $$;
-
-COMMIT;
-
--- ============================================================================
--- PART 3: SUBSCRIPTION PLANS
--- ============================================================================
-
--- 1. CREATE SUBSCRIPTION PLANS
+-- 10. CREATE SUBSCRIPTION PLANS
 DO $$
 DECLARE
     v_now TIMESTAMP WITH TIME ZONE := NOW() AT TIME ZONE 'UTC';
@@ -663,53 +675,41 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- PART 4: DEFAULT SETTINGS
+-- VERIFICATION
 -- ============================================================================
 DO $$
 DECLARE
-    v_now TIMESTAMP WITH TIME ZONE := NOW() AT TIME ZONE 'UTC';
+    v_question_count INTEGER;
+    v_role_count INTEGER;
+    v_permission_count INTEGER;
+    v_user_count INTEGER;
+    v_plan_count INTEGER;
 BEGIN
-    -- Create default theme color setting
-    INSERT INTO "Settings" (
-        "Id",
-        "Key",
-        "Value",
-        "Category",
-        "Description",
-        "IsPublic",
-        "SettingType",
-        "DataType",
-        "IsEncrypted",
-        "IsCritical",
-        "IsDeleted",
-        "Created",
-        "LastModified"
-    )
-    VALUES (
-        gen_random_uuid(),
-        'Theme.Color',
-        'green',
-        'Theme',
-        'Primary theme color for the application. Options: green, orange, blue, purple, red, teal, indigo, pink',
-        true,
-        0, -- SettingType.Config
-        0, -- SettingDataType.String
-        false,
-        false,
-        false, -- IsDeleted
-        v_now,
-        v_now
-    )
-    ON CONFLICT ("Key") DO UPDATE SET
-        "Value" = EXCLUDED."Value",
-        "Description" = EXCLUDED."Description",
-        "LastModified" = v_now;
+    SELECT COUNT(*) INTO v_question_count
+    FROM "QuestionTemplates"
+    WHERE "QuestionnaireTemplateId" = 'a1b2c3d4-e5f6-4789-a012-345678901234'::uuid;
     
-    RAISE NOTICE '✓ Theme.Color setting created/updated';
+    SELECT COUNT(*) INTO v_role_count FROM "Roles";
+    SELECT COUNT(*) INTO v_permission_count FROM "Permissions";
+    SELECT COUNT(*) INTO v_user_count FROM "Users";
+    SELECT COUNT(*) INTO v_plan_count FROM "SubscriptionPlans";
+    
+    IF v_question_count = 20 THEN
+        RAISE NOTICE '✓ SUCCESS: All 20 questions have been successfully inserted!';
+    ELSE
+        RAISE WARNING 'Expected 20 questions, but % were inserted.', v_question_count;
+    END IF;
+    
+    RAISE NOTICE '✓ Roles: %', v_role_count;
+    RAISE NOTICE '✓ Permissions: %', v_permission_count;
+    RAISE NOTICE '✓ Users: %', v_user_count;
+    RAISE NOTICE '✓ Subscription Plans: %', v_plan_count;
 END $$;
 
+COMMIT;
+
 -- ============================================================================
--- END OF COMPLETE SEED SCRIPT
+-- END OF CLEAR AND SEED SCRIPT
 -- ============================================================================
 -- Admin User: admin@sqordia.com / Password: Sqordia2025!
 -- User ID: 1367e88c-d3a2-46c4-928b-40156092d0bf

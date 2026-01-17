@@ -18,6 +18,18 @@ postgresql_admin_username  = "sqordia_admin"
 postgresql_admin_password   = "CHANGE_ME" # Set a strong password
 postgresql_version         = "15"
 
+# Google OAuth Configuration
+# Get these from Google Cloud Console: https://console.cloud.google.com/apis/credentials
+google_oauth_client_id     = "your-client-id.apps.googleusercontent.com"
+google_oauth_client_secret = "CHANGE_ME" # Your Google OAuth client secret
+google_oauth_redirect_uri  = "" # Leave empty to auto-generate, or set explicitly
+
+# JWT Configuration
+jwt_secret              = "CHANGE_ME" # Generate a strong random secret (e.g., 64+ characters)
+jwt_issuer              = "Sqordia"
+jwt_audience            = "SqordiaUsers"
+jwt_expiration_minutes  = 60
+
 # Container Apps Configuration
 container_apps_cpu          = 0.5
 container_apps_memory       = "1.0"

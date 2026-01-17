@@ -80,6 +80,15 @@
   <data name="Auth.Error.EmailNotVerified" xml:space="preserve">
     <value>Veuillez vérifier votre adresse email avant de continuer.</value>
   </data>
+  <data name="Auth.Error.GoogleAuthenticationFailed" xml:space="preserve">
+    <value>Échec de l'authentification Google. Veuillez réessayer.</value>
+  </data>
+  <data name="Auth.Error.GoogleAccountAlreadyLinked" xml:space="preserve">
+    <value>Ce compte Google est déjà lié à un autre utilisateur.</value>
+  </data>
+  <data name="Auth.Error.EmailAlreadyLinkedToDifferentGoogleAccount" xml:space="preserve">
+    <value>Cette adresse email est déjà associée à un autre compte Google.</value>
+  </data>
   
   <!-- Organization Messages -->
   <data name="Organization.Success.Created" xml:space="preserve">

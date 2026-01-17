@@ -1,6 +1,7 @@
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Sqordia.Application.Services;
 using Sqordia.Contracts.Requests.Auth;
@@ -17,15 +18,18 @@ public class AuthController : BaseApiController
     private readonly IAuthenticationService _authenticationService;
     private readonly GoogleOAuthSettings _googleOAuthSettings;
     private readonly ILogger<AuthController> _logger;
+    private readonly IConfiguration _configuration;
 
     public AuthController(
         IAuthenticationService authenticationService,
         IOptions<GoogleOAuthSettings> googleOAuthSettings,
-        ILogger<AuthController> logger)
+        ILogger<AuthController> logger,
+        IConfiguration configuration)
     {
         _authenticationService = authenticationService;
         _googleOAuthSettings = googleOAuthSettings.Value;
         _logger = logger;
+        _configuration = configuration;
     }
 
     [HttpPost("register")]
@@ -243,6 +247,39 @@ public class AuthController : BaseApiController
     }
 
     /// <summary>
+    /// Google OAuth callback endpoint (handles redirect from Google)
+    /// </summary>
+    [HttpGet("google/callback")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GoogleCallback()
+    {
+        try
+        {
+            // This endpoint is called by Google OAuth middleware after authentication
+            // The middleware handles the OAuth flow and sets up the user claims
+            // For API-based OAuth, we typically use the /google endpoint with tokens instead
+            // This callback is mainly for web-based OAuth flows
+            
+            _logger.LogInformation("Google OAuth callback received");
+            
+            // Redirect to frontend with success message
+            var frontendUrl = Environment.GetEnvironmentVariable("FRONTEND_BASE_URL") 
+                           ?? _configuration["Frontend:BaseUrl"]
+                           ?? "https://sqordia.app";
+            
+            return Redirect($"{frontendUrl}/auth/google/callback?success=true");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in Google OAuth callback");
+            var frontendUrl = Environment.GetEnvironmentVariable("FRONTEND_BASE_URL") 
+                           ?? _configuration["Frontend:BaseUrl"]
+                           ?? "https://sqordia.app";
+            return Redirect($"{frontendUrl}/auth/google/callback?success=false&error=callback_failed");
+        }
+    }
+
+    /// <summary>
     /// Link Google account to existing user
     /// </summary>
     [HttpPost("google/link")]
@@ -255,14 +292,112 @@ public class AuthController : BaseApiController
             return Unauthorized();
         }
 
-        // Note: In production, extract from validated Google token
-        var googleId = "google_" + Guid.NewGuid().ToString("N")[..8];
-        var profilePictureUrl = "https://via.placeholder.com/150";
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.IdToken) && string.IsNullOrWhiteSpace(request.AccessToken))
+            {
+                return BadRequest(new { errorMessage = "Google ID token or access token is required" });
+            }
 
-        var result = await _authenticationService.LinkGoogleAccountAsync(
-            userId.Value, googleId, profilePictureUrl);
-        
-        return HandleResult(result);
+            string googleId;
+            string? profilePictureUrl = null;
+
+            // Try to validate as ID token first (preferred method)
+            if (!string.IsNullOrWhiteSpace(request.IdToken))
+            {
+                GoogleJsonWebSignature.Payload? payload = null;
+                try
+                {
+                    var settings = new GoogleJsonWebSignature.ValidationSettings
+                    {
+                        Audience = new[] { _googleOAuthSettings.ClientId }
+                    };
+
+                    payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
+                }
+                catch (InvalidJwtException ex)
+                {
+                    _logger.LogError(ex, "Invalid Google ID token in link request");
+                    return BadRequest(new { 
+                        errorMessage = "Invalid Google ID token", 
+                        details = ex.Message 
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error validating Google ID token in link request");
+                    return BadRequest(new { 
+                        errorMessage = "Failed to validate Google ID token", 
+                        details = ex.Message 
+                    });
+                }
+
+                if (payload != null)
+                {
+                    googleId = payload.Subject ?? string.Empty;
+                    profilePictureUrl = payload.Picture;
+
+                    if (string.IsNullOrWhiteSpace(googleId))
+                    {
+                        return BadRequest(new { errorMessage = "Invalid Google ID token: missing Google ID" });
+                    }
+
+                    _logger.LogInformation("Validated Google ID token for linking. GoogleId: {GoogleId}", googleId);
+                }
+                else
+                {
+                    return BadRequest(new { errorMessage = "Unable to validate Google ID token" });
+                }
+            }
+            // Fallback: Validate using access token
+            else if (!string.IsNullOrWhiteSpace(request.AccessToken))
+            {
+                try
+                {
+                    using var httpClient = new HttpClient();
+                    var userInfoResponse = await httpClient.GetAsync(
+                        $"https://www.googleapis.com/oauth2/v3/userinfo?access_token={request.AccessToken}");
+
+                    if (!userInfoResponse.IsSuccessStatusCode)
+                    {
+                        _logger.LogWarning("Failed to get user info from Google with access token. Status: {Status}", userInfoResponse.StatusCode);
+                        return BadRequest(new { errorMessage = "Invalid Google access token" });
+                    }
+
+                    var userInfoJson = await userInfoResponse.Content.ReadAsStringAsync();
+                    var userInfo = JsonSerializer.Deserialize<JsonElement>(userInfoJson);
+
+                    googleId = userInfo.GetProperty("sub").GetString() ?? string.Empty;
+                    profilePictureUrl = userInfo.TryGetProperty("picture", out var picture) ? picture.GetString() : null;
+
+                    if (string.IsNullOrWhiteSpace(googleId))
+                    {
+                        return BadRequest(new { errorMessage = "Invalid user info from Google access token" });
+                    }
+
+                    _logger.LogInformation("Validated Google access token for linking. GoogleId: {GoogleId}", googleId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error validating Google access token in link request");
+                    return BadRequest(new { errorMessage = "Failed to validate Google access token" });
+                }
+            }
+            else
+            {
+                return BadRequest(new { errorMessage = "Google ID token or access token is required" });
+            }
+
+            var result = await _authenticationService.LinkGoogleAccountAsync(
+                userId.Value, googleId, profilePictureUrl);
+            
+            return HandleResult(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during Google account linking");
+            return StatusCode(500, new { errorMessage = "An error occurred during Google account linking" });
+        }
     }
 
     /// <summary>

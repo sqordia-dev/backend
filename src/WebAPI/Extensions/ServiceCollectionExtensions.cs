@@ -1,5 +1,6 @@
 using AspNetCoreRateLimit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Versioning;
@@ -139,15 +140,108 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddCorsServices(this IServiceCollection services)
+    public static IServiceCollection AddCorsServices(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
     {
         services.AddCors(options =>
         {
             options.AddPolicy("AllowAll", policy =>
             {
-                policy.AllowAnyOrigin()
-                      .AllowAnyMethod()
-                      .AllowAnyHeader();
+                if (environment.IsDevelopment())
+                {
+                    // Development: Allow localhost on any port + explicit frontend URL
+                    // Get explicit frontend URL from config if provided
+                    var frontendBaseUrl = Environment.GetEnvironmentVariable("FRONTEND_BASE_URL")
+                        ?? configuration["Frontend:BaseUrl"];
+                    
+                    var allowedOrigins = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(frontendBaseUrl))
+                    {
+                        allowedOrigins.Add(frontendBaseUrl.TrimEnd('/'));
+                    }
+                    
+                    // When using AllowCredentials(), we need to use SetIsOriginAllowed (not WithOrigins)
+                    // This allows dynamic origin checking for any localhost port
+                    policy.SetIsOriginAllowed(origin => 
+                        {
+                            if (string.IsNullOrEmpty(origin))
+                                return false;
+                            
+                            // Check explicit allowed origins first
+                            if (allowedOrigins.Any(allowed => origin.Equals(allowed, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                return true;
+                            }
+                            
+                            try
+                            {
+                                // Parse the origin URI
+                                var uri = new Uri(origin);
+                                
+                                // Check if it's localhost or 127.0.0.1
+                                var isLocalhost = uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || 
+                                                 uri.Host == "127.0.0.1" || 
+                                                 uri.Host == "::1" ||
+                                                 uri.Host.StartsWith("localhost.", StringComparison.OrdinalIgnoreCase);
+                                
+                                // Check if it's http or https
+                                var isValidScheme = uri.Scheme == "http" || uri.Scheme == "https";
+                                
+                                var isAllowed = isValidScheme && isLocalhost;
+                                
+                                return isAllowed;
+                            }
+                            catch (UriFormatException)
+                            {
+                                // Invalid URI format
+                                return false;
+                            }
+                            catch
+                            {
+                                // Any other exception
+                                return false;
+                            }
+                        })
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .AllowCredentials()
+                        .SetPreflightMaxAge(TimeSpan.FromHours(1));
+                }
+                else
+                {
+                    // Production: Use FRONTEND_BASE_URL (Option 2 - recommended)
+                    var frontendBaseUrl = Environment.GetEnvironmentVariable("FRONTEND_BASE_URL")
+                        ?? configuration["Frontend:BaseUrl"];
+                    
+                    string[] allowedOrigins;
+                    
+                    if (!string.IsNullOrWhiteSpace(frontendBaseUrl))
+                    {
+                        // Single frontend URL (Option 2)
+                        allowedOrigins = new[] { frontendBaseUrl };
+                    }
+                    else
+                    {
+                        // Fallback: Multiple origins from CORS:AllowedOrigins or CORS__AllowedOrigins
+                        allowedOrigins = configuration.GetSection("CORS:AllowedOrigins").Get<string[]>() 
+                            ?? (configuration["CORS__AllowedOrigins"]?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) 
+                            ?? Array.Empty<string>());
+                    }
+
+                    if (allowedOrigins.Length > 0)
+                    {
+                        policy.WithOrigins(allowedOrigins)
+                            .AllowAnyMethod()
+                            .AllowAnyHeader()
+                            .AllowCredentials();
+                    }
+                    else
+                    {
+                        // If no origins configured, deny all (fail secure)
+                        policy.SetIsOriginAllowed(_ => false)
+                            .AllowAnyMethod()
+                            .AllowAnyHeader();
+                    }
+                }
             });
         });
 

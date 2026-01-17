@@ -86,10 +86,10 @@ public class JwtTokenService : IJwtTokenService, Application.Common.Interfaces.I
             ipAddress
         );
 
+        // Add to context but don't save - let the caller save changes
         _context.RefreshTokens.Add(token);
-        await _context.SaveChangesAsync();
 
-        return token;
+        return await Task.FromResult(token);
     }
 
     public Task<bool> ValidateTokenAsync(string token)

@@ -13,15 +13,18 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
 {
     private readonly IApplicationDbContext _context;
     private readonly IAIService _aiService;
+    private readonly IAIPromptService _aiPromptService;
     private readonly ILogger<BusinessPlanGenerationService> _logger;
 
     public BusinessPlanGenerationService(
         IApplicationDbContext context,
         IAIService aiService,
+        IAIPromptService aiPromptService,
         ILogger<BusinessPlanGenerationService> logger)
     {
         _context = context;
         _aiService = aiService;
+        _aiPromptService = aiPromptService;
         _logger = logger;
     }
 
@@ -288,8 +291,8 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
         string language,
         CancellationToken cancellationToken)
     {
-        var systemPrompt = GetSystemPrompt(language);
-        var userPrompt = GetSectionPrompt(planType, sectionName, questionnaireContext, language);
+        var systemPrompt = await GetSystemPromptAsync(language, planType, cancellationToken);
+        var userPrompt = await GetSectionPromptAsync(planType, sectionName, questionnaireContext, language, cancellationToken);
 
         var content = await _aiService.GenerateContentWithRetryAsync(
             systemPrompt,
@@ -300,6 +303,31 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
             cancellationToken);
 
         return content;
+    }
+
+    private async Task<string> GetSystemPromptAsync(string language, BusinessPlanType planType, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var promptDto = await _aiPromptService.GetSystemPromptAsync(
+                planType.ToString(),
+                language,
+                cancellationToken);
+
+            if (promptDto != null)
+            {
+                _logger.LogDebug("Using database system prompt for {PlanType} - {Language}", planType, language);
+                return promptDto.SystemPrompt;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load system prompt from database, using fallback");
+        }
+
+        // Fallback to hardcoded prompt
+        _logger.LogDebug("Using fallback system prompt for {Language}", language);
+        return GetSystemPrompt(language);
     }
 
     private string GetSystemPrompt(string language)
@@ -321,6 +349,46 @@ Write in a professional, clear, and compelling tone. Use concrete examples and a
 - L'évaluation et l'atténuation des risques
 
 Rédigez dans un ton professionnel, clair et convaincant. Utilisez des exemples concrets et des perspectives actionnables. Structurez votre contenu avec des titres appropriés et des puces lorsque nécessaire. Visez la clarté et la persuasion.";
+    }
+
+    private async Task<string> GetSectionPromptAsync(
+        BusinessPlanType planType,
+        string sectionName,
+        string context,
+        string language,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var promptDto = await _aiPromptService.GetPromptBySectionAsync(
+                sectionName,
+                planType.ToString(),
+                language,
+                "ContentGeneration",
+                cancellationToken);
+
+            if (promptDto != null)
+            {
+                _logger.LogDebug("Using database prompt for section {SectionName} - {PlanType} - {Language}", 
+                    sectionName, planType, language);
+                
+                // Replace variables in the template
+                var userPrompt = promptDto.UserPromptTemplate
+                    .Replace("{sectionName}", sectionName)
+                    .Replace("{questionnaireContext}", context)
+                    .Replace("{context}", context);
+
+                return userPrompt;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load section prompt from database for {SectionName}, using fallback", sectionName);
+        }
+
+        // Fallback to hardcoded prompt
+        _logger.LogDebug("Using fallback prompt for section {SectionName}", sectionName);
+        return GetSectionPrompt(planType, sectionName, context, language);
     }
 
     private string GetSectionPrompt(BusinessPlanType planType, string sectionName, string context, string language)

@@ -43,6 +43,7 @@ public static class ConfigureServices
 
             // AI Prompt management service
             services.AddScoped<IAIPromptService, AIPromptService>();
+            services.AddScoped<IPromptMigrationService, PromptMigrationService>();
 
             // Settings service
             services.AddScoped<ISettingsService, SettingsService>();

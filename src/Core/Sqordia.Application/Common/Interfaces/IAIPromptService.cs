@@ -62,4 +62,22 @@ public interface IAIPromptService
     /// Get prompt versions for a parent prompt
     /// </summary>
     Task<List<AIPromptDto>> GetPromptVersionsAsync(string parentPromptId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get a prompt by section name, plan type, and language
+    /// </summary>
+    Task<AIPromptDto?> GetPromptBySectionAsync(
+        string sectionName,
+        string planType,
+        string language,
+        string category = "ContentGeneration",
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get the system prompt for a plan type and language
+    /// </summary>
+    Task<AIPromptDto?> GetSystemPromptAsync(
+        string planType,
+        string language,
+        CancellationToken cancellationToken = default);
 }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Services;
 using Sqordia.Contracts.Requests.User;
 
@@ -11,10 +12,14 @@ namespace WebAPI.Controllers;
 public class UserProfileController : BaseApiController
 {
     private readonly IUserProfileService _userProfileService;
+    private readonly IStorageService _storageService;
 
-    public UserProfileController(IUserProfileService userProfileService)
+    public UserProfileController(
+        IUserProfileService userProfileService,
+        IStorageService storageService)
     {
         _userProfileService = userProfileService;
+        _storageService = storageService;
     }
 
     /// <summary>
@@ -53,6 +58,55 @@ public class UserProfileController : BaseApiController
     {
         var result = await _userProfileService.UploadProfilePictureAsync(file);
         return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get a profile picture by storage key
+    /// </summary>
+    /// <param name="key">The storage key (e.g., profile-pictures/userId/filename.jpg)</param>
+    /// <returns>The profile picture image file</returns>
+    [HttpGet("picture/{*key}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetProfilePicture(string key)
+    {
+        try
+        {
+            // Validate that the key is for a profile picture
+            if (!key.StartsWith("profile-pictures/", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { error = "Invalid picture key" });
+            }
+
+            // Check if file exists
+            if (!await _storageService.FileExistsAsync(key))
+            {
+                return NotFound(new { error = "Picture not found" });
+            }
+
+            // Download the file from storage
+            var fileStream = await _storageService.DownloadFileAsync(key);
+
+            // Determine content type from file extension
+            var extension = Path.GetExtension(key).ToLowerInvariant();
+            var contentType = extension switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".webp" => "image/webp",
+                _ => "application/octet-stream"
+            };
+
+            return File(fileStream, contentType);
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound(new { error = "Picture not found" });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Error retrieving picture", details = ex.Message });
+        }
     }
 
     /// <summary>
