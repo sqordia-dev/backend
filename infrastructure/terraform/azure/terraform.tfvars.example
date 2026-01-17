@@ -57,6 +57,12 @@ key_vault_sku = "standard"
 # Log Analytics Configuration
 log_analytics_retention_days = 7
 
+# Email Configuration (Azure Communication Services)
+# Leave email_from_address empty to auto-generate from Azure Managed Domain
+# Azure will provide a domain like: DoNotReply@xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.azurecomm.net
+email_from_address = ""  # Leave empty for auto-generated Azure domain
+email_from_name    = "Sqordia"
+
 # Common Tags
 common_tags = {
   Project     = "Sqordia"

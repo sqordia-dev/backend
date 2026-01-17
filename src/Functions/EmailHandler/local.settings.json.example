@@ -1,0 +1,19 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+
+    "AzureServiceBus__ConnectionString": "YOUR_SERVICE_BUS_CONNECTION_STRING",
+    "AzureServiceBus__EmailTopic": "email-jobs",
+    "AzureServiceBus__EmailSubscription": "email-handler",
+
+    "AzureCommunicationServices__ConnectionString": "YOUR_AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING",
+    "Email__FromAddress": "DoNotReply@xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.azurecomm.net",
+    "Email__FromName": "Sqordia",
+
+    "DatabaseSettings__ConnectionString": "Host=localhost;Port=5432;Database=SqordiaDb;Username=postgres;Password=postgres",
+    "DatabaseSettings__MaxPoolSize": "100",
+    "DatabaseSettings__CommandTimeout": "30"
+  }
+}

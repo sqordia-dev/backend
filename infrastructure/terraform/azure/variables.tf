@@ -191,6 +191,19 @@ variable "jwt_expiration_minutes" {
   default     = 60
 }
 
+# Email Configuration (Azure Communication Services)
+variable "email_from_address" {
+  description = "Email sender address (leave empty to auto-generate from Azure Managed Domain)"
+  type        = string
+  default     = "" # Will auto-generate: DoNotReply@xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.azurecomm.net
+}
+
+variable "email_from_name" {
+  description = "Email sender display name"
+  type        = string
+  default     = "Sqordia"
+}
+
 # Tags
 variable "common_tags" {
   description = "Common tags to apply to all resources"
