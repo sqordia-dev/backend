@@ -431,8 +431,8 @@ public class DocumentExportService : IDocumentExportService
         var invalidChars = System.IO.Path.GetInvalidFileNameChars();
         
         // Also sanitize additional characters that are problematic across platforms
-        // even if not in the platform's invalid chars list (e.g., < > on Linux)
-        var additionalCharsToSanitize = new[] { '<', '>', '"' };
+        // even if not in the platform's invalid chars list (e.g., < > : on Linux)
+        var additionalCharsToSanitize = new[] { '<', '>', '"', ':' };
         
         var sanitized = fileName;
         
