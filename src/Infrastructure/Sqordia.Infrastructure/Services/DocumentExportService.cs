@@ -428,7 +428,17 @@ public class DocumentExportService : IDocumentExportService
     private static string SanitizeFileName(string fileName)
     {
         var invalidChars = System.IO.Path.GetInvalidFileNameChars();
-        return string.Join("_", fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+        var sanitized = fileName;
+        foreach (var c in invalidChars)
+        {
+            sanitized = sanitized.Replace(c, '_');
+        }
+        // Remove multiple consecutive underscores and trim
+        while (sanitized.Contains("__"))
+        {
+            sanitized = sanitized.Replace("__", "_");
+        }
+        return sanitized.Trim('_');
     }
 
     public async Task<Result<ExportResult>> ExportToExcelAsync(Guid businessPlanId, string language = "fr", CancellationToken cancellationToken = default)
@@ -559,58 +569,61 @@ public class DocumentExportService : IDocumentExportService
         // Full implementation would require proper slide templates and layouts
         
         using var memoryStream = new MemoryStream();
-        using var presentation = PresentationDocument.Create(memoryStream, PresentationDocumentType.Presentation);
+        using (var presentation = PresentationDocument.Create(memoryStream, PresentationDocumentType.Presentation))
+        {
+            var presentationPart = presentation.AddPresentationPart();
+            presentationPart.Presentation = new Presentation();
 
-        var presentationPart = presentation.AddPresentationPart();
-        presentationPart.Presentation = new Presentation();
+            var slideIdList = new SlideIdList();
+            presentationPart.Presentation.AppendChild(slideIdList);
 
-        var slideIdList = new SlideIdList();
-        presentationPart.Presentation.AppendChild(slideIdList);
+            // Create a simple title slide
+            var titleSlidePart = presentationPart.AddNewPart<SlidePart>();
+            var slide = new Slide();
+            var commonSlideData = new CommonSlideData();
+            var shapeTree = new ShapeTree();
+            
+            // Create a simple text shape for the title
+            var shape = new DocumentFormat.OpenXml.Presentation.Shape();
+            var nonVisualShapeProperties = new DocumentFormat.OpenXml.Presentation.NonVisualShapeProperties();
+            var nonVisualDrawingProperties = new DocumentFormat.OpenXml.Presentation.NonVisualDrawingProperties 
+            { 
+                Id = 1U, 
+                Name = "Title" 
+            };
+            nonVisualShapeProperties.Append(nonVisualDrawingProperties);
+            nonVisualShapeProperties.Append(new DocumentFormat.OpenXml.Presentation.NonVisualShapeDrawingProperties());
+            
+            shape.Append(nonVisualShapeProperties);
+            shape.Append(new DocumentFormat.OpenXml.Presentation.ShapeProperties());
+            
+            var textBody = new Drawing.TextBody();
+            textBody.Append(new Drawing.BodyProperties());
+            textBody.Append(new Drawing.ListStyle());
+            
+            var paragraph = new Drawing.Paragraph();
+            var run = new Drawing.Run();
+            run.Append(new Drawing.Text(businessPlan.Title));
+            paragraph.Append(run);
+            textBody.Append(paragraph);
+            
+            shape.Append(textBody);
+            shapeTree.Append(shape);
+            commonSlideData.Append(shapeTree);
+            slide.Append(commonSlideData);
+            titleSlidePart.Slide = slide;
 
-        // Create a simple title slide
-        var titleSlidePart = presentationPart.AddNewPart<SlidePart>();
-        var slide = new Slide();
-        var commonSlideData = new CommonSlideData();
-        var shapeTree = new ShapeTree();
-        
-        // Create a simple text shape for the title
-        var shape = new DocumentFormat.OpenXml.Presentation.Shape();
-        var nonVisualShapeProperties = new DocumentFormat.OpenXml.Presentation.NonVisualShapeProperties();
-        var nonVisualDrawingProperties = new DocumentFormat.OpenXml.Presentation.NonVisualDrawingProperties 
-        { 
-            Id = 1U, 
-            Name = "Title" 
-        };
-        nonVisualShapeProperties.Append(nonVisualDrawingProperties);
-        nonVisualShapeProperties.Append(new DocumentFormat.OpenXml.Presentation.NonVisualShapeDrawingProperties());
-        
-        shape.Append(nonVisualShapeProperties);
-        shape.Append(new DocumentFormat.OpenXml.Presentation.ShapeProperties());
-        
-        var textBody = new Drawing.TextBody();
-        textBody.Append(new Drawing.BodyProperties());
-        textBody.Append(new Drawing.ListStyle());
-        
-        var paragraph = new Drawing.Paragraph();
-        var run = new Drawing.Run();
-        run.Append(new Drawing.Text(businessPlan.Title));
-        paragraph.Append(run);
-        textBody.Append(paragraph);
-        
-        shape.Append(textBody);
-        shapeTree.Append(shape);
-        commonSlideData.Append(shapeTree);
-        slide.Append(commonSlideData);
-        titleSlidePart.Slide = slide;
+            slideIdList.AppendChild(new SlideId 
+            { 
+                Id = 256U, 
+                RelationshipId = presentationPart.GetIdOfPart(titleSlidePart) 
+            });
 
-        slideIdList.AppendChild(new SlideId 
-        { 
-            Id = 256U, 
-            RelationshipId = presentationPart.GetIdOfPart(titleSlidePart) 
-        });
+            presentationPart.Presentation.Save();
+            presentation.Save();
+        }
 
-        presentationPart.Presentation.Save();
-
+        memoryStream.Position = 0;
         return memoryStream.ToArray();
     }
 
