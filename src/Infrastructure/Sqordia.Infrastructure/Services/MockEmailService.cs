@@ -79,5 +79,11 @@ public class MockEmailService : IEmailService
         // No-op for testing
         return Task.CompletedTask;
     }
+
+    public Task SendBusinessPlanGeneratedAsync(string email, string userName, string businessPlanId, string businessPlanTitle)
+    {
+        // No-op for testing
+        return Task.CompletedTask;
+    }
 }
 

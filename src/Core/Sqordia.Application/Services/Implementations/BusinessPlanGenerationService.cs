@@ -14,17 +14,20 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
     private readonly IApplicationDbContext _context;
     private readonly IAIService _aiService;
     private readonly IAIPromptService _aiPromptService;
+    private readonly IEmailService _emailService;
     private readonly ILogger<BusinessPlanGenerationService> _logger;
 
     public BusinessPlanGenerationService(
         IApplicationDbContext context,
         IAIService aiService,
         IAIPromptService aiPromptService,
+        IEmailService emailService,
         ILogger<BusinessPlanGenerationService> logger)
     {
         _context = context;
         _aiService = aiService;
         _aiPromptService = aiPromptService;
+        _emailService = emailService;
         _logger = logger;
     }
 
@@ -107,7 +110,7 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
             foreach (var section in sections)
             {
                 _logger.LogInformation("Generating section: {Section}", section);
-                
+
                 var content = await GenerateSectionContentAsync(
                     businessPlan.PlanType,
                     section,
@@ -120,6 +123,9 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
 
                 completedSections++;
                 _logger.LogInformation("Completed {Completed}/{Total} sections", completedSections, totalSections);
+
+                // Save after each section so frontend can track real-time progress
+                await _context.SaveChangesAsync(cancellationToken);
             }
 
             // Mark as generated
@@ -127,6 +133,39 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
             await _context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Business plan generation completed for ID: {BusinessPlanId}", businessPlanId);
+
+            // Send email notification to the user
+            try
+            {
+                // Get the user who owns this business plan
+                var user = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Id.ToString() == businessPlan.CreatedBy, cancellationToken);
+
+                if (user != null && user.Email != null && !string.IsNullOrEmpty(user.Email.Value))
+                {
+                    var userName = !string.IsNullOrEmpty(user.FirstName)
+                        ? user.FirstName
+                        : user.UserName ?? "User";
+
+                    await _emailService.SendBusinessPlanGeneratedAsync(
+                        user.Email.Value,
+                        userName,
+                        businessPlan.Id.ToString(),
+                        businessPlan.Title);
+
+                    _logger.LogInformation(
+                        "Business plan generation notification email sent to {Email} for plan {PlanId}",
+                        user.Email.Value,
+                        businessPlanId);
+                }
+            }
+            catch (Exception emailEx)
+            {
+                // Log but don't fail the generation if email fails
+                _logger.LogError(emailEx,
+                    "Failed to send business plan generation notification email for plan {PlanId}. Generation completed successfully.",
+                    businessPlanId);
+            }
 
             return Result.Success(businessPlan);
         }
@@ -211,6 +250,18 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
 
             var totalSections = GetAvailableSections(businessPlan.PlanType.ToString()).Count;
             var completedSections = CountCompletedSections(businessPlan);
+            
+            // Determine current section being generated (if generation is in progress)
+            string? currentSection = null;
+            if (businessPlan.Status == BusinessPlanStatus.Generating && completedSections < totalSections)
+            {
+                var sections = GetAvailableSections(businessPlan.PlanType.ToString());
+                // The current section is the one at the index of completedSections
+                if (completedSections < sections.Count)
+                {
+                    currentSection = sections[completedSections];
+                }
+            }
 
             var status = new BusinessPlanGenerationStatus
             {
@@ -220,7 +271,8 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
                 CompletedAt = businessPlan.Status == BusinessPlanStatus.Generated ? businessPlan.LastModified : null,
                 TotalSections = totalSections,
                 CompletedSections = completedSections,
-                CompletionPercentage = totalSections > 0 ? (decimal)completedSections / totalSections * 100 : 0
+                CompletionPercentage = totalSections > 0 ? (decimal)completedSections / totalSections * 100 : 0,
+                CurrentSection = currentSection
             };
 
             return Result.Success(status);

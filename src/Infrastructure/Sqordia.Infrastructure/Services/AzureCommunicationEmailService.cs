@@ -350,6 +350,17 @@ public class AzureCommunicationEmailService : IEmailService, IDisposable
             htmlBody: htmlBody);
     }
 
+    public async Task SendBusinessPlanGeneratedAsync(string email, string userName, string businessPlanId, string businessPlanTitle)
+    {
+        var subject = $"✅ Your Business Plan '{businessPlanTitle}' is Ready!";
+        var htmlBody = GetBusinessPlanGeneratedTemplate(userName, businessPlanId, businessPlanTitle);
+        await SendEmailInternalAsync(
+            email,
+            userName,
+            subject,
+            htmlBody: htmlBody);
+    }
+
     // Template methods - Single language (French or English)
     private string GetEmailVerificationTemplate(string userName, string verificationToken, string? language = null)
     {
@@ -833,6 +844,87 @@ public class AzureCommunicationEmailService : IEmailService, IDisposable
             <p>{doNotReply}</p>
             <p>{contactSupport}</p>
             <p>{copyright}</p>
+        </div>
+    </div>
+</body>
+</html>";
+    }
+
+    private string GetBusinessPlanGeneratedTemplate(string userName, string businessPlanId, string businessPlanTitle)
+    {
+        var frontendUrl = GetFrontendBaseUrl();
+        var planUrl = $"{frontendUrl}/business-plans/{businessPlanId}";
+
+        return $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }}
+        .container {{ max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+        .header {{ text-align: center; margin-bottom: 30px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px 20px; border-radius: 8px; }}
+        .logo {{ font-size: 28px; font-weight: bold; margin-bottom: 10px; }}
+        .success-icon {{ font-size: 48px; margin-bottom: 10px; }}
+        .plan-box {{ background-color: #f0fdf4; border-left: 4px solid #059669; padding: 20px; margin: 25px 0; border-radius: 5px; }}
+        .plan-title {{ font-size: 20px; font-weight: bold; color: #059669; margin-bottom: 10px; }}
+        .button {{ display: inline-block; padding: 14px 35px; background-color: #059669; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; }}
+        .button:hover {{ background-color: #047857; }}
+        .features {{ margin: 25px 0; }}
+        .feature {{ display: flex; align-items: flex-start; margin: 12px 0; }}
+        .feature-icon {{ color: #059669; font-size: 20px; margin-right: 10px; }}
+        .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <div class='logo'>Sqordia</div>
+            <div class='success-icon'>✅</div>
+            <h1 style='margin: 0; font-size: 24px;'>Your Business Plan is Ready!</h1>
+        </div>
+
+        <p>Hello {userName},</p>
+
+        <p>Great news! Your business plan has been successfully generated and is now ready for review.</p>
+
+        <div class='plan-box'>
+            <div class='plan-title'>{businessPlanTitle}</div>
+            <p style='margin: 5px 0; color: #666;'>Status: <strong style='color: #059669;'>Completed</strong></p>
+        </div>
+
+        <h3 style='color: #1f2937; margin-top: 30px;'>Your plan includes:</h3>
+        <div class='features'>
+            <div class='feature'>
+                <span class='feature-icon'>📊</span>
+                <span>Comprehensive market analysis and competitive landscape</span>
+            </div>
+            <div class='feature'>
+                <span class='feature-icon'>💼</span>
+                <span>Detailed business model and value proposition</span>
+            </div>
+            <div class='feature'>
+                <span class='feature-icon'>📈</span>
+                <span>Financial projections and funding requirements</span>
+            </div>
+            <div class='feature'>
+                <span class='feature-icon'>🎯</span>
+                <span>Strategic goals and implementation roadmap</span>
+            </div>
+            <div class='feature'>
+                <span class='feature-icon'>👥</span>
+                <span>Team structure and operational plan</span>
+            </div>
+        </div>
+
+        <p style='text-align: center; margin: 35px 0;'>
+            <a href='{planUrl}' class='button'>View Your Business Plan</a>
+        </p>
+
+        <p style='font-size: 14px; color: #666;'>You can access your plan anytime by logging into your Sqordia account and navigating to your business plans dashboard.</p>
+
+        <div class='footer'>
+            <p>This is an automated message. Please do not reply to this email.</p>
+            <p>&copy; {DateTime.UtcNow.Year} Sqordia. All rights reserved.</p>
         </div>
     </div>
 </body>

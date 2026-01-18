@@ -20,4 +20,7 @@ public interface IEmailService
     
     // Organization-specific email methods
     Task SendOrganizationInvitationAsync(string email, string invitationToken, string? message = null);
+
+    // Business Plan-specific email methods
+    Task SendBusinessPlanGeneratedAsync(string email, string userName, string businessPlanId, string businessPlanTitle);
 }

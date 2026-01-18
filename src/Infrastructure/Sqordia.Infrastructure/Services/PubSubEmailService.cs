@@ -218,6 +218,19 @@ public class ServiceBusEmailService : IEmailService, IDisposable
         await SendToTopicAsync("organization_invitation", email, email, subject, string.Empty, htmlBody, metadata);
     }
 
+    public async Task SendBusinessPlanGeneratedAsync(string email, string userName, string businessPlanId, string businessPlanTitle)
+    {
+        var subject = $"✅ Your Business Plan '{businessPlanTitle}' is Ready!";
+        var htmlBody = GetBusinessPlanGeneratedTemplate(userName, businessPlanId, businessPlanTitle);
+        var metadata = new Dictionary<string, string>
+        {
+            { "businessPlanId", businessPlanId },
+            { "businessPlanTitle", businessPlanTitle },
+            { "userName", userName }
+        };
+        await SendToTopicAsync("business_plan_generated", email, userName, subject, string.Empty, htmlBody, metadata);
+    }
+
     // Template methods - same as EmailService
     private string GetEmailVerificationTemplate(string userName, string verificationToken)
     {
@@ -544,7 +557,7 @@ public class ServiceBusEmailService : IEmailService, IDisposable
     {
         var unlockTime = lockedAt.Add(lockoutDuration);
         var minutesRemaining = (int)lockoutDuration.TotalMinutes;
-        
+
         return $@"
 <!DOCTYPE html>
 <html>
@@ -567,35 +580,118 @@ public class ServiceBusEmailService : IEmailService, IDisposable
             <div class='logo'>Sqordia</div>
             <div class='alert'>{_localizationService.GetString("Email.AccountLocked.Title")}</div>
         </div>
-        
+
         <p>{_localizationService.GetString("Email.AccountLocked.Greeting", firstName)}</p>
-        
+
         <div class='warning-box'>
             <p><strong>{_localizationService.GetString("Email.AccountLocked.Title")}</strong></p>
             <p>{_localizationService.GetString("Email.AccountLocked.Notification")}</p>
         </div>
-        
+
         <div class='info-box'>
             <p><strong>{_localizationService.GetString("Email.LoginAlert.Details")}</strong></p>
             <p>{_localizationService.GetString("Email.LoginAlert.Time", lockedAt.ToString("yyyy-MM-dd HH:mm:ss"))} UTC</p>
             <p>{_localizationService.GetString("Email.AccountLocked.Duration", minutesRemaining)}</p>
             <p>{_localizationService.GetString("Email.LoginAlert.Time", unlockTime.ToString("yyyy-MM-dd HH:mm:ss"))} UTC</p>
         </div>
-        
+
         <p><strong>{_localizationService.GetString("Email.AccountLocked.NotYou")}</strong></p>
         <ul>
             <li>{_localizationService.GetString("Email.AccountLocked.AutoUnlock")}</li>
             <li>{_localizationService.GetString("Email.AccountLocked.SecurityAdvice")}</li>
             <li>{_localizationService.GetString("Email.AccountLocked.ContactSupport")}</li>
         </ul>
-        
+
         <p><strong>{_localizationService.GetString("Email.AccountLocked.NotYou")}</strong></p>
         <p>{_localizationService.GetString("Email.AccountLocked.ContactSupport")}</p>
-        
+
         <div class='footer'>
             <p>{_localizationService.GetString("Email.Footer.DoNotReply")}</p>
             <p>{_localizationService.GetString("Email.AccountLocked.ContactSupport")}</p>
             <p>{_localizationService.GetString("Email.Footer.Copyright")}</p>
+        </div>
+    </div>
+</body>
+</html>";
+    }
+
+    private string GetBusinessPlanGeneratedTemplate(string userName, string businessPlanId, string businessPlanTitle)
+    {
+        return $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }}
+        .container {{ max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+        .header {{ text-align: center; margin-bottom: 30px; background-color: #059669; color: white; padding: 25px; border-radius: 8px; }}
+        .logo {{ font-size: 28px; font-weight: bold; margin-bottom: 10px; }}
+        .success {{ font-size: 24px; font-weight: bold; margin-bottom: 10px; }}
+        .success-icon {{ font-size: 48px; margin-bottom: 15px; }}
+        .highlight {{ background-color: #f0fdf4; border-left: 4px solid #059669; padding: 20px; margin: 25px 0; border-radius: 5px; }}
+        .plan-title {{ font-size: 20px; font-weight: bold; color: #047857; margin: 10px 0; }}
+        .button {{ display: inline-block; padding: 14px 35px; background-color: #059669; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; margin: 20px 0; }}
+        .features {{ margin: 30px 0; }}
+        .feature {{ display: flex; align-items: center; margin: 15px 0; padding: 12px; background-color: #f8fafc; border-radius: 5px; }}
+        .feature-icon {{ width: 32px; height: 32px; background-color: #e0f2fe; border-radius: 50%; margin-right: 15px; display: flex; align-items: center; justify-content: center; font-size: 18px; }}
+        .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <div class='logo'>Sqordia</div>
+            <div class='success-icon'>🎉</div>
+            <div class='success'>Your Business Plan is Ready!</div>
+        </div>
+
+        <p>Hi {userName},</p>
+
+        <div class='highlight'>
+            <p><strong>Great news!</strong> Your business plan has been successfully generated and is ready for review.</p>
+            <div class='plan-title'>📊 {businessPlanTitle}</div>
+        </div>
+
+        <p>Your comprehensive business plan includes all the essential sections you need to succeed:</p>
+
+        <div class='features'>
+            <div class='feature'>
+                <div class='feature-icon'>📝</div>
+                <span><strong>Executive Summary</strong> - Overview of your business vision</span>
+            </div>
+            <div class='feature'>
+                <div class='feature-icon'>🎯</div>
+                <span><strong>Market Analysis</strong> - Deep insights into your target market</span>
+            </div>
+            <div class='feature'>
+                <div class='feature-icon'>💡</div>
+                <span><strong>Strategy & Operations</strong> - Detailed implementation roadmap</span>
+            </div>
+            <div class='feature'>
+                <div class='feature-icon'>💰</div>
+                <span><strong>Financial Projections</strong> - Complete financial forecasts</span>
+            </div>
+        </div>
+
+        <p style='text-align: center;'>
+            <a href='https://sqordia.app/plans/{businessPlanId}' class='button'>View Your Business Plan →</a>
+        </p>
+
+        <p><strong>What's next?</strong></p>
+        <ul>
+            <li>Review each section and customize as needed</li>
+            <li>Use our AI tools to expand or refine content</li>
+            <li>Export to PDF or Word when ready</li>
+            <li>Share with your team or investors</li>
+        </ul>
+
+        <div class='highlight'>
+            <p><strong>💡 Pro Tip:</strong> You can regenerate individual sections or use AI suggestions to enhance any part of your plan at any time!</p>
+        </div>
+
+        <div class='footer'>
+            <p>If you have any questions or need assistance, our support team is here to help!</p>
+            <p>&copy; 2025 Sqordia. All rights reserved.</p>
         </div>
     </div>
 </body>
