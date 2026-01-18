@@ -69,11 +69,23 @@ resource "azurerm_communication_service_email_domain_association" "azure_managed
 }
 
 # Link Email Service to Communication Service (Custom Domain)
-resource "azurerm_communication_service_email_domain_association" "custom" {
-  count                    = var.email_from_address != "" && !strcontains(var.email_from_address, "azurecomm.net") ? 1 : 0
-  communication_service_id = azurerm_communication_service.main.id
-  email_service_domain_id  = azurerm_email_communication_service_domain.custom[0].id
-}
+# NOTE: This requires the custom domain to be verified via DNS first.
+# Steps:
+# 1. Apply Terraform to create the domain resource (without this association)
+# 2. Get DNS verification records: terraform output email_domain_verification_records
+# 3. Add the TXT records to your DNS provider
+# 4. Wait for verification (can take up to 24 hours)
+# 5. Uncomment this resource and apply again
+#
+# For now, comment this out and use the Azure managed domain, or verify the domain first.
+# resource "azurerm_communication_service_email_domain_association" "custom" {
+#   count                    = var.email_from_address != "" && !strcontains(var.email_from_address, "azurecomm.net") ? 1 : 0
+#   communication_service_id = azurerm_communication_service.main.id
+#   email_service_domain_id  = azurerm_email_communication_service_domain.custom[0].id
+#   
+#   # This will fail if domain is not verified - uncomment after DNS verification
+#   depends_on = [azurerm_email_communication_service_domain.custom]
+# }
 
 # Store connection string in Key Vault
 resource "azurerm_key_vault_secret" "communication_services_connection_string" {

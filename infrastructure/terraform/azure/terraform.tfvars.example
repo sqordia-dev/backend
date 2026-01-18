@@ -60,8 +60,38 @@ log_analytics_retention_days = 7
 # Email Configuration (Azure Communication Services)
 # Leave email_from_address empty to auto-generate from Azure Managed Domain
 # Azure will provide a domain like: DoNotReply@xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.azurecomm.net
-email_from_address = ""  # Leave empty for auto-generated Azure domain
+email_from_address = ""  # Leave empty for auto-generated Azure domain, or set custom domain like "donotreply@sqordia.app"
 email_from_name    = "Sqordia"
+
+# OpenAI Configuration
+# Get your API key from: https://platform.openai.com/account/api-keys
+# Example format: "sk-proj-..." (starts with sk-)
+openai_api_key = "CHANGE_ME"  # Your OpenAI API key (starts with sk-)
+openai_model   = "gpt-4o"      # Model to use: gpt-4o (recommended), gpt-4, gpt-3.5-turbo, etc.
+
+# Frontend Configuration
+# Used for CORS, email links, and redirects
+frontend_base_url = "https://sqordia.app"  # Your frontend URL (production)
+
+# Stripe Configuration (Optional - for subscription management)
+# Get your keys from: https://dashboard.stripe.com/apikeys
+# Leave empty if not using Stripe payments
+stripe_secret_key      = "CHANGE_ME"  # Your Stripe secret key (starts with sk_)
+stripe_publishable_key = "CHANGE_ME"  # Your Stripe publishable key (starts with pk_)
+stripe_webhook_secret  = ""  # Set this when configuring Stripe webhooks
+
+# Stripe Price IDs (from Stripe Dashboard -> Products -> Prices)
+stripe_price_id_free_monthly        = "CHANGE_ME"
+stripe_price_id_free_yearly          = ""
+stripe_price_id_pro_monthly          = "CHANGE_ME"
+stripe_price_id_pro_yearly           = ""
+stripe_price_id_enterprise_monthly   = "CHANGE_ME"
+stripe_price_id_enterprise_yearly    = ""
+
+# Security Configuration (Optional - has defaults in appsettings.json)
+# Set to 0 to use defaults from appsettings.json
+security_max_failed_login_attempts  = 0  # Default: 5
+security_lockout_duration_minutes   = 0  # Default: 15
 
 # Common Tags
 common_tags = {

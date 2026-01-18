@@ -175,11 +175,20 @@ public static class ConfigureServices
             // Use first non-empty value found
             var apiKey = envApiKey ?? configApiKey;
             
-            // Use first non-empty value found (skip placeholder values)
-            if (!string.IsNullOrEmpty(apiKey) && !apiKey.Contains("TODO", StringComparison.OrdinalIgnoreCase))
+            // Check if the value is a placeholder (like ${VAR_NAME} or TODO)
+            // Skip placeholder values - they indicate the environment variable needs to be set
+            var isPlaceholder = !string.IsNullOrEmpty(apiKey) && (
+                apiKey.Contains("TODO", StringComparison.OrdinalIgnoreCase) ||
+                apiKey.StartsWith("${", StringComparison.OrdinalIgnoreCase) ||
+                apiKey.Contains("${", StringComparison.OrdinalIgnoreCase));
+            
+            // Only set the API key if it's not a placeholder
+            // If it's a placeholder, leave it empty so OpenAIService will log a proper warning
+            if (!string.IsNullOrEmpty(apiKey) && !isPlaceholder)
             {
                 options.ApiKey = apiKey;
             }
+            // If placeholder detected, don't set it - OpenAIService will handle the missing key gracefully
             
             // Same for model
             var envModel = Environment.GetEnvironmentVariable("OPENAI_MODEL")

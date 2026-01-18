@@ -27,7 +27,7 @@ resource "azurerm_servicebus_subscription" "email" {
   name     = "${var.project_name}-${var.environment}-email-sub"
   topic_id = azurerm_servicebus_topic.email.id
 
-  max_delivery_count = 10
+  max_delivery_count  = 10
   default_message_ttl = "P14D"
 }
 
@@ -45,7 +45,7 @@ resource "azurerm_servicebus_subscription" "ai_generation" {
   name     = "${var.project_name}-${var.environment}-ai-generation-sub"
   topic_id = azurerm_servicebus_topic.ai_generation.id
 
-  max_delivery_count = 10
+  max_delivery_count  = 10
   default_message_ttl = "P14D"
 }
 
@@ -63,7 +63,7 @@ resource "azurerm_servicebus_subscription" "export" {
   name     = "${var.project_name}-${var.environment}-export-sub"
   topic_id = azurerm_servicebus_topic.export.id
 
-  max_delivery_count = 10
+  max_delivery_count  = 10
   default_message_ttl = "P14D"
 }
 

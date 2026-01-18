@@ -132,8 +132,20 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating business plan for ID: {BusinessPlanId}", businessPlanId);
-            return Result.Failure<BusinessPlan>($"Failed to generate business plan: {ex.Message}");
+            _logger.LogError(ex, "Error generating business plan for ID: {BusinessPlanId}. Exception type: {ExceptionType}, Message: {Message}, Inner: {InnerException}", 
+                businessPlanId, 
+                ex.GetType().Name, 
+                ex.Message,
+                ex.InnerException?.Message ?? "None");
+            
+            // Include inner exception details if available
+            var errorMessage = $"Failed to generate business plan: {ex.Message}";
+            if (ex.InnerException != null)
+            {
+                errorMessage += $" ({ex.InnerException.Message})";
+            }
+            
+            return Result.Failure<BusinessPlan>(errorMessage);
         }
     }
 

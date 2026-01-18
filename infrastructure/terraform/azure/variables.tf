@@ -204,6 +204,97 @@ variable "email_from_name" {
   default     = "Sqordia"
 }
 
+# OpenAI Configuration
+variable "openai_api_key" {
+  description = "OpenAI API key for AI-powered features (set via terraform.tfvars or TF_VAR_openai_api_key)"
+  type        = string
+  sensitive   = true
+  # No default - must be provided
+}
+
+variable "openai_model" {
+  description = "OpenAI model to use (e.g., gpt-4, gpt-4o, gpt-3.5-turbo)"
+  type        = string
+  default     = "gpt-4"
+}
+
+variable "frontend_base_url" {
+  description = "Frontend base URL for email links and redirects"
+  type        = string
+  default     = "https://sqordia.app"
+}
+
+# Stripe Configuration (optional - for subscription management)
+variable "stripe_secret_key" {
+  description = "Stripe secret key for payment processing (leave empty if not using Stripe)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "stripe_publishable_key" {
+  description = "Stripe publishable key (for frontend integration)"
+  type        = string
+  sensitive   = false
+  default     = ""
+}
+
+variable "stripe_webhook_secret" {
+  description = "Stripe webhook secret for verifying webhook events"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "stripe_price_id_free_monthly" {
+  description = "Stripe price ID for Free plan (monthly)"
+  type        = string
+  default     = ""
+}
+
+variable "stripe_price_id_free_yearly" {
+  description = "Stripe price ID for Free plan (yearly)"
+  type        = string
+  default     = ""
+}
+
+variable "stripe_price_id_pro_monthly" {
+  description = "Stripe price ID for Pro plan (monthly)"
+  type        = string
+  default     = ""
+}
+
+variable "stripe_price_id_pro_yearly" {
+  description = "Stripe price ID for Pro plan (yearly)"
+  type        = string
+  default     = ""
+}
+
+variable "stripe_price_id_enterprise_monthly" {
+  description = "Stripe price ID for Enterprise plan (monthly)"
+  type        = string
+  default     = ""
+}
+
+variable "stripe_price_id_enterprise_yearly" {
+  description = "Stripe price ID for Enterprise plan (yearly)"
+  type        = string
+  default     = ""
+}
+
+# Security Configuration (optional - has defaults in appsettings.json)
+variable "security_max_failed_login_attempts" {
+  description = "Maximum failed login attempts before account lockout (default: 5)"
+  type        = number
+  default     = 0 # 0 means use default from appsettings.json
+}
+
+variable "security_lockout_duration_minutes" {
+  description = "Account lockout duration in minutes (default: 15)"
+  type        = number
+  default     = 0 # 0 means use default from appsettings.json
+}
+
 # Tags
 variable "common_tags" {
   description = "Common tags to apply to all resources"

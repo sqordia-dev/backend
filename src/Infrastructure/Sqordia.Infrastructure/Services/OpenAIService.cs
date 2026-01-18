@@ -111,7 +111,25 @@ public class OpenAIService : IAIService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating content with OpenAI");
+            _logger.LogError(ex, "Error generating content with OpenAI. Exception type: {ExceptionType}, Message: {Message}, StackTrace: {StackTrace}", 
+                ex.GetType().Name, 
+                ex.Message,
+                ex.StackTrace);
+            
+            // Log additional details for common OpenAI errors
+            if (ex.Message.Contains("401") || ex.Message.Contains("Unauthorized") || ex.Message.Contains("invalid_api_key"))
+            {
+                _logger.LogError("OpenAI API authentication failed. Check that OPENAI_API_KEY environment variable is set correctly.");
+            }
+            else if (ex.Message.Contains("429") || ex.Message.Contains("rate limit"))
+            {
+                _logger.LogError("OpenAI API rate limit exceeded. Consider upgrading your plan or reducing request frequency.");
+            }
+            else if (ex.Message.Contains("quota") || ex.Message.Contains("billing"))
+            {
+                _logger.LogError("OpenAI API quota exceeded. Check your billing and usage limits.");
+            }
+            
             throw;
         }
     }
@@ -153,8 +171,23 @@ public class OpenAIService : IAIService
             }
         }
 
-        _logger.LogError(lastException, "All {MaxRetries} attempts to generate content failed", maxRetries);
-        throw new InvalidOperationException($"Failed to generate content after {maxRetries} attempts. See inner exception for details.", lastException);
+        _logger.LogError(lastException, "All {MaxRetries} attempts to generate content failed. Inner exception: {InnerExceptionType} - {InnerExceptionMessage}", 
+            maxRetries, 
+            lastException?.GetType().Name ?? "Unknown",
+            lastException?.Message ?? "No exception details");
+        
+        // Include inner exception details in the message for better debugging
+        var errorMessage = $"Failed to generate content after {maxRetries} attempts.";
+        if (lastException != null)
+        {
+            errorMessage += $" Error: {lastException.GetType().Name} - {lastException.Message}";
+            if (lastException.InnerException != null)
+            {
+                errorMessage += $" Inner: {lastException.InnerException.Message}";
+            }
+        }
+        
+        throw new InvalidOperationException(errorMessage, lastException);
     }
 
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
