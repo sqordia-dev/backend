@@ -3,6 +3,7 @@ using Sqordia.Application.Financial.Commands;
 using Sqordia.Application.Financial.Queries;
 using Sqordia.Application.Financial.Services;
 using Sqordia.Application.Common.Models;
+using Sqordia.Contracts.Requests.Financial;
 using Sqordia.Domain.Enums;
 
 namespace WebAPI.Controllers;
@@ -212,6 +213,33 @@ public class FinancialController : ControllerBase
     public async Task<ActionResult<Result<BreakEvenAnalysisDto>>> CalculateBreakEven(Guid businessPlanId)
     {
         var result = await _financialService.CalculateBreakEvenAsync(businessPlanId);
+        return result.IsSuccess ? Ok(result) : BadRequest(result);
+    }
+
+    // Consultant Financial Calculations
+    [HttpPost("calculate-consultant")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<Result<ConsultantFinancialProjectionDto>>> CalculateConsultantFinancials(
+        [FromBody] CalculateConsultantFinancialsRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var result = await _financialService.CalculateConsultantFinancialsAsync(request);
+        return result.IsSuccess ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpGet("overhead-estimates/{city}/{province}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<Result<LocationOverheadEstimateDto>>> GetLocationOverheadEstimate(
+        string city,
+        string province)
+    {
+        var result = await _financialService.GetLocationOverheadEstimateAsync(city, province);
         return result.IsSuccess ? Ok(result) : BadRequest(result);
     }
 }

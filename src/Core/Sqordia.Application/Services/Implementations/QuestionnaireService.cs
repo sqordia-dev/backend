@@ -199,11 +199,16 @@ public class QuestionnaireService : IQuestionnaireService
                 return Result.Failure<QuestionnaireQuestionResponse>(Error.Forbidden("BusinessPlan.Forbidden", "You don't have access to this business plan."));
             }
 
-            // Get question template
+            // Get question template - check both V1 and V2 tables
             var questionTemplate = await _context.QuestionTemplates
                 .FirstOrDefaultAsync(qt => qt.Id == request.QuestionTemplateId, cancellationToken);
 
-            if (questionTemplate == null)
+            var questionTemplateV2 = questionTemplate == null
+                ? await _context.QuestionTemplatesV2
+                    .FirstOrDefaultAsync(qt => qt.Id == request.QuestionTemplateId, cancellationToken)
+                : null;
+
+            if (questionTemplate == null && questionTemplateV2 == null)
             {
                 return Result.Failure<QuestionnaireQuestionResponse>(Error.NotFound("Question.NotFound", "Question not found."));
             }
@@ -254,13 +259,14 @@ public class QuestionnaireService : IQuestionnaireService
             _logger.LogInformation("Response submitted for question {QuestionId} in business plan {PlanId} by user {UserId}",
                 request.QuestionTemplateId, businessPlanId, currentUserId.Value);
 
-            // Parse options and selected options
+            // Parse options and selected options - handle both V1 and V2 templates
             List<string>? options = null;
-            if (!string.IsNullOrWhiteSpace(questionTemplate.Options))
+            string? optionsJson = questionTemplate?.Options ?? questionTemplateV2?.Options;
+            if (!string.IsNullOrWhiteSpace(optionsJson))
             {
                 try
                 {
-                    options = JsonConvert.DeserializeObject<List<string>>(questionTemplate.Options);
+                    options = JsonConvert.DeserializeObject<List<string>>(optionsJson);
                 }
                 catch { }
             }
@@ -275,15 +281,16 @@ public class QuestionnaireService : IQuestionnaireService
                 catch { }
             }
 
+            // Build response using V1 or V2 template data
             var response = new QuestionnaireQuestionResponse
             {
-                Id = questionTemplate.Id,
-                QuestionText = questionTemplate.QuestionText,
-                HelpText = questionTemplate.HelpText,
-                QuestionType = questionTemplate.QuestionType.ToString(),
-                Order = questionTemplate.Order,
-                IsRequired = questionTemplate.IsRequired,
-                Section = questionTemplate.Section,
+                Id = questionTemplate?.Id ?? questionTemplateV2!.Id,
+                QuestionText = questionTemplate?.QuestionText ?? questionTemplateV2!.QuestionText,
+                HelpText = questionTemplate?.HelpText ?? questionTemplateV2?.HelpText,
+                QuestionType = questionTemplate?.QuestionType.ToString() ?? questionTemplateV2!.QuestionType.ToString(),
+                Order = questionTemplate?.Order ?? questionTemplateV2!.Order,
+                IsRequired = questionTemplate?.IsRequired ?? questionTemplateV2!.IsRequired,
+                Section = questionTemplate?.Section ?? questionTemplateV2?.Section,
                 Options = options,
                 UserResponse = existingResponse.ResponseText,
                 NumericValue = existingResponse.NumericValue,
@@ -331,26 +338,34 @@ public class QuestionnaireService : IQuestionnaireService
                 return Result.Failure<IEnumerable<QuestionnaireQuestionResponse>>(Error.Forbidden("BusinessPlan.Forbidden", "You don't have access to this business plan."));
             }
 
-            // Get responses with question templates
+            // Get responses (without Include to support both V1 and V2 templates)
             var responses = await _context.QuestionnaireResponses
-                .Include(qr => qr.QuestionTemplate)
                 .Where(qr => qr.BusinessPlanId == businessPlanId)
-                .OrderBy(qr => qr.QuestionTemplate.Order)
                 .ToListAsync(cancellationToken);
+
+            if (!responses.Any())
+            {
+                return Result.Success(Enumerable.Empty<QuestionnaireQuestionResponse>());
+            }
+
+            // Get question template IDs
+            var questionIds = responses.Select(r => r.QuestionTemplateId).Distinct().ToList();
+
+            // Load templates from both V1 and V2 tables
+            var v1Templates = await _context.QuestionTemplates
+                .Where(qt => questionIds.Contains(qt.Id))
+                .ToDictionaryAsync(qt => qt.Id, cancellationToken);
+
+            var v2Templates = await _context.QuestionTemplatesV2
+                .Where(qt => questionIds.Contains(qt.Id))
+                .ToDictionaryAsync(qt => qt.Id, cancellationToken);
+
+            // Detect current language
+            var currentLanguage = _localizationService.GetCurrentLanguage();
+            var isEnglish = currentLanguage.Equals("en", StringComparison.OrdinalIgnoreCase);
 
             var result = responses.Select(r =>
             {
-                // Parse options
-                List<string>? options = null;
-                if (!string.IsNullOrWhiteSpace(r.QuestionTemplate.Options))
-                {
-                    try
-                    {
-                        options = JsonConvert.DeserializeObject<List<string>>(r.QuestionTemplate.Options);
-                    }
-                    catch { }
-                }
-
                 // Parse selected options
                 List<string>? selectedOptions = null;
                 if (!string.IsNullOrWhiteSpace(r.SelectedOptions))
@@ -362,25 +377,87 @@ public class QuestionnaireService : IQuestionnaireService
                     catch { }
                 }
 
+                // Try V1 template first
+                if (v1Templates.TryGetValue(r.QuestionTemplateId, out var v1Template))
+                {
+                    List<string>? options = null;
+                    if (!string.IsNullOrWhiteSpace(v1Template.Options))
+                    {
+                        try { options = JsonConvert.DeserializeObject<List<string>>(v1Template.Options); } catch { }
+                    }
+
+                    return new QuestionnaireQuestionResponse
+                    {
+                        Id = v1Template.Id,
+                        QuestionText = v1Template.QuestionText,
+                        HelpText = v1Template.HelpText,
+                        QuestionType = v1Template.QuestionType.ToString(),
+                        Order = v1Template.Order,
+                        IsRequired = v1Template.IsRequired,
+                        Section = v1Template.Section,
+                        Options = options,
+                        UserResponse = r.ResponseText,
+                        NumericValue = r.NumericValue,
+                        DateValue = r.DateValue,
+                        BooleanValue = r.BooleanValue,
+                        SelectedOptions = selectedOptions
+                    };
+                }
+
+                // Try V2 template
+                if (v2Templates.TryGetValue(r.QuestionTemplateId, out var v2Template))
+                {
+                    var questionText = isEnglish && !string.IsNullOrWhiteSpace(v2Template.QuestionTextEN)
+                        ? v2Template.QuestionTextEN
+                        : v2Template.QuestionText;
+                    var helpText = isEnglish && !string.IsNullOrWhiteSpace(v2Template.HelpTextEN)
+                        ? v2Template.HelpTextEN
+                        : v2Template.HelpText;
+
+                    List<string>? options = null;
+                    var optionsJson = isEnglish && !string.IsNullOrWhiteSpace(v2Template.OptionsEN)
+                        ? v2Template.OptionsEN
+                        : v2Template.Options;
+                    if (optionsJson != null)
+                    {
+                        try { options = JsonConvert.DeserializeObject<List<string>>(optionsJson); } catch { }
+                    }
+
+                    return new QuestionnaireQuestionResponse
+                    {
+                        Id = v2Template.Id,
+                        QuestionText = questionText,
+                        HelpText = helpText,
+                        QuestionType = v2Template.QuestionType.ToString(),
+                        Order = v2Template.Order,
+                        IsRequired = v2Template.IsRequired,
+                        Section = v2Template.Section,
+                        Options = options,
+                        UserResponse = r.ResponseText,
+                        NumericValue = r.NumericValue,
+                        DateValue = r.DateValue,
+                        BooleanValue = r.BooleanValue,
+                        SelectedOptions = selectedOptions
+                    };
+                }
+
+                // Fallback - return response with just the ID if template not found
                 return new QuestionnaireQuestionResponse
                 {
-                    Id = r.QuestionTemplate.Id,
-                    QuestionText = r.QuestionTemplate.QuestionText,
-                    HelpText = r.QuestionTemplate.HelpText,
-                    QuestionType = r.QuestionTemplate.QuestionType.ToString(),
-                    Order = r.QuestionTemplate.Order,
-                    IsRequired = r.QuestionTemplate.IsRequired,
-                    Section = r.QuestionTemplate.Section,
-                    Options = options,
+                    Id = r.QuestionTemplateId,
+                    QuestionText = "",
+                    QuestionType = "LongText",
+                    Order = 0,
+                    IsRequired = false,
                     UserResponse = r.ResponseText,
                     NumericValue = r.NumericValue,
                     DateValue = r.DateValue,
                     BooleanValue = r.BooleanValue,
                     SelectedOptions = selectedOptions
                 };
-            });
+            }).OrderBy(r => r.Order);
 
-            return Result.Success(result);
+            return Result.Success<IEnumerable<QuestionnaireQuestionResponse>>(result);
         }
         catch (Exception ex)
         {

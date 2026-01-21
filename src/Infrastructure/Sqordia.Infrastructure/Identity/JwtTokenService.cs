@@ -92,14 +92,60 @@ public class JwtTokenService : IJwtTokenService, Application.Common.Interfaces.I
         return await Task.FromResult(token);
     }
 
-    public Task<bool> ValidateTokenAsync(string token)
+    public async Task<bool> ValidateTokenAsync(string token)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var principal = tokenHandler.ValidateToken(token, _tokenValidationParameters, out var validatedToken);
+
+            if (validatedToken is JwtSecurityToken jwtToken &&
+                jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+            {
+                // Check if token has expired
+                if (jwtToken.ValidTo < DateTime.UtcNow)
+                {
+                    return await Task.FromResult(false);
+                }
+
+                return await Task.FromResult(true);
+            }
+        }
+        catch
+        {
+            // Token validation failed
+        }
+
+        return await Task.FromResult(false);
     }
 
-    public Task<User?> GetUserFromTokenAsync(string token)
+    public async Task<User?> GetUserFromTokenAsync(string token)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var principal = tokenHandler.ValidateToken(token, _tokenValidationParameters, out var validatedToken);
+
+            if (validatedToken is JwtSecurityToken jwtToken &&
+                jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+            {
+                var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out var userId))
+                {
+                    return await _context.Users
+                        .Include(u => u.UserRoles)
+                            .ThenInclude(ur => ur.Role)
+                        .FirstOrDefaultAsync(u => u.Id == userId);
+                }
+            }
+        }
+        catch
+        {
+            // Token validation failed
+        }
+
+        return await Task.FromResult<User?>(null);
     }
 
     public async Task<string?> ValidateAccessTokenAsync(string token)

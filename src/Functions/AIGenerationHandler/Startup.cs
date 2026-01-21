@@ -22,9 +22,17 @@ public static class Startup
         var configuration = StartupBase.BuildConfiguration();
         var databaseConfig = StartupBase.GetDatabaseConfiguration(configuration);
 
-        var keyVaultUrl = configuration["AzureKeyVault__VaultUrl"] 
-                       ?? configuration["AzureKeyVault:VaultUrl"] 
+        var keyVaultUrl = configuration["AzureKeyVault__VaultUrl"]
+                       ?? configuration["AzureKeyVault:VaultUrl"]
                        ?? throw new InvalidOperationException("Azure Key Vault URL is not configured");
+
+        var webApiBaseUrl = configuration["WebApi__BaseUrl"]
+                         ?? configuration["WebApi:BaseUrl"]
+                         ?? throw new InvalidOperationException("WebAPI base URL is not configured");
+
+        var httpTimeoutSeconds = int.TryParse(
+            configuration["AI__HttpTimeoutSeconds"] ?? configuration["AI:HttpTimeoutSeconds"],
+            out var timeout) ? timeout : 300;
 
         var aiConfig = new AIGenerationConfiguration
         {
@@ -32,13 +40,23 @@ public static class Startup
             ClaudeSecretName = configuration["AI__ClaudeSecretName"] ?? configuration["AI:ClaudeSecretName"] ?? "claude-api-key",
             GeminiSecretName = configuration["AI__GeminiSecretName"] ?? configuration["AI:GeminiSecretName"] ?? "gemini-api-key",
             DefaultAiProvider = configuration["AI__DefaultProvider"] ?? configuration["AI:DefaultProvider"] ?? "openai",
-            KeyVaultUrl = keyVaultUrl
+            KeyVaultUrl = keyVaultUrl,
+            WebApiBaseUrl = webApiBaseUrl,
+            SystemApiKeySecretName = configuration["AI__SystemApiKeySecretName"] ?? configuration["AI:SystemApiKeySecretName"] ?? "system-api-key",
+            HttpTimeoutSeconds = httpTimeoutSeconds
         };
 
         services.AddSingleton(Options.Create(aiConfig));
 
         // Azure Key Vault Services
         services.AddSingleton(new SecretClient(new Uri(keyVaultUrl), new Azure.Identity.DefaultAzureCredential()));
+
+        // HTTP Client for WebAPI calls
+        services.AddHttpClient("WebApi", client =>
+        {
+            client.BaseAddress = new Uri(webApiBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(httpTimeoutSeconds);
+        });
 
         // Common services
         StartupBase.ConfigureCommonServices(services, configuration);

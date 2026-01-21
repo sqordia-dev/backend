@@ -41,6 +41,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Domain.Entities.BusinessPlan.BusinessPlan> BusinessPlans { get; set; }
     public DbSet<QuestionnaireTemplate> QuestionnaireTemplates { get; set; }
     public DbSet<QuestionTemplate> QuestionTemplates { get; set; }
+    public DbSet<QuestionTemplateV2> QuestionTemplatesV2 { get; set; }
     public DbSet<QuestionnaireResponse> QuestionnaireResponses { get; set; }
     public DbSet<Domain.Entities.BusinessPlan.FinancialProjection> BusinessPlanFinancialProjections { get; set; }
     public DbSet<BusinessPlanShare> BusinessPlanShares { get; set; }
@@ -70,7 +71,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<TaxCalculation> TaxCalculations { get; set; }
     public DbSet<FinancialKPI> FinancialKPIs { get; set; }
     public DbSet<InvestmentAnalysis> InvestmentAnalyses { get; set; }
-    
+    public DbSet<LocationOverheadRate> LocationOverheadRates { get; set; }
+    public DbSet<FinancialCell> FinancialCells { get; set; }
+
     // AI Prompt Management
     public DbSet<AIPrompt> AIPrompts { get; set; }
     

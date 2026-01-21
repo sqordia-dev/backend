@@ -22,19 +22,21 @@ public static class Startup
         var configuration = StartupBase.BuildConfiguration();
         var databaseConfig = StartupBase.GetDatabaseConfiguration(configuration);
 
-        var storageConnectionString = configuration["AzureStorage__ConnectionString"] 
-                                   ?? configuration["AzureStorage:ConnectionString"] 
+        var storageConnectionString = configuration["AzureStorage__ConnectionString"]
+                                   ?? configuration["AzureStorage:ConnectionString"]
                                    ?? throw new InvalidOperationException("Azure Storage connection string is not configured");
 
-        var storageAccountName = configuration["AzureStorage__AccountName"] 
-                              ?? configuration["AzureStorage:AccountName"] 
+        var storageAccountName = configuration["AzureStorage__AccountName"]
+                              ?? configuration["AzureStorage:AccountName"]
                               ?? throw new InvalidOperationException("Azure Storage account name is not configured");
 
         var exportConfig = new ExportConfiguration
         {
             StorageAccountName = storageAccountName,
             StorageConnectionString = storageConnectionString,
-            ContainerName = configuration["AzureStorage__ContainerName"] ?? configuration["AzureStorage:ContainerName"] ?? "exports"
+            ContainerName = configuration["AzureStorage__ContainerName"] ?? configuration["AzureStorage:ContainerName"] ?? "exports",
+            DatabaseConnectionString = databaseConfig.ConnectionString,
+            SasTokenExpirationHours = int.TryParse(configuration["Export__SasTokenExpirationHours"], out var hours) ? hours : 24
         };
 
         services.AddSingleton(Options.Create(exportConfig));
@@ -44,6 +46,11 @@ public static class Startup
 
         // Common services
         StartupBase.ConfigureCommonServices(services, configuration);
+
+        // Export Generators
+        services.AddScoped<IExportGenerator, PdfExportGenerator>();
+        services.AddScoped<IExportGenerator, WordExportGenerator>();
+        services.AddScoped<IExportGenerator, ExcelExportGenerator>();
 
         // Application Services
         services.AddScoped<IExportProcessor, ExportProcessor>();

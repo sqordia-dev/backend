@@ -7,6 +7,7 @@ public class BusinessPlanResponse
     public string? Description { get; set; }
     public required string PlanType { get; set; }
     public required string Status { get; set; }
+    public string? Persona { get; set; }
     public Guid OrganizationId { get; set; }
     public required string OrganizationName { get; set; }
     public int Version { get; set; }

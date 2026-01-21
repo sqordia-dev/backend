@@ -7,6 +7,7 @@ using Sqordia.Application.Common.Models;
 using Sqordia.Application.Common.Security;
 using Sqordia.Contracts.Requests.User;
 using Sqordia.Contracts.Responses.User;
+using Sqordia.Domain.Enums;
 
 namespace Sqordia.Application.Services.Implementations;
 
@@ -66,6 +67,7 @@ public class UserProfileService : IUserProfileService
                 Email = user.Email.Value,
                 UserName = user.UserName,
                 UserType = user.UserType.ToString(),
+                Persona = user.Persona?.ToString(),
                 PhoneNumber = user.PhoneNumber,
                 ProfilePictureUrl = user.ProfilePictureUrl,
                 EmailVerified = user.IsEmailConfirmed,
@@ -132,6 +134,8 @@ public class UserProfileService : IUserProfileService
                 LastName = user.LastName,
                 Email = user.Email.Value,
                 UserName = user.UserName,
+                UserType = user.UserType.ToString(),
+                Persona = user.Persona?.ToString(),
                 PhoneNumber = user.PhoneNumber,
                 ProfilePictureUrl = user.ProfilePictureUrl,
                 EmailVerified = user.IsEmailConfirmed,
@@ -283,6 +287,63 @@ public class UserProfileService : IUserProfileService
         {
             _logger.LogError(ex, "Error deleting user account");
             return Result.Failure(Error.InternalServerError("General.InternalServerError", _localizationService.GetString("General.InternalServerError")));
+        }
+    }
+
+    public async Task<Result<UserProfileResponse>> SetPersonaAsync(SetPersonaRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var userId = _httpContextAccessor.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+            {
+                return Result.Failure<UserProfileResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
+            }
+
+            if (!Enum.TryParse<PersonaType>(request.Persona, true, out var personaType))
+            {
+                return Result.Failure<UserProfileResponse>(Error.Validation("User.InvalidPersona", $"Invalid persona type: {request.Persona}. Valid values: Entrepreneur, Consultant, OBNL"));
+            }
+
+            var user = await _context.Users
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.Id == userGuid && !u.IsDeleted, cancellationToken);
+
+            if (user == null)
+            {
+                return Result.Failure<UserProfileResponse>(Error.NotFound("Auth.Error.UserNotFound", _localizationService.GetString("Auth.Error.UserNotFound")));
+            }
+
+            user.SetPersona(personaType);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("User persona set to {Persona} for user {UserId}", personaType, userId);
+
+            var response = new UserProfileResponse
+            {
+                Id = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Email = user.Email.Value,
+                UserName = user.UserName,
+                UserType = user.UserType.ToString(),
+                Persona = user.Persona?.ToString(),
+                PhoneNumber = user.PhoneNumber,
+                ProfilePictureUrl = user.ProfilePictureUrl,
+                EmailVerified = user.IsEmailConfirmed,
+                PhoneNumberVerified = user.PhoneNumberVerified,
+                CreatedAt = user.Created,
+                LastModifiedAt = user.LastModified,
+                Roles = user.UserRoles.Select(ur => ur.Role.Name).ToList()
+            };
+
+            return Result<UserProfileResponse>.Success(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error setting user persona");
+            return Result.Failure<UserProfileResponse>(Error.InternalServerError("General.InternalServerError", _localizationService.GetString("General.InternalServerError")));
         }
     }
 }

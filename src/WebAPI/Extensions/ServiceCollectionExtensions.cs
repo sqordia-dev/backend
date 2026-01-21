@@ -53,6 +53,13 @@ public static class ServiceCollectionExtensions
                 Description = "API for Sqordia Business Plan Management System"
             });
 
+            options.SwaggerDoc("v2", new Microsoft.OpenApi.Models.OpenApiInfo
+            {
+                Title = "Sqordia API V2",
+                Version = "v2",
+                Description = "Growth Architect Intelligence Layer - Persona-based questionnaires, Socratic Coach auditing, strategy mapping, and bank-readiness scoring"
+            });
+
             options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
             {
                 Description = "JWT Authorization header using the Bearer scheme",

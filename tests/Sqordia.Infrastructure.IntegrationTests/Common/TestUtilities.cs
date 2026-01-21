@@ -96,4 +96,9 @@ public class MockEmailService : IEmailService
     {
         return Task.CompletedTask;
     }
+
+    public Task SendBusinessPlanGeneratedAsync(string email, string userName, string businessPlanId, string businessPlanTitle)
+    {
+        return Task.CompletedTask;
+    }
 }

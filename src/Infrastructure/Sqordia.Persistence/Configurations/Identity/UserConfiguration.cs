@@ -50,6 +50,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasConversion<string>()
             .HasMaxLength(50);
 
+        builder.Property(u => u.Persona)
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .IsRequired(false);
+
         // OAuth fields
         builder.Property(u => u.GoogleId)
             .HasMaxLength(100);

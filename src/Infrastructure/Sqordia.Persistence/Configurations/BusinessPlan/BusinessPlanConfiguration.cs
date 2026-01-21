@@ -99,7 +99,30 @@ public class BusinessPlanConfiguration : IEntityTypeConfiguration<Domain.Entitie
             
         builder.Property(bp => bp.SustainabilityPlan)
             .HasColumnType("text");
-        
+
+        // Growth Architect properties
+        builder.Property(bp => bp.Persona)
+            .HasConversion<string>()
+            .HasMaxLength(50);
+
+        builder.Property(bp => bp.StrategyMapJson)
+            .HasColumnType("jsonb");
+
+        builder.Property(bp => bp.ReadinessScore)
+            .HasPrecision(5, 2);
+
+        builder.Property(bp => bp.CurrentGenerationSection)
+            .HasMaxLength(100);
+
+        // Configure HealthMetrics as owned entity
+        builder.OwnsOne(bp => bp.HealthMetrics, hm =>
+        {
+            hm.Property(h => h.PivotPointMonth).HasColumnName("PivotPointMonth");
+            hm.Property(h => h.RunwayMonths).HasColumnName("RunwayMonths");
+            hm.Property(h => h.MonthlyBurnRate).HasColumnName("MonthlyBurnRate").HasPrecision(18, 2);
+            hm.Property(h => h.TargetCAC).HasColumnName("TargetCAC").HasPrecision(18, 2);
+        });
+
         // Relationships
         builder.HasOne(bp => bp.Organization)
             .WithMany() // Organization doesn't have navigation property back

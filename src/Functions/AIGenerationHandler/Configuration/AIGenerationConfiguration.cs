@@ -10,5 +10,8 @@ public class AIGenerationConfiguration
     public string GeminiSecretName { get; set; } = "gemini-api-key";
     public string DefaultAiProvider { get; set; } = "openai";
     public string KeyVaultUrl { get; set; } = string.Empty;
+    public string WebApiBaseUrl { get; set; } = string.Empty;
+    public string SystemApiKeySecretName { get; set; } = "system-api-key";
+    public int HttpTimeoutSeconds { get; set; } = 300; // 5 minutes for long-running generation
 }
 

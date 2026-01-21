@@ -3,9 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Services;
+using Sqordia.Application.Services.V2;
 using Sqordia.Contracts.Requests.BusinessPlan;
 using Sqordia.Contracts.Requests.Questionnaire;
+using Sqordia.Contracts.Requests.V2.Questionnaire;
 using Sqordia.Contracts.Responses.Questionnaire;
+using Sqordia.Domain.Enums;
 
 namespace WebAPI.Controllers;
 
@@ -15,15 +18,21 @@ namespace WebAPI.Controllers;
 public class QuestionnaireController : BaseApiController
 {
     private readonly IQuestionnaireService _questionnaireService;
+    private readonly IQuestionnaireServiceV2 _questionnaireServiceV2;
+    private readonly IQuestionPolishService _polishService;
     private readonly IAIService _aiService;
     private readonly ILogger<QuestionnaireController> _logger;
 
     public QuestionnaireController(
-        IQuestionnaireService questionnaireService, 
+        IQuestionnaireService questionnaireService,
+        IQuestionnaireServiceV2 questionnaireServiceV2,
+        IQuestionPolishService polishService,
         IAIService aiService,
         ILogger<QuestionnaireController> logger)
     {
         _questionnaireService = questionnaireService;
+        _questionnaireServiceV2 = questionnaireServiceV2;
+        _polishService = polishService;
         _aiService = aiService;
         _logger = logger;
     }
@@ -340,6 +349,59 @@ public class QuestionnaireController : BaseApiController
         {
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Get questionnaire templates for a specific persona (V1 compatibility endpoint)
+    /// </summary>
+    /// <param name="persona">Persona type: Entrepreneur, Consultant, or OBNL</param>
+    /// <param name="language">Language code: fr (default) or en</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    [HttpGet("/api/v{version:apiVersion}/questionnaire/templates/{persona}")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetTemplatesByPersona(
+        string persona,
+        [FromQuery] string language = "fr",
+        CancellationToken cancellationToken = default)
+    {
+        if (!Enum.TryParse<PersonaType>(persona, true, out var personaType))
+        {
+            _logger.LogWarning("Invalid persona type: {Persona}", persona);
+            return BadRequest(new { error = $"Invalid persona type: {persona}. Valid values: Entrepreneur, Consultant, OBNL" });
+        }
+
+        _logger.LogInformation("Getting V1 questionnaire templates for persona {Persona} in language {Language}", persona, language);
+
+        var result = await _questionnaireServiceV2.GetQuestionsByPersonaAsync(personaType, language, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Polish/enhance text using AI (V1 compatibility endpoint)
+    /// Transforms raw notes into professional, BDC-standard prose
+    /// </summary>
+    /// <param name="request">Text polishing request</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    [HttpPost("/api/v{version:apiVersion}/questionnaire/polish-text")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> PolishText(
+        [FromBody] PolishTextRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+        {
+            _logger.LogWarning("Invalid polish text request: {Errors}", ModelState);
+            return BadRequest(ModelState);
+        }
+
+        _logger.LogInformation("Polishing text via V1 endpoint with {Length} characters", request.Text.Length);
+
+        var result = await _polishService.PolishTextAsync(request, cancellationToken);
+        return HandleResult(result);
     }
 }
 

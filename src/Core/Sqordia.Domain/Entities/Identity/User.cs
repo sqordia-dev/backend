@@ -24,6 +24,7 @@ public class User : BaseAuditableEntity
     public DateTime? PasswordLastChangedAt { get; private set; }
     public bool RequirePasswordChange { get; private set; }
     public UserType UserType { get; private set; }
+    public PersonaType? Persona { get; private set; }
     
     // OAuth fields
     public string? GoogleId { get; private set; }
@@ -138,6 +139,11 @@ public class User : BaseAuditableEntity
     public void UpdateUserType(UserType userType)
     {
         UserType = userType;
+    }
+
+    public void SetPersona(PersonaType? persona)
+    {
+        Persona = persona;
     }
 
     public void UpdatePassword(string newPasswordHash)
