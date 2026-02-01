@@ -151,3 +151,4 @@ scripts/get-stripe-prices.sh
 docs/STRIPE_SETUP.md
 scripts/test-stripe-checkout.http
 
+.env
