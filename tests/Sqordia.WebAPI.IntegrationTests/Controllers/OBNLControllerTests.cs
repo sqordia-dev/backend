@@ -1,61 +1,50 @@
-using AutoFixture;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Sqordia.Domain.Entities;
-using Sqordia.Domain.ValueObjects;
-using Sqordia.Persistence.Contexts;
-using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Moq;
+using System.Security.Claims;
+using Sqordia.Application.OBNL.Commands;
+using Sqordia.Application.OBNL.Queries;
+using Sqordia.Application.OBNL.Services;
+using WebAPI.Controllers;
 using Xunit;
 
 namespace Sqordia.WebAPI.IntegrationTests.Controllers;
 
-public class OBNLControllerTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
+public class OBNLControllerTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
-    private readonly HttpClient _client;
-    private readonly ApplicationDbContext _context;
-    private readonly Fixture _fixture;
-    private readonly IServiceScope _scope;
+    private readonly Mock<IOBNLPlanService> _obnlPlanServiceMock;
+    private readonly OBNLController _sut;
 
-    public OBNLControllerTests(WebApplicationFactory<Program> factory)
+    public OBNLControllerTests()
     {
-        _factory = factory.WithWebHostBuilder(builder =>
+        _obnlPlanServiceMock = new Mock<IOBNLPlanService>();
+
+        _sut = new OBNLController(_obnlPlanServiceMock.Object);
+
+        // Set up default authenticated HttpContext
+        var userId = Guid.NewGuid();
+        var claims = new List<Claim>
         {
-            // Set environment variable to skip GCP services
-            builder.UseSetting("ASPNETCORE_ENVIRONMENT", "Testing");
-            builder.UseSetting("SkipGcpServices", "true");
-            
-            builder.ConfigureServices(services =>
-            {
-                // Remove the existing DbContext registration
-                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
-                if (descriptor != null)
-                    services.Remove(descriptor);
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.Email, "testuser@example.com"),
+            new Claim(ClaimTypes.Name, "testuser")
+        };
+        var identity = new ClaimsIdentity(claims, "TestAuth");
+        var claimsPrincipal = new ClaimsPrincipal(identity);
 
-                // Add in-memory database
-                services.AddDbContext<ApplicationDbContext>(options =>
-                {
-                    options.UseInMemoryDatabase("OBNLTestDb");
-                });
-            });
-        });
-
-        _client = _factory.CreateClient();
-        _scope = _factory.Services.CreateScope();
-        _context = _scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        _fixture = new Fixture();
+        _sut.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = claimsPrincipal }
+        };
     }
 
     [Fact]
     public async Task CreateOBNLPlan_ValidRequest_ShouldReturnCreated()
     {
         // Arrange
-        var request = new
+        var planId = Guid.NewGuid();
+        var command = new CreateOBNLPlanCommand
         {
             OrganizationId = Guid.NewGuid(),
             OBNLType = "Charitable Organization",
@@ -74,21 +63,49 @@ public class OBNLControllerTests : IClassFixture<WebApplicationFactory<Program>>
             SustainabilityStrategy = "Sustainability strategy"
         };
 
+        _obnlPlanServiceMock
+            .Setup(x => x.CreateOBNLPlanAsync(It.IsAny<CreateOBNLPlanCommand>()))
+            .ReturnsAsync(planId);
+
         // Act
-        var response = await _client.PostAsJsonAsync("/api/v1/obnl/plans", request);
+        var result = await _sut.CreateOBNLPlan(command);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().NotBeNullOrEmpty();
+        var createdResult = result.Should().BeOfType<CreatedAtActionResult>().Subject;
+        createdResult.StatusCode.Should().Be(201);
+    }
+
+    [Fact]
+    public async Task CreateOBNLPlan_WhenServiceThrows_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var command = new CreateOBNLPlanCommand
+        {
+            OrganizationId = Guid.NewGuid(),
+            OBNLType = "Charitable Organization",
+            Mission = "To serve the community"
+        };
+
+        _obnlPlanServiceMock
+            .Setup(x => x.CreateOBNLPlanAsync(It.IsAny<CreateOBNLPlanCommand>()))
+            .ThrowsAsync(new Exception("Validation failed"));
+
+        // Act
+        var result = await _sut.CreateOBNLPlan(command);
+
+        // Assert
+        var badRequestResult = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequestResult.StatusCode.Should().Be(400);
     }
 
     [Fact]
     public async Task GetOBNLPlan_ExistingPlan_ShouldReturnPlan()
     {
         // Arrange
-        var plan = new OBNLBusinessPlan
+        var planId = Guid.NewGuid();
+        var planDto = new OBNLPlanDto
         {
+            Id = planId,
             OrganizationId = Guid.NewGuid(),
             OBNLType = "Charitable Organization",
             Mission = "Test Mission",
@@ -96,28 +113,23 @@ public class OBNLControllerTests : IClassFixture<WebApplicationFactory<Program>>
             Values = "Test Values",
             FundingRequirements = 100000,
             FundingPurpose = "Test Purpose",
+            ComplianceStatus = "Pending",
             LegalStructure = "Non-Profit Corporation",
-            RegistrationNumber = "123456789",
-            RegistrationDate = DateTime.UtcNow,
-            GoverningBody = "Board of Directors",
-            BoardComposition = "5 members",
-            StakeholderEngagement = "Test Engagement",
-            ImpactMeasurement = "Test Measurement",
-            SustainabilityStrategy = "Test Strategy",
-            ComplianceStatus = ComplianceStatus.Pending,
             CreatedBy = "test-user"
         };
 
-        _context.OBNLBusinessPlans.Add(plan);
-        await _context.SaveChangesAsync();
+        _obnlPlanServiceMock
+            .Setup(x => x.GetOBNLPlanAsync(planId))
+            .ReturnsAsync(planDto);
 
         // Act
-        var response = await _client.GetAsync($"/api/v1/obnl/plans/{plan.Id}");
+        var result = await _sut.GetOBNLPlan(planId);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("Test Mission");
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        okResult.StatusCode.Should().Be(200);
+        var returnedPlan = okResult.Value.Should().BeOfType<OBNLPlanDto>().Subject;
+        returnedPlan.Mission.Should().Be("Test Mission");
     }
 
     [Fact]
@@ -126,11 +138,16 @@ public class OBNLControllerTests : IClassFixture<WebApplicationFactory<Program>>
         // Arrange
         var nonExistentId = Guid.NewGuid();
 
+        _obnlPlanServiceMock
+            .Setup(x => x.GetOBNLPlanAsync(nonExistentId))
+            .ThrowsAsync(new KeyNotFoundException("Plan not found"));
+
         // Act
-        var response = await _client.GetAsync($"/api/v1/obnl/plans/{nonExistentId}");
+        var result = await _sut.GetOBNLPlan(nonExistentId);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var notFoundResult = result.Should().BeOfType<NotFoundObjectResult>().Subject;
+        notFoundResult.StatusCode.Should().Be(404);
     }
 
     [Fact]
@@ -138,91 +155,44 @@ public class OBNLControllerTests : IClassFixture<WebApplicationFactory<Program>>
     {
         // Arrange
         var organizationId = Guid.NewGuid();
-        
-        var plan1 = new OBNLBusinessPlan
+        var plans = new List<OBNLPlanDto>
         {
-            OrganizationId = organizationId,
-            OBNLType = "Charitable Organization",
-            Mission = "Mission 1",
-            Vision = "Vision 1",
-            Values = "Values 1",
-            FundingRequirements = 100000,
-            FundingPurpose = "Purpose 1",
-            LegalStructure = "Non-Profit Corporation",
-            RegistrationNumber = "111111111",
-            RegistrationDate = DateTime.UtcNow,
-            GoverningBody = "Board of Directors",
-            BoardComposition = "5 members",
-            StakeholderEngagement = "Engagement 1",
-            ImpactMeasurement = "Measurement 1",
-            SustainabilityStrategy = "Strategy 1",
-            ComplianceStatus = ComplianceStatus.Pending,
-            CreatedBy = "test-user"
+            new OBNLPlanDto
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                OBNLType = "Charitable Organization",
+                Mission = "Mission 1"
+            },
+            new OBNLPlanDto
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                OBNLType = "Foundation",
+                Mission = "Mission 2"
+            }
         };
 
-        var plan2 = new OBNLBusinessPlan
-        {
-            OrganizationId = organizationId,
-            OBNLType = "Foundation",
-            Mission = "Mission 2",
-            Vision = "Vision 2",
-            Values = "Values 2",
-            FundingRequirements = 200000,
-            FundingPurpose = "Purpose 2",
-            LegalStructure = "Foundation",
-            RegistrationNumber = "222222222",
-            RegistrationDate = DateTime.UtcNow,
-            GoverningBody = "Board of Trustees",
-            BoardComposition = "7 members",
-            StakeholderEngagement = "Engagement 2",
-            ImpactMeasurement = "Measurement 2",
-            SustainabilityStrategy = "Strategy 2",
-            ComplianceStatus = ComplianceStatus.Pending,
-            CreatedBy = "test-user"
-        };
-
-        _context.OBNLBusinessPlans.AddRange(plan1, plan2);
-        await _context.SaveChangesAsync();
+        _obnlPlanServiceMock
+            .Setup(x => x.GetOBNLPlansByOrganizationAsync(organizationId))
+            .ReturnsAsync(plans);
 
         // Act
-        var response = await _client.GetAsync($"/api/v1/obnl/organizations/{organizationId}/plans");
+        var result = await _sut.GetOBNLPlansByOrganization(organizationId);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("Mission 1");
-        content.Should().Contain("Mission 2");
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        okResult.StatusCode.Should().Be(200);
+        var returnedPlans = okResult.Value.Should().BeAssignableTo<List<OBNLPlanDto>>().Subject;
+        returnedPlans.Should().HaveCount(2);
     }
 
     [Fact]
     public async Task UpdateOBNLPlan_ValidRequest_ShouldReturnOk()
     {
         // Arrange
-        var plan = new OBNLBusinessPlan
-        {
-            OrganizationId = Guid.NewGuid(),
-            OBNLType = "Charitable Organization",
-            Mission = "Original Mission",
-            Vision = "Original Vision",
-            Values = "Original Values",
-            FundingRequirements = 100000,
-            FundingPurpose = "Original Purpose",
-            LegalStructure = "Non-Profit Corporation",
-            RegistrationNumber = "123456789",
-            RegistrationDate = DateTime.UtcNow,
-            GoverningBody = "Board of Directors",
-            BoardComposition = "5 members",
-            StakeholderEngagement = "Original Engagement",
-            ImpactMeasurement = "Original Measurement",
-            SustainabilityStrategy = "Original Strategy",
-            ComplianceStatus = ComplianceStatus.Pending,
-            CreatedBy = "test-user"
-        };
-
-        _context.OBNLBusinessPlans.Add(plan);
-        await _context.SaveChangesAsync();
-
-        var updateRequest = new
+        var planId = Guid.NewGuid();
+        var command = new UpdateOBNLPlanCommand
         {
             Mission = "Updated Mission",
             Vision = "Updated Vision",
@@ -231,88 +201,165 @@ public class OBNLControllerTests : IClassFixture<WebApplicationFactory<Program>>
             FundingPurpose = "Updated Purpose"
         };
 
+        _obnlPlanServiceMock
+            .Setup(x => x.UpdateOBNLPlanAsync(It.IsAny<UpdateOBNLPlanCommand>()))
+            .Returns(Task.CompletedTask);
+
         // Act
-        var response = await _client.PutAsJsonAsync($"/api/v1/obnl/plans/{plan.Id}", updateRequest);
+        var result = await _sut.UpdateOBNLPlan(planId, command);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        okResult.StatusCode.Should().Be(200);
+    }
+
+    [Fact]
+    public async Task UpdateOBNLPlan_ShouldPassCorrectIdToService()
+    {
+        // Arrange
+        var planId = Guid.NewGuid();
+        var command = new UpdateOBNLPlanCommand
+        {
+            Mission = "Updated Mission"
+        };
+
+        UpdateOBNLPlanCommand? capturedCommand = null;
+        _obnlPlanServiceMock
+            .Setup(x => x.UpdateOBNLPlanAsync(It.IsAny<UpdateOBNLPlanCommand>()))
+            .Callback<UpdateOBNLPlanCommand>(cmd => capturedCommand = cmd)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _sut.UpdateOBNLPlan(planId, command);
+
+        // Assert
+        capturedCommand.Should().NotBeNull();
+        capturedCommand!.Id.Should().Be(planId);
     }
 
     [Fact]
     public async Task DeleteOBNLPlan_ExistingPlan_ShouldReturnNoContent()
     {
         // Arrange
-        var plan = new OBNLBusinessPlan
-        {
-            OrganizationId = Guid.NewGuid(),
-            OBNLType = "Charitable Organization",
-            Mission = "Test Mission",
-            Vision = "Test Vision",
-            Values = "Test Values",
-            FundingRequirements = 100000,
-            FundingPurpose = "Test Purpose",
-            LegalStructure = "Non-Profit Corporation",
-            RegistrationNumber = "123456789",
-            RegistrationDate = DateTime.UtcNow,
-            GoverningBody = "Board of Directors",
-            BoardComposition = "5 members",
-            StakeholderEngagement = "Test Engagement",
-            ImpactMeasurement = "Test Measurement",
-            SustainabilityStrategy = "Test Strategy",
-            ComplianceStatus = ComplianceStatus.Pending,
-            CreatedBy = "test-user"
-        };
+        var planId = Guid.NewGuid();
 
-        _context.OBNLBusinessPlans.Add(plan);
-        await _context.SaveChangesAsync();
+        _obnlPlanServiceMock
+            .Setup(x => x.DeleteOBNLPlanAsync(planId))
+            .Returns(Task.CompletedTask);
 
         // Act
-        var response = await _client.DeleteAsync($"/api/v1/obnl/plans/{plan.Id}");
+        var result = await _sut.DeleteOBNLPlan(planId);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var noContentResult = result.Should().BeOfType<NoContentResult>().Subject;
+        noContentResult.StatusCode.Should().Be(204);
+    }
+
+    [Fact]
+    public async Task DeleteOBNLPlan_WhenServiceThrows_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var planId = Guid.NewGuid();
+
+        _obnlPlanServiceMock
+            .Setup(x => x.DeleteOBNLPlanAsync(planId))
+            .ThrowsAsync(new Exception("Plan not found"));
+
+        // Act
+        var result = await _sut.DeleteOBNLPlan(planId);
+
+        // Assert
+        var badRequestResult = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequestResult.StatusCode.Should().Be(400);
     }
 
     [Fact]
     public async Task AnalyzeCompliance_ExistingPlan_ShouldReturnComplianceAnalysis()
     {
         // Arrange
-        var plan = new OBNLBusinessPlan
+        var planId = Guid.NewGuid();
+        var analysis = new ComplianceAnalysisDto
         {
-            OrganizationId = Guid.NewGuid(),
-            OBNLType = "Charitable Organization",
-            Mission = "Test Mission",
-            Vision = "Test Vision",
-            Values = "Test Values",
-            FundingRequirements = 100000,
-            FundingPurpose = "Test Purpose",
-            LegalStructure = "Non-Profit Corporation",
-            RegistrationNumber = "123456789",
-            RegistrationDate = DateTime.UtcNow,
-            GoverningBody = "Board of Directors",
-            BoardComposition = "5 members",
-            StakeholderEngagement = "Test Engagement",
-            ImpactMeasurement = "Test Measurement",
-            SustainabilityStrategy = "Test Strategy",
-            ComplianceStatus = ComplianceStatus.Pending,
-            CreatedBy = "test-user"
+            Status = "Compliant",
+            Level = "Full",
+            Requirements = new List<string> { "Req1", "Req2" },
+            Recommendations = new List<string> { "Rec1" },
+            LastUpdated = DateTime.UtcNow,
+            Notes = "All requirements met"
         };
 
-        _context.OBNLBusinessPlans.Add(plan);
-        await _context.SaveChangesAsync();
+        _obnlPlanServiceMock
+            .Setup(x => x.AnalyzeComplianceAsync(planId))
+            .ReturnsAsync(analysis);
 
         // Act
-        var response = await _client.PostAsync($"/api/v1/obnl/plans/{plan.Id}/compliance/analyze", null);
+        var result = await _sut.AnalyzeCompliance(planId);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().NotBeNullOrEmpty();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        okResult.StatusCode.Should().Be(200);
+        var returnedAnalysis = okResult.Value.Should().BeOfType<ComplianceAnalysisDto>().Subject;
+        returnedAnalysis.Status.Should().Be("Compliant");
     }
 
-    public void Dispose()
+    [Fact]
+    public async Task AnalyzeCompliance_WhenServiceThrows_ShouldReturnBadRequest()
     {
-        _context?.Dispose();
-        _scope?.Dispose();
+        // Arrange
+        var planId = Guid.NewGuid();
+
+        _obnlPlanServiceMock
+            .Setup(x => x.AnalyzeComplianceAsync(planId))
+            .ThrowsAsync(new Exception("Plan not found"));
+
+        // Act
+        var result = await _sut.AnalyzeCompliance(planId);
+
+        // Assert
+        var badRequestResult = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequestResult.StatusCode.Should().Be(400);
+    }
+
+    [Fact]
+    public async Task CreateOBNLPlan_ShouldCallServiceExactlyOnce()
+    {
+        // Arrange
+        var command = new CreateOBNLPlanCommand
+        {
+            OrganizationId = Guid.NewGuid(),
+            OBNLType = "Foundation",
+            Mission = "Test Mission"
+        };
+
+        _obnlPlanServiceMock
+            .Setup(x => x.CreateOBNLPlanAsync(It.IsAny<CreateOBNLPlanCommand>()))
+            .ReturnsAsync(Guid.NewGuid());
+
+        // Act
+        await _sut.CreateOBNLPlan(command);
+
+        // Assert
+        _obnlPlanServiceMock.Verify(
+            x => x.CreateOBNLPlanAsync(It.IsAny<CreateOBNLPlanCommand>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task GetOBNLPlan_ShouldCallServiceWithCorrectId()
+    {
+        // Arrange
+        var planId = Guid.NewGuid();
+
+        _obnlPlanServiceMock
+            .Setup(x => x.GetOBNLPlanAsync(planId))
+            .ReturnsAsync(new OBNLPlanDto { Id = planId });
+
+        // Act
+        await _sut.GetOBNLPlan(planId);
+
+        // Assert
+        _obnlPlanServiceMock.Verify(
+            x => x.GetOBNLPlanAsync(planId),
+            Times.Once);
     }
 }

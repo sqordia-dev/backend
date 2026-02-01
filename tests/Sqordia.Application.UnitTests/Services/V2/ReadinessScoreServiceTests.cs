@@ -1060,18 +1060,18 @@ public class ReadinessScoreServiceTests
         SetupAuthenticatedUser(userId);
 
         // Target: 70 <= overall < 85
-        // Consistency: 100 (no deductions)
-        // Risk: 30 (only risk keyword)
-        // Completeness: 100 (all sections > 100 chars)
+        // Consistency: 100 (no deductions - exec summary > 500 chars, SWOT has strengths+weaknesses)
+        // Risk: 30 (only risk keyword, no mitigation/safeguard keywords)
+        // Completeness: 100 (all 6 sections > 100 chars)
         // Overall = 100*0.5 + 30*0.3 + 100*0.2 = 50 + 9 + 20 = 79
         var plan = CreateBusinessPlan(
             id: businessPlanId,
             organizationId: orgId,
             executiveSummary: GenerateContent(600, "This is a comprehensive summary that covers all plan details. "),
             businessModel: GenerateRichContent(200),
-            marketAnalysis: "Our market shows 25% growth with many opportunities and data points.",
-            financialProjections: "Revenue: 500000 in year 1 with detailed projections.",
-            swotAnalysis: "Strength: strong team. Weakness: limited capital. The main risk is market volatility.",
+            marketAnalysis: "Our market shows 25% growth with many opportunities and data points. The total addressable market is worth over $500 million annually with strong demand.",
+            financialProjections: "Revenue: 500000 in year 1 with detailed projections. We expect to reach profitability by year 2 with a gross margin of 65% across all product lines.",
+            swotAnalysis: "Strength: strong team with diverse skills. Weakness: limited capital for expansion. The main risk is market volatility and competitive pressure from incumbents.",
             operationsPlan: GenerateRichContent(200));
 
         var member = new OrganizationMember(orgId, userId, OrganizationRole.Owner);
