@@ -34,7 +34,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("register")]
     [AllowAnonymous]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _authenticationService.RegisterAsync(request);
         return HandleResult(result);
@@ -42,7 +42,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("login")]
     [AllowAnonymous]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _authenticationService.LoginAsync(request);
         return HandleResult(result);
@@ -50,7 +50,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("refresh-token")]
     [AllowAnonymous]
-    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _authenticationService.RefreshTokenAsync(request);
         return HandleResult(result);
@@ -58,7 +58,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("revoke-token")]
     [Authorize]
-    public async Task<IActionResult> RevokeToken([FromBody] RevokeTokenRequest request)
+    public async Task<IActionResult> RevokeToken([FromBody] RevokeTokenRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _authenticationService.RevokeTokenAsync(request);
         return HandleResult(result);
@@ -66,7 +66,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("logout")]
     [Authorize]
-    public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
+    public async Task<IActionResult> Logout([FromBody] LogoutRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _authenticationService.LogoutAsync(request);
         return HandleResult(result);
@@ -74,7 +74,7 @@ public class AuthController : BaseApiController
 
     [HttpGet("me")]
     [Authorize]
-    public async Task<IActionResult> GetCurrentUser()
+    public async Task<IActionResult> GetCurrentUser(CancellationToken cancellationToken = default)
     {
         var userId = GetCurrentUserId();
         if (userId == null)
@@ -88,7 +88,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("send-verification-email")]
     [AllowAnonymous]
-    public async Task<IActionResult> SendVerificationEmail([FromBody] SendEmailVerificationRequest request)
+    public async Task<IActionResult> SendVerificationEmail([FromBody] SendEmailVerificationRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _authenticationService.SendEmailVerificationAsync(request);
         return HandleResult(result);
@@ -96,7 +96,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("verify-email")]
     [AllowAnonymous]
-    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest request)
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _authenticationService.VerifyEmailAsync(request);
         return HandleResult(result);
@@ -104,7 +104,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("forgot-password")]
     [AllowAnonymous]
-    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _authenticationService.ForgotPasswordAsync(request);
         return HandleResult(result);
@@ -112,7 +112,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("reset-password")]
     [AllowAnonymous]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _authenticationService.ResetPasswordAsync(request);
         return HandleResult(result);
@@ -123,7 +123,7 @@ public class AuthController : BaseApiController
     /// </summary>
     [HttpPost("google")]
     [AllowAnonymous]
-    public async Task<IActionResult> AuthenticateWithGoogle([FromBody] GoogleAuthRequest request)
+    public async Task<IActionResult> AuthenticateWithGoogle([FromBody] GoogleAuthRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -251,7 +251,7 @@ public class AuthController : BaseApiController
     /// </summary>
     [HttpGet("google/callback")]
     [AllowAnonymous]
-    public async Task<IActionResult> GoogleCallback()
+    public async Task<IActionResult> GoogleCallback(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -284,7 +284,7 @@ public class AuthController : BaseApiController
     /// </summary>
     [HttpPost("google/link")]
     [Authorize]
-    public async Task<IActionResult> LinkGoogleAccount([FromBody] LinkGoogleAccountRequest request)
+    public async Task<IActionResult> LinkGoogleAccount([FromBody] LinkGoogleAccountRequest request, CancellationToken cancellationToken = default)
     {
         var userId = GetCurrentUserId();
         if (userId == null)
@@ -405,7 +405,7 @@ public class AuthController : BaseApiController
     /// </summary>
     [HttpPost("google/unlink")]
     [Authorize]
-    public async Task<IActionResult> UnlinkGoogleAccount()
+    public async Task<IActionResult> UnlinkGoogleAccount(CancellationToken cancellationToken = default)
     {
         var userId = GetCurrentUserId();
         if (userId == null)

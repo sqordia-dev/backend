@@ -17,5 +17,12 @@ public class CreateBusinessPlanRequest
     
     [Required]
     public required Guid OrganizationId { get; set; }
+
+    /// <summary>
+    /// Optional persona type (Entrepreneur, Consultant, or OBNL)
+    /// If not provided, will be taken from user's profile
+    /// </summary>
+    [RegularExpression("^(Entrepreneur|Consultant|OBNL)?$", ErrorMessage = "Persona must be one of: Entrepreneur, Consultant, OBNL")]
+    public string? Persona { get; set; }
 }
 

@@ -19,6 +19,7 @@ public class BusinessPlanGenerationServiceTests : IDisposable
     private readonly ApplicationDbContext _context;
     private readonly Mock<IAIService> _aiServiceMock;
     private readonly Mock<IAIPromptService> _aiPromptServiceMock;
+    private readonly Mock<IEmailService> _emailServiceMock;
     private readonly Mock<ILogger<BusinessPlanGenerationService>> _loggerMock;
     private readonly BusinessPlanGenerationService _sut;
 
@@ -38,10 +39,11 @@ public class BusinessPlanGenerationServiceTests : IDisposable
         // Setup mocks
         _aiServiceMock = new Mock<IAIService>();
         _aiPromptServiceMock = new Mock<IAIPromptService>();
+        _emailServiceMock = new Mock<IEmailService>();
         _loggerMock = new Mock<ILogger<BusinessPlanGenerationService>>();
 
         // Create service under test
-        _sut = new BusinessPlanGenerationService(_context, _aiServiceMock.Object, _aiPromptServiceMock.Object, _loggerMock.Object);
+        _sut = new BusinessPlanGenerationService(_context, _aiServiceMock.Object, _aiPromptServiceMock.Object, _emailServiceMock.Object, _loggerMock.Object);
     }
 
     #region GenerateBusinessPlanAsync Tests

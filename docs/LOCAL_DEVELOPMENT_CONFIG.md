@@ -4,7 +4,14 @@ This document explains the `appsettings.json` configuration for local developmen
 
 ## Configuration Overview
 
-The `appsettings.json` file is used for **local development only**. For production, use `appsettings.Production.json` or environment variables.
+The `appsettings.json` file is used for **local development only**. This file is in `.gitignore`, so it's safe to store your local development secrets here.
+
+### Security Model
+
+- **Local Development**: Store secrets directly in `appsettings.json` (this file is ignored by git)
+- **Production**: Use environment variables or Azure Key Vault (configured via Terraform)
+
+**Important**: Never commit `appsettings.json` with real secrets. The file is already in `.gitignore`, but always verify before committing.
 
 ## Configuration Priority
 
@@ -60,15 +67,33 @@ Configuration is read in this order (highest to lowest priority):
 
 ### AI Providers
 
-All AI API keys are optional. Set them via environment variables:
+For local development, you can set AI API keys directly in `appsettings.json`:
 
+```json
+"AI": {
+  "OpenAI": {
+    "ApiKey": "sk-proj-your-key-here",
+    "Model": "gpt-4o"
+  },
+  "Claude": {
+    "ApiKey": "your-claude-key"
+  },
+  "Gemini": {
+    "ApiKey": "your-gemini-key"
+  }
+}
+```
+
+**Alternative methods** (environment variables take precedence):
+
+1. **Environment Variables**:
 ```bash
 export OPENAI_API_KEY=your-key
 export CLAUDE_API_KEY=your-key
 export GEMINI_API_KEY=your-key
 ```
 
-Or use User Secrets:
+2. **User Secrets** (for .NET):
 ```bash
 dotnet user-secrets set "AI:OpenAI:ApiKey" "your-key"
 ```

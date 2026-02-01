@@ -37,9 +37,8 @@ public class OpenAIService : IAIService
         _logger = logger;
         _settings = settings.Value;
 
-        _logger.LogInformation("OpenAI Settings - ApiKey configured: {HasKey}, Model: {Model}, ApiKey length: {Length}", 
-            !string.IsNullOrEmpty(_settings.ApiKey), _settings.Model, 
-            string.IsNullOrEmpty(_settings.ApiKey) ? 0 : _settings.ApiKey.Length);
+        _logger.LogInformation("OpenAI Settings - ApiKey configured: {HasKey}, Model: {Model}",
+            !string.IsNullOrEmpty(_settings.ApiKey), _settings.Model);
 
         if (!string.IsNullOrEmpty(_settings.ApiKey))
         {
@@ -60,8 +59,8 @@ public class OpenAIService : IAIService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to initialize OpenAI client: {ErrorMessage}. Stack trace: {StackTrace}", 
-                    ex.Message, ex.StackTrace);
+                _logger.LogError(ex, "Failed to initialize OpenAI client: {ErrorMessage}",
+                    ex.Message);
                 _chatClient = null; // Ensure it's null on failure
             }
         }
@@ -111,10 +110,9 @@ public class OpenAIService : IAIService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating content with OpenAI. Exception type: {ExceptionType}, Message: {Message}, StackTrace: {StackTrace}", 
-                ex.GetType().Name, 
-                ex.Message,
-                ex.StackTrace);
+            _logger.LogError(ex, "Error generating content with OpenAI. Exception type: {ExceptionType}, Message: {Message}",
+                ex.GetType().Name,
+                ex.Message);
             
             // Log additional details for common OpenAI errors
             if (ex.Message.Contains("401") || ex.Message.Contains("Unauthorized") || ex.Message.Contains("invalid_api_key"))
@@ -196,18 +194,12 @@ public class OpenAIService : IAIService
         if (_chatClient == null)
         {
             var hasKey = !string.IsNullOrEmpty(_settings.ApiKey);
-            var keyLength = string.IsNullOrEmpty(_settings.ApiKey) ? 0 : _settings.ApiKey.Length;
-            var keyPreview = hasKey && keyLength > 10 
-                ? $"{_settings.ApiKey.Substring(0, 7)}...{_settings.ApiKey.Substring(keyLength - 4)}" 
-                : "NOT SET";
-            
+
             _logger.LogWarning(
                 "OpenAI service unavailable: _chatClient is null. " +
-                "ApiKey configured: {HasKey}, ApiKey length: {Length}, ApiKey preview: {KeyPreview}, Model: {Model}. " +
-                "Please check that the API key is valid and properly configured in appsettings.json under 'AI:OpenAI:ApiKey' or as environment variable 'OPENAI_API_KEY'.", 
-                hasKey, 
-                keyLength,
-                keyPreview,
+                "ApiKey configured: {HasKey}, Model: {Model}. " +
+                "Please check that the API key is valid and properly configured in appsettings.json under 'AI:OpenAI:ApiKey' or as environment variable 'OPENAI_API_KEY'.",
+                hasKey,
                 _settings.Model);
             return false;
         }

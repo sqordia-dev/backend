@@ -1,8 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Services;
+using Sqordia.Application.Services.V2;
 using Sqordia.Contracts.Requests.BusinessPlan;
+using Sqordia.Contracts.Requests.V2.StrategyMap;
 using Sqordia.Contracts.Responses.BusinessPlan;
+using Sqordia.Contracts.Responses;
 using Sqordia.Domain.Enums;
 
 namespace WebAPI.Controllers;
@@ -13,10 +18,26 @@ namespace WebAPI.Controllers;
 public class BusinessPlanController : BaseApiController
 {
     private readonly IBusinessPlanService _businessPlanService;
+    private readonly IStrategyMapService _strategyMapService;
+    private readonly IReadinessScoreService _readinessScoreService;
+    private readonly IAuditService _auditService;
+    private readonly IApplicationDbContext _context;
+    private readonly ILogger<BusinessPlanController> _logger;
 
-    public BusinessPlanController(IBusinessPlanService businessPlanService)
+    public BusinessPlanController(
+        IBusinessPlanService businessPlanService,
+        IStrategyMapService strategyMapService,
+        IReadinessScoreService readinessScoreService,
+        IAuditService auditService,
+        IApplicationDbContext context,
+        ILogger<BusinessPlanController> logger)
     {
         _businessPlanService = businessPlanService;
+        _strategyMapService = strategyMapService;
+        _readinessScoreService = readinessScoreService;
+        _auditService = auditService;
+        _context = context;
+        _logger = logger;
     }
 
     /// <summary>
@@ -262,6 +283,123 @@ public class BusinessPlanController : BaseApiController
         };
 
         return Ok(planTypes);
+    }
+
+    /// <summary>
+    /// Update strategy map for a business plan (v1 compatibility endpoint)
+    /// Proxies to V2 strategy map service
+    /// </summary>
+    /// <param name="id">The business plan ID</param>
+    /// <param name="request">Strategy map update request</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    [HttpPost("{id}/strategy-map/update")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateStrategyMap(
+        Guid id,
+        [FromBody] SaveStrategyMapRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        _logger.LogInformation("Updating strategy map for plan {PlanId}", id);
+
+        var result = await _strategyMapService.SaveStrategyMapAsync(id, request, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Perform comprehensive plan audit (v1 compatibility endpoint)
+    /// Combines readiness score and audit summary
+    /// </summary>
+    /// <param name="id">The business plan ID</param>
+    /// <param name="language">Language code: fr (default) or en</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Combined audit response with readiness score and issues</returns>
+    [HttpPost("{id}/audit")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AuditPlan(
+        Guid id,
+        [FromQuery] string language = "fr",
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Performing comprehensive audit for plan {PlanId}", id);
+
+        // Get readiness score
+        var readinessResult = await _readinessScoreService.CalculateReadinessScoreAsync(id, cancellationToken);
+        if (!readinessResult.IsSuccess)
+        {
+            return HandleResult(readinessResult);
+        }
+
+        // Get audit summary
+        var auditResult = await _auditService.GetAuditSummaryAsync(id, language, cancellationToken);
+        if (!auditResult.IsSuccess)
+        {
+            return HandleResult(auditResult);
+        }
+
+        // Get business plan for financial metrics
+        var plan = await _context.BusinessPlans
+            .FirstOrDefaultAsync(bp => bp.Id == id && !bp.IsDeleted, cancellationToken);
+
+        var readiness = readinessResult.Value!;
+        var audit = auditResult.Value!;
+
+        // Combine into single response
+        var response = new PlanAuditResponse
+        {
+            ReadinessScore = readiness.OverallScore,
+            ReadinessComponents = new ReadinessComponents
+            {
+                ConsistencyScore = readiness.ConsistencyScore,
+                RiskMitigationScore = readiness.RiskMitigationScore,
+                CompletenessScore = readiness.CompletenessScore
+            },
+            PivotPointMonth = plan?.HealthMetrics?.PivotPointMonth,
+            RunwayMonths = plan?.HealthMetrics?.RunwayMonths,
+            Issues = audit.Sections.SelectMany(s => 
+            {
+                // Convert section summaries to issues format expected by frontend
+                var issues = new List<AuditIssue>();
+                if (s.IssueCount > 0)
+                {
+                    issues.Add(new AuditIssue
+                    {
+                        Category = "Strategic", // Default category
+                        Severity = s.Score < 50 ? "error" : s.Score < 70 ? "warning" : "info",
+                        Message = $"{s.SectionName} has {s.IssueCount} issue(s). Score: {s.Score}%",
+                        Nudge = $"What improvements can be made to {s.SectionName}?",
+                        Suggestions = new Suggestions
+                        {
+                            OptionA = $"Review and strengthen {s.SectionName}",
+                            OptionB = $"Add more detail to {s.SectionName}",
+                            OptionC = $"Get feedback on {s.SectionName}"
+                        }
+                    });
+                }
+                return issues;
+            }).Concat(audit.CriticalIssues.Select(issue => new AuditIssue
+            {
+                Category = "Strategic",
+                Severity = "error",
+                Message = issue,
+                Nudge = "How will you address this critical issue?",
+                Suggestions = new Suggestions
+                {
+                    OptionA = "Address immediately",
+                    OptionB = "Add to risk mitigation plan",
+                    OptionC = "Seek expert advice"
+                }
+            })).ToList()
+        };
+
+        return Ok(response);
     }
 }
 

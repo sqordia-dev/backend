@@ -11,6 +11,9 @@ using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Security;
 using Sqordia.Application.Services;
 using Sqordia.Application.Services.Implementations;
+using Sqordia.Application.Services.V2;
+using Sqordia.Application.Services.V2.Implementations;
+using Sqordia.Application.Financial.Services;
 using Sqordia.Infrastructure.Services;
 using Sqordia.Infrastructure.Identity;
 using Sqordia.Infrastructure.Localization;
@@ -157,62 +160,127 @@ public static class ConfigureServices
         // AI service - Required for business plan generation
         // Configure from both appsettings and environment variables
         // Priority: Environment variables > appsettings.json
+
+        // Helper method for checking placeholders
+        static bool IsPlaceholder(string? value) =>
+            !string.IsNullOrEmpty(value) && (
+                value.Contains("TODO", StringComparison.OrdinalIgnoreCase) ||
+                value.StartsWith("${", StringComparison.OrdinalIgnoreCase) ||
+                value.Contains("${", StringComparison.OrdinalIgnoreCase));
+
+        // Configure OpenAI
         services.Configure<OpenAISettings>(configuration.GetSection("AI:OpenAI"));
-        
-        // Post-configure to allow environment variables to override appsettings
-        // This runs AFTER the initial Configure, so env vars will override
         services.PostConfigure<OpenAISettings>(options =>
         {
-            // Try environment variables first (highest priority)
             var envApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
                           ?? Environment.GetEnvironmentVariable("OpenAI__ApiKey")
                           ?? Environment.GetEnvironmentVariable("AI__OpenAI__ApiKey");
-            
-            // Then try configuration (appsettings.json)
+
             var configApiKey = configuration["AI:OpenAI:ApiKey"]
                             ?? configuration["OpenAI:ApiKey"];
-            
-            // Use first non-empty value found
+
             var apiKey = envApiKey ?? configApiKey;
-            
-            // Check if the value is a placeholder (like ${VAR_NAME} or TODO)
-            // Skip placeholder values - they indicate the environment variable needs to be set
-            var isPlaceholder = !string.IsNullOrEmpty(apiKey) && (
-                apiKey.Contains("TODO", StringComparison.OrdinalIgnoreCase) ||
-                apiKey.StartsWith("${", StringComparison.OrdinalIgnoreCase) ||
-                apiKey.Contains("${", StringComparison.OrdinalIgnoreCase));
-            
-            // Only set the API key if it's not a placeholder
-            // If it's a placeholder, leave it empty so OpenAIService will log a proper warning
-            if (!string.IsNullOrEmpty(apiKey) && !isPlaceholder)
+
+            if (!string.IsNullOrEmpty(apiKey) && !IsPlaceholder(apiKey))
             {
                 options.ApiKey = apiKey;
             }
-            // If placeholder detected, don't set it - OpenAIService will handle the missing key gracefully
-            
-            // Same for model
+
             var envModel = Environment.GetEnvironmentVariable("OPENAI_MODEL")
                         ?? Environment.GetEnvironmentVariable("OpenAI__Model")
                         ?? Environment.GetEnvironmentVariable("AI__OpenAI__Model");
-            
+
             var configModel = configuration["AI:OpenAI:Model"]
                            ?? configuration["OpenAI:Model"];
-            
+
             var model = envModel ?? configModel;
-            
+
             if (!string.IsNullOrEmpty(model))
             {
                 options.Model = model;
             }
         });
-        
-        services.AddSingleton<IAIService, OpenAIService>();
+
+        // Configure Claude
+        services.Configure<ClaudeSettings>(configuration.GetSection("AI:Claude"));
+        services.PostConfigure<ClaudeSettings>(options =>
+        {
+            var envApiKey = Environment.GetEnvironmentVariable("CLAUDE_API_KEY")
+                          ?? Environment.GetEnvironmentVariable("AI__Claude__ApiKey");
+
+            var configApiKey = configuration["AI:Claude:ApiKey"];
+
+            var apiKey = envApiKey ?? configApiKey;
+
+            if (!string.IsNullOrEmpty(apiKey) && !IsPlaceholder(apiKey))
+            {
+                options.ApiKey = apiKey;
+            }
+
+            var envModel = Environment.GetEnvironmentVariable("CLAUDE_MODEL")
+                        ?? Environment.GetEnvironmentVariable("AI__Claude__Model");
+
+            var configModel = configuration["AI:Claude:Model"];
+
+            var model = envModel ?? configModel;
+
+            if (!string.IsNullOrEmpty(model))
+            {
+                options.Model = model;
+            }
+        });
+
+        // Configure Gemini
+        services.Configure<GeminiSettings>(configuration.GetSection("AI:Gemini"));
+        services.PostConfigure<GeminiSettings>(options =>
+        {
+            var envApiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY")
+                          ?? Environment.GetEnvironmentVariable("AI__Gemini__ApiKey");
+
+            var configApiKey = configuration["AI:Gemini:ApiKey"];
+
+            var apiKey = envApiKey ?? configApiKey;
+
+            if (!string.IsNullOrEmpty(apiKey) && !IsPlaceholder(apiKey))
+            {
+                options.ApiKey = apiKey;
+            }
+
+            var envModel = Environment.GetEnvironmentVariable("GEMINI_MODEL")
+                        ?? Environment.GetEnvironmentVariable("AI__Gemini__Model");
+
+            var configModel = configuration["AI:Gemini:Model"];
+
+            var model = envModel ?? configModel;
+
+            if (!string.IsNullOrEmpty(model))
+            {
+                options.Model = model;
+            }
+        });
+
+        // Register all AI provider implementations as singletons
+        services.AddSingleton<OpenAIService>();
+        services.AddSingleton<ClaudeService>();
+        services.AddSingleton<GeminiService>();
+
+        // Register AI provider factory
+        services.AddSingleton<IAIProviderFactory, AIProviderFactory>();
+
+        // Register the main IAIService as the fallback wrapper (replaces direct OpenAIService registration)
+        services.AddSingleton<IAIService, AIProviderWithFallback>();
 
         // Document export service - Required for PDF/Word export
         services.AddTransient<IDocumentExportService, DocumentExportService>();
 
         // Financial projection service - Required for financial calculations and projections
         services.AddTransient<IFinancialProjectionService, FinancialProjectionService>();
+        
+        // Financial service - Required for consultant financials and location overhead
+        services.AddTransient<IFinancialService, FinancialService>();
+
+        // Formula engine - Required for spreadsheet-like cell calculations
+        services.AddSingleton<Application.Financial.Services.IFormulaEngine, FormulaEngine>();
 
         // Admin dashboard service - Required for admin management and analytics
         services.AddTransient<IAdminDashboardService, AdminDashboardService>();
@@ -234,7 +302,16 @@ public static class ConfigureServices
         
         // Content management service - Required for admin CMS
         services.AddTransient<IContentManagementService, ContentManagementService>();
-        
+
+        // V2 Services - Growth Architect Intelligence Layer
+        services.AddTransient<IAuditService, AuditService>();
+        services.AddTransient<IReadinessScoreService, ReadinessScoreService>();
+        services.AddTransient<IQuestionPolishService, QuestionPolishService>();
+        services.AddTransient<IStrategyMapService, StrategyMapService>();
+        services.AddTransient<IQuestionnaireServiceV2, QuestionnaireServiceV2>();
+        services.AddTransient<IFinancialBenchmarkService, FinancialBenchmarkService>();
+        services.AddTransient<IVaultShareService, VaultShareService>();
+
         // Subscription service
         services.AddScoped<Sqordia.Application.Services.ISubscriptionService, SubscriptionService>();
         

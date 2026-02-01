@@ -1,0 +1,400 @@
+{
+  "benchmarks": [
+    {
+      "industryCode": "SAAS",
+      "industryName": "Software as a Service",
+      "industryNameFR": "Logiciel en tant que service",
+      "description": "Cloud-based software delivery model with subscription revenue",
+      "descriptionFR": "Modèle de livraison de logiciels infonuagiques avec revenus d'abonnement",
+      "dataSource": "Industry averages 2024",
+      "dataYear": 2024,
+      "metrics": [
+        {
+          "metricName": "Customer Acquisition Cost (CAC)",
+          "metricNameFR": "Coût d'acquisition client (CAC)",
+          "category": "Sales",
+          "low": 200,
+          "median": 500,
+          "high": 1200,
+          "unit": "CAD",
+          "description": "Average cost to acquire a new customer",
+          "descriptionFR": "Coût moyen pour acquérir un nouveau client"
+        },
+        {
+          "metricName": "Monthly Churn Rate",
+          "metricNameFR": "Taux de désabonnement mensuel",
+          "category": "Retention",
+          "low": 1,
+          "median": 3,
+          "high": 7,
+          "unit": "%",
+          "description": "Percentage of customers lost per month",
+          "descriptionFR": "Pourcentage de clients perdus par mois"
+        },
+        {
+          "metricName": "Gross Margin",
+          "metricNameFR": "Marge brute",
+          "category": "Profitability",
+          "low": 60,
+          "median": 75,
+          "high": 85,
+          "unit": "%",
+          "description": "Revenue minus cost of goods sold",
+          "descriptionFR": "Revenus moins coût des marchandises vendues"
+        },
+        {
+          "metricName": "LTV:CAC Ratio",
+          "metricNameFR": "Ratio VVC:CAC",
+          "category": "Unit Economics",
+          "low": 2,
+          "median": 3,
+          "high": 5,
+          "unit": "ratio",
+          "description": "Customer lifetime value to acquisition cost ratio",
+          "descriptionFR": "Ratio valeur vie client sur coût d'acquisition"
+        },
+        {
+          "metricName": "Net Revenue Retention",
+          "metricNameFR": "Rétention nette des revenus",
+          "category": "Growth",
+          "low": 90,
+          "median": 105,
+          "high": 130,
+          "unit": "%",
+          "description": "Revenue retention including expansions",
+          "descriptionFR": "Rétention des revenus incluant les expansions"
+        }
+      ]
+    },
+    {
+      "industryCode": "CONSULTING",
+      "industryName": "Business Consulting",
+      "industryNameFR": "Consultation d'affaires",
+      "description": "Professional services and advisory firms",
+      "descriptionFR": "Services professionnels et cabinets de conseil",
+      "dataSource": "Industry averages 2024",
+      "dataYear": 2024,
+      "metrics": [
+        {
+          "metricName": "Billable Utilization Rate",
+          "metricNameFR": "Taux d'utilisation facturable",
+          "category": "Operations",
+          "low": 55,
+          "median": 70,
+          "high": 85,
+          "unit": "%",
+          "description": "Percentage of time spent on billable work",
+          "descriptionFR": "Pourcentage du temps passé sur du travail facturable"
+        },
+        {
+          "metricName": "Average Hourly Rate",
+          "metricNameFR": "Taux horaire moyen",
+          "category": "Pricing",
+          "low": 100,
+          "median": 175,
+          "high": 350,
+          "unit": "CAD",
+          "description": "Average billing rate per hour",
+          "descriptionFR": "Taux de facturation moyen par heure"
+        },
+        {
+          "metricName": "Gross Margin",
+          "metricNameFR": "Marge brute",
+          "category": "Profitability",
+          "low": 35,
+          "median": 50,
+          "high": 65,
+          "unit": "%",
+          "description": "Revenue minus direct costs",
+          "descriptionFR": "Revenus moins coûts directs"
+        },
+        {
+          "metricName": "Client Retention Rate",
+          "metricNameFR": "Taux de fidélisation des clients",
+          "category": "Retention",
+          "low": 70,
+          "median": 85,
+          "high": 95,
+          "unit": "%",
+          "description": "Percentage of clients retained year-over-year",
+          "descriptionFR": "Pourcentage de clients conservés d'une année à l'autre"
+        },
+        {
+          "metricName": "Revenue per Employee",
+          "metricNameFR": "Revenu par employé",
+          "category": "Efficiency",
+          "low": 100000,
+          "median": 175000,
+          "high": 300000,
+          "unit": "CAD",
+          "description": "Annual revenue divided by number of employees",
+          "descriptionFR": "Revenu annuel divisé par le nombre d'employés"
+        }
+      ]
+    },
+    {
+      "industryCode": "RETAIL",
+      "industryName": "Retail Trade",
+      "industryNameFR": "Commerce de détail",
+      "description": "Businesses selling goods directly to consumers",
+      "descriptionFR": "Entreprises vendant des produits directement aux consommateurs",
+      "dataSource": "Industry averages 2024",
+      "dataYear": 2024,
+      "metrics": [
+        {
+          "metricName": "Gross Margin",
+          "metricNameFR": "Marge brute",
+          "category": "Profitability",
+          "low": 25,
+          "median": 40,
+          "high": 55,
+          "unit": "%",
+          "description": "Markup on cost of goods",
+          "descriptionFR": "Marge sur le coût des marchandises"
+        },
+        {
+          "metricName": "Inventory Turnover",
+          "metricNameFR": "Rotation des stocks",
+          "category": "Operations",
+          "low": 4,
+          "median": 8,
+          "high": 15,
+          "unit": "times/year",
+          "description": "How often inventory is sold and replaced",
+          "descriptionFR": "Fréquence de vente et remplacement des stocks"
+        },
+        {
+          "metricName": "Sales per Square Foot",
+          "metricNameFR": "Ventes par pied carré",
+          "category": "Efficiency",
+          "low": 200,
+          "median": 400,
+          "high": 800,
+          "unit": "CAD",
+          "description": "Annual sales divided by retail space",
+          "descriptionFR": "Ventes annuelles divisées par la superficie"
+        },
+        {
+          "metricName": "Customer Conversion Rate",
+          "metricNameFR": "Taux de conversion client",
+          "category": "Sales",
+          "low": 15,
+          "median": 25,
+          "high": 40,
+          "unit": "%",
+          "description": "Percentage of visitors who make a purchase",
+          "descriptionFR": "Pourcentage de visiteurs qui effectuent un achat"
+        },
+        {
+          "metricName": "Average Transaction Value",
+          "metricNameFR": "Valeur moyenne des transactions",
+          "category": "Sales",
+          "low": 30,
+          "median": 75,
+          "high": 200,
+          "unit": "CAD",
+          "description": "Average amount spent per transaction",
+          "descriptionFR": "Montant moyen dépensé par transaction"
+        }
+      ]
+    },
+    {
+      "industryCode": "RESTAURANT",
+      "industryName": "Food Service",
+      "industryNameFR": "Services alimentaires",
+      "description": "Restaurants, cafes, and food service establishments",
+      "descriptionFR": "Restaurants, cafés et établissements de restauration",
+      "dataSource": "Industry averages 2024",
+      "dataYear": 2024,
+      "metrics": [
+        {
+          "metricName": "Food Cost Percentage",
+          "metricNameFR": "Pourcentage du coût des aliments",
+          "category": "Operations",
+          "low": 25,
+          "median": 32,
+          "high": 40,
+          "unit": "%",
+          "description": "Food costs as percentage of revenue",
+          "descriptionFR": "Coûts alimentaires en pourcentage des revenus"
+        },
+        {
+          "metricName": "Labor Cost Percentage",
+          "metricNameFR": "Pourcentage des coûts de main-d'œuvre",
+          "category": "Operations",
+          "low": 25,
+          "median": 33,
+          "high": 40,
+          "unit": "%",
+          "description": "Labor costs as percentage of revenue",
+          "descriptionFR": "Coûts de main-d'œuvre en pourcentage des revenus"
+        },
+        {
+          "metricName": "Table Turnover Rate",
+          "metricNameFR": "Taux de rotation des tables",
+          "category": "Efficiency",
+          "low": 1.5,
+          "median": 2.5,
+          "high": 4,
+          "unit": "times/day",
+          "description": "Average number of seatings per table per day",
+          "descriptionFR": "Nombre moyen de services par table par jour"
+        },
+        {
+          "metricName": "Average Check Size",
+          "metricNameFR": "Addition moyenne",
+          "category": "Sales",
+          "low": 15,
+          "median": 35,
+          "high": 75,
+          "unit": "CAD",
+          "description": "Average amount spent per customer",
+          "descriptionFR": "Montant moyen dépensé par client"
+        },
+        {
+          "metricName": "Prime Cost Ratio",
+          "metricNameFR": "Ratio des coûts principaux",
+          "category": "Profitability",
+          "low": 55,
+          "median": 65,
+          "high": 75,
+          "unit": "%",
+          "description": "Food plus labor costs as percentage of sales",
+          "descriptionFR": "Coûts alimentaires et main-d'œuvre en % des ventes"
+        }
+      ]
+    },
+    {
+      "industryCode": "NONPROFIT",
+      "industryName": "Non-Profit Organizations",
+      "industryNameFR": "Organismes à but non lucratif",
+      "description": "OBNL and charitable organizations",
+      "descriptionFR": "OBNL et organismes de bienfaisance",
+      "dataSource": "Industry averages 2024",
+      "dataYear": 2024,
+      "metrics": [
+        {
+          "metricName": "Program Expense Ratio",
+          "metricNameFR": "Ratio des dépenses de programme",
+          "category": "Efficiency",
+          "low": 65,
+          "median": 80,
+          "high": 90,
+          "unit": "%",
+          "description": "Percentage of expenses on programs",
+          "descriptionFR": "Pourcentage des dépenses consacrées aux programmes"
+        },
+        {
+          "metricName": "Fundraising Efficiency",
+          "metricNameFR": "Efficacité de la collecte de fonds",
+          "category": "Fundraising",
+          "low": 15,
+          "median": 25,
+          "high": 35,
+          "unit": "%",
+          "description": "Cost to raise each dollar",
+          "descriptionFR": "Coût pour collecter chaque dollar"
+        },
+        {
+          "metricName": "Donor Retention Rate",
+          "metricNameFR": "Taux de fidélisation des donateurs",
+          "category": "Retention",
+          "low": 40,
+          "median": 55,
+          "high": 70,
+          "unit": "%",
+          "description": "Percentage of donors who give again",
+          "descriptionFR": "Pourcentage de donateurs qui donnent à nouveau"
+        },
+        {
+          "metricName": "Operating Reserve Ratio",
+          "metricNameFR": "Ratio de réserve de fonctionnement",
+          "category": "Financial Health",
+          "low": 3,
+          "median": 6,
+          "high": 12,
+          "unit": "months",
+          "description": "Months of operating expenses in reserve",
+          "descriptionFR": "Mois de dépenses d'exploitation en réserve"
+        },
+        {
+          "metricName": "Revenue Diversification",
+          "metricNameFR": "Diversification des revenus",
+          "category": "Sustainability",
+          "low": 2,
+          "median": 4,
+          "high": 7,
+          "unit": "sources",
+          "description": "Number of significant revenue sources",
+          "descriptionFR": "Nombre de sources de revenus significatives"
+        }
+      ]
+    },
+    {
+      "industryCode": "MANUFACTURING",
+      "industryName": "Manufacturing",
+      "industryNameFR": "Fabrication",
+      "description": "Companies that produce physical goods",
+      "descriptionFR": "Entreprises qui produisent des biens physiques",
+      "dataSource": "Industry averages 2024",
+      "dataYear": 2024,
+      "metrics": [
+        {
+          "metricName": "Gross Margin",
+          "metricNameFR": "Marge brute",
+          "category": "Profitability",
+          "low": 20,
+          "median": 35,
+          "high": 50,
+          "unit": "%",
+          "description": "Revenue minus cost of goods manufactured",
+          "descriptionFR": "Revenus moins coût de fabrication"
+        },
+        {
+          "metricName": "Inventory Days",
+          "metricNameFR": "Jours d'inventaire",
+          "category": "Operations",
+          "low": 30,
+          "median": 60,
+          "high": 120,
+          "unit": "days",
+          "description": "Average days inventory is held",
+          "descriptionFR": "Nombre moyen de jours de détention des stocks"
+        },
+        {
+          "metricName": "Capacity Utilization",
+          "metricNameFR": "Utilisation de la capacité",
+          "category": "Efficiency",
+          "low": 60,
+          "median": 75,
+          "high": 90,
+          "unit": "%",
+          "description": "Percentage of production capacity used",
+          "descriptionFR": "Pourcentage de la capacité de production utilisée"
+        },
+        {
+          "metricName": "Defect Rate",
+          "metricNameFR": "Taux de défauts",
+          "category": "Quality",
+          "low": 0.5,
+          "median": 2,
+          "high": 5,
+          "unit": "%",
+          "description": "Percentage of defective products",
+          "descriptionFR": "Pourcentage de produits défectueux"
+        },
+        {
+          "metricName": "Revenue per Employee",
+          "metricNameFR": "Revenu par employé",
+          "category": "Efficiency",
+          "low": 100000,
+          "median": 200000,
+          "high": 400000,
+          "unit": "CAD",
+          "description": "Annual revenue divided by employees",
+          "descriptionFR": "Revenu annuel divisé par le nombre d'employés"
+        }
+      ]
+    }
+  ]
+}

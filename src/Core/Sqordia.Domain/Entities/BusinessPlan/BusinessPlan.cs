@@ -1,5 +1,6 @@
 using Sqordia.Domain.Common;
 using Sqordia.Domain.Enums;
+using Sqordia.Domain.ValueObjects;
 
 namespace Sqordia.Domain.Entities.BusinessPlan;
 
@@ -56,9 +57,21 @@ public class BusinessPlan : BaseAuditableEntity
     public DateTime? FinalizedAt { get; private set; }
     public DateTime? ArchivedAt { get; private set; }
     public bool IsTemplate { get; private set; }
-    
+
+    // Growth Architect properties
+    public PersonaType? Persona { get; private set; }
+    public string? StrategyMapJson { get; private set; }
+    public decimal? ReadinessScore { get; private set; }
+    public FinancialHealthMetrics? HealthMetrics { get; private set; }
+
+    // Generation progress tracking
+    public string? CurrentGenerationSection { get; private set; }
+    public int GenerationProgress { get; private set; }
+
     // Navigation properties
     public Organization Organization { get; private set; } = null!;
+    public CoverPageSettings? CoverPageSettings { get; private set; }
+    public TableOfContentsSettings? TableOfContentsSettings { get; private set; }
     public ICollection<QuestionnaireResponse> QuestionnaireResponses { get; private set; } = new List<QuestionnaireResponse>();
     public ICollection<FinancialProjection> FinancialProjectionDetails { get; private set; } = new List<FinancialProjection>();
     public ICollection<BusinessPlanShare> Shares { get; private set; } = new List<BusinessPlanShare>();
@@ -192,7 +205,42 @@ public class BusinessPlan : BaseAuditableEntity
     public void UpdateBeneficiaryProfile(string? content) => BeneficiaryProfile = content;
     public void UpdateGrantStrategy(string? content) => GrantStrategy = content;
     public void UpdateSustainabilityPlan(string? content) => SustainabilityPlan = content;
-    
+
+    // Growth Architect methods
+    public void SetPersona(PersonaType persona)
+    {
+        Persona = persona;
+    }
+
+    public void UpdateStrategyMap(string? strategyMapJson)
+    {
+        StrategyMapJson = strategyMapJson;
+    }
+
+    public void UpdateReadinessScore(decimal score)
+    {
+        if (score < 0 || score > 100)
+            throw new ArgumentException("Readiness score must be between 0 and 100");
+        ReadinessScore = score;
+    }
+
+    public void UpdateHealthMetrics(FinancialHealthMetrics? metrics)
+    {
+        HealthMetrics = metrics;
+    }
+
+    public void UpdateGenerationProgress(string? currentSection, int progress)
+    {
+        CurrentGenerationSection = currentSection;
+        GenerationProgress = Math.Clamp(progress, 0, 100);
+    }
+
+    public void ClearGenerationProgress()
+    {
+        CurrentGenerationSection = null;
+        GenerationProgress = 0;
+    }
+
     public void IncrementVersion()
     {
         Version++;

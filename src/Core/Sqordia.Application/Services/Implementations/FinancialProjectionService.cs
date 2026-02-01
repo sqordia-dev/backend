@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Models;
+using Sqordia.Contracts.Responses.Financial;
 using Sqordia.Domain.Entities.BusinessPlan;
 using System.Text;
 
@@ -14,16 +15,47 @@ public class FinancialProjectionService : IFinancialProjectionService
 {
     private readonly IApplicationDbContext _context;
     private readonly ILogger<FinancialProjectionService> _logger;
+    private readonly ILocalizationService _localizationService;
 
     public FinancialProjectionService(
         IApplicationDbContext context,
-        ILogger<FinancialProjectionService> logger)
+        ILogger<FinancialProjectionService> logger,
+        ILocalizationService localizationService)
     {
         _context = context;
         _logger = logger;
+        _localizationService = localizationService;
     }
 
-    public async Task<Result<FinancialProjection>> CreateProjectionAsync(Guid businessPlanId, CreateFinancialProjectionRequest request, CancellationToken cancellationToken = default)
+    private static FinancialProjectionResponse MapToResponse(FinancialProjection entity) => new()
+    {
+        Id = entity.Id,
+        BusinessPlanId = entity.BusinessPlanId,
+        Year = entity.Year,
+        Month = entity.Month,
+        Quarter = entity.Quarter,
+        Revenue = entity.Revenue,
+        RevenueGrowthRate = entity.RevenueGrowthRate,
+        CostOfGoodsSold = entity.CostOfGoodsSold,
+        OperatingExpenses = entity.OperatingExpenses,
+        MarketingExpenses = entity.MarketingExpenses,
+        RAndDExpenses = entity.RAndDExpenses,
+        AdministrativeExpenses = entity.AdministrativeExpenses,
+        OtherExpenses = entity.OtherExpenses,
+        GrossProfit = entity.GrossProfit,
+        NetIncome = entity.NetIncome,
+        EBITDA = entity.EBITDA,
+        CashFlow = entity.CashFlow,
+        CashBalance = entity.CashBalance,
+        Employees = entity.Employees,
+        Customers = entity.Customers,
+        UnitsSold = entity.UnitsSold,
+        AverageRevenuePerCustomer = entity.AverageRevenuePerCustomer,
+        Notes = entity.Notes,
+        Assumptions = entity.Assumptions
+    };
+
+    public async Task<Result<FinancialProjectionResponse>> CreateProjectionAsync(Guid businessPlanId, CreateFinancialProjectionRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -35,7 +67,8 @@ public class FinancialProjectionService : IFinancialProjectionService
 
             if (businessPlan == null)
             {
-                return Result.Failure<FinancialProjection>("Business plan not found or access denied");
+                return Result.Failure<FinancialProjectionResponse>(
+                    Error.NotFound("FinancialProjection.BusinessPlanNotFound", _localizationService.GetString("FinancialProjection.BusinessPlanNotFound")));
             }
 
             // Check for duplicate projection
@@ -47,7 +80,8 @@ public class FinancialProjectionService : IFinancialProjectionService
 
             if (existingProjection != null)
             {
-                return Result.Failure<FinancialProjection>("A financial projection already exists for this period");
+                return Result.Failure<FinancialProjectionResponse>(
+                    Error.Conflict("FinancialProjection.DuplicatePeriod", _localizationService.GetString("FinancialProjection.DuplicatePeriod")));
             }
 
             // Create new projection
@@ -83,16 +117,17 @@ public class FinancialProjectionService : IFinancialProjectionService
             await _context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Financial projection created with ID {ProjectionId}", projection.Id);
-            return Result.Success(projection);
+            return Result.Success(MapToResponse(projection));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating financial projection for business plan {BusinessPlanId}", businessPlanId);
-            return Result.Failure<FinancialProjection>($"Failed to create financial projection: {ex.Message}");
+            return Result.Failure<FinancialProjectionResponse>(
+                    Error.InternalServerError("FinancialProjection.CreateFailed", _localizationService.GetString("FinancialProjection.CreateFailed")));
         }
     }
 
-    public async Task<Result<FinancialProjection>> UpdateProjectionAsync(Guid projectionId, UpdateFinancialProjectionRequest request, CancellationToken cancellationToken = default)
+    public async Task<Result<FinancialProjectionResponse>> UpdateProjectionAsync(Guid projectionId, UpdateFinancialProjectionRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -103,7 +138,8 @@ public class FinancialProjectionService : IFinancialProjectionService
 
             if (projection == null)
             {
-                return Result.Failure<FinancialProjection>("Financial projection not found");
+                return Result.Failure<FinancialProjectionResponse>(
+                    Error.NotFound("FinancialProjection.NotFound", _localizationService.GetString("FinancialProjection.NotFound")));
             }
 
             // Update financial data
@@ -135,16 +171,17 @@ public class FinancialProjectionService : IFinancialProjectionService
             await _context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Financial projection {ProjectionId} updated successfully", projectionId);
-            return Result.Success(projection);
+            return Result.Success(MapToResponse(projection));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating financial projection {ProjectionId}", projectionId);
-            return Result.Failure<FinancialProjection>($"Failed to update financial projection: {ex.Message}");
+            return Result.Failure<FinancialProjectionResponse>(
+                    Error.InternalServerError("FinancialProjection.UpdateFailed", _localizationService.GetString("FinancialProjection.UpdateFailed")));
         }
     }
 
-    public async Task<Result<List<FinancialProjection>>> GetProjectionsAsync(Guid businessPlanId, int? year = null, CancellationToken cancellationToken = default)
+    public async Task<Result<List<FinancialProjectionResponse>>> GetProjectionsAsync(Guid businessPlanId, int? year = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -162,12 +199,13 @@ public class FinancialProjectionService : IFinancialProjectionService
                 .ThenBy(fp => fp.Month)
                 .ToListAsync(cancellationToken);
 
-            return Result.Success(projections);
+            return Result.Success(projections.Select(MapToResponse).ToList());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving financial projections for business plan {BusinessPlanId}", businessPlanId);
-            return Result.Failure<List<FinancialProjection>>($"Failed to retrieve projections: {ex.Message}");
+            return Result.Failure<List<FinancialProjectionResponse>>(
+                    Error.InternalServerError("FinancialProjection.RetrieveFailed", _localizationService.GetString("FinancialProjection.RetrieveFailed")));
         }
     }
 
@@ -180,7 +218,8 @@ public class FinancialProjectionService : IFinancialProjectionService
 
             if (projection == null)
             {
-                return Result.Failure("Financial projection not found");
+                return Result.Failure(
+                    Error.NotFound("FinancialProjection.NotFound", _localizationService.GetString("FinancialProjection.NotFound")));
             }
 
             _context.BusinessPlanFinancialProjections.Remove(projection);
@@ -192,11 +231,12 @@ public class FinancialProjectionService : IFinancialProjectionService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting financial projection {ProjectionId}", projectionId);
-            return Result.Failure($"Failed to delete financial projection: {ex.Message}");
+            return Result.Failure(
+                    Error.InternalServerError("FinancialProjection.DeleteFailed", _localizationService.GetString("FinancialProjection.DeleteFailed")));
         }
     }
 
-    public async Task<Result<List<FinancialProjection>>> GenerateProjectionScenarioAsync(Guid businessPlanId, GenerateProjectionScenarioRequest request, CancellationToken cancellationToken = default)
+    public async Task<Result<List<FinancialProjectionResponse>>> GenerateProjectionScenarioAsync(Guid businessPlanId, GenerateProjectionScenarioRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -209,7 +249,8 @@ public class FinancialProjectionService : IFinancialProjectionService
 
             if (businessPlan == null)
             {
-                return Result.Failure<List<FinancialProjection>>("Business plan not found or access denied");
+                return Result.Failure<List<FinancialProjectionResponse>>(
+                    Error.NotFound("FinancialProjection.BusinessPlanNotFound", _localizationService.GetString("FinancialProjection.BusinessPlanNotFound")));
             }
 
             var projections = new List<FinancialProjection>();
@@ -227,7 +268,8 @@ public class FinancialProjectionService : IFinancialProjectionService
                     projections = GenerateMonthlyProjections(businessPlanId, request);
                     break;
                 default:
-                    return Result.Failure<List<FinancialProjection>>("Invalid frequency. Must be 'yearly', 'quarterly', or 'monthly'");
+                    return Result.Failure<List<FinancialProjectionResponse>>(
+                        Error.Validation("FinancialProjection.InvalidFrequency", _localizationService.GetString("FinancialProjection.InvalidFrequency")));
             }
 
             // Save all projections
@@ -237,12 +279,13 @@ public class FinancialProjectionService : IFinancialProjectionService
             _logger.LogInformation("Generated {Count} financial projections for scenario '{ScenarioName}'",
                 projections.Count, request.ScenarioName);
 
-            return Result.Success(projections);
+            return Result.Success(projections.Select(MapToResponse).ToList());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating financial projection scenario for business plan {BusinessPlanId}", businessPlanId);
-            return Result.Failure<List<FinancialProjection>>($"Failed to generate projection scenario: {ex.Message}");
+            return Result.Failure<List<FinancialProjectionResponse>>(
+                    Error.InternalServerError("FinancialProjection.ScenarioFailed", _localizationService.GetString("FinancialProjection.ScenarioFailed")));
         }
     }
 
@@ -258,7 +301,8 @@ public class FinancialProjectionService : IFinancialProjectionService
 
             if (!projections.Any())
             {
-                return Result.Failure<FinancialMetrics>("No financial projections found for this business plan");
+                return Result.Failure<FinancialMetrics>(
+                    Error.NotFound("FinancialProjection.NoProjectionsFound", _localizationService.GetString("FinancialProjection.NoProjectionsFound")));
             }
 
             var metrics = CalculateFinancialMetrics(businessPlanId, projections);
@@ -267,7 +311,8 @@ public class FinancialProjectionService : IFinancialProjectionService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error calculating financial metrics for business plan {BusinessPlanId}", businessPlanId);
-            return Result.Failure<FinancialMetrics>($"Failed to calculate financial metrics: {ex.Message}");
+            return Result.Failure<FinancialMetrics>(
+                    Error.InternalServerError("FinancialProjection.MetricsFailed", _localizationService.GetString("FinancialProjection.MetricsFailed")));
         }
     }
 
@@ -283,7 +328,8 @@ public class FinancialProjectionService : IFinancialProjectionService
 
             if (!projections.Any())
             {
-                return Result.Failure<FinancialExportResult>("No financial projections found for export");
+                return Result.Failure<FinancialExportResult>(
+                    Error.NotFound("FinancialProjection.NoProjectionsForExport", _localizationService.GetString("FinancialProjection.NoProjectionsForExport")));
             }
 
             var exportResult = format.ToLower() switch
@@ -299,14 +345,13 @@ public class FinancialProjectionService : IFinancialProjectionService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error exporting financial projections for business plan {BusinessPlanId}", businessPlanId);
-            return Result.Failure<FinancialExportResult>($"Failed to export financial projections: {ex.Message}");
+            return Result.Failure<FinancialExportResult>(
+                    Error.InternalServerError("FinancialProjection.ExportFailed", _localizationService.GetString("FinancialProjection.ExportFailed")));
         }
     }
 
-    public async Task<Result<List<FinancialProjectionTemplate>>> GetAvailableTemplatesAsync()
+    public Task<Result<List<FinancialProjectionTemplate>>> GetAvailableTemplatesAsync()
     {
-        await Task.CompletedTask; // For future database-stored templates
-
         var templates = new List<FinancialProjectionTemplate>
         {
             new()
@@ -375,23 +420,25 @@ public class FinancialProjectionService : IFinancialProjectionService
             }
         };
 
-        return Result.Success(templates);
+        return Task.FromResult(Result.Success(templates));
     }
 
-    public async Task<Result<List<FinancialProjection>>> ApplyTemplateAsync(Guid businessPlanId, string templateId, Dictionary<string, object> parameters, CancellationToken cancellationToken = default)
+    public async Task<Result<List<FinancialProjectionResponse>>> ApplyTemplateAsync(Guid businessPlanId, string templateId, Dictionary<string, object> parameters, CancellationToken cancellationToken = default)
     {
         try
         {
             var templatesResult = await GetAvailableTemplatesAsync();
             if (!templatesResult.IsSuccess)
             {
-                return Result.Failure<List<FinancialProjection>>("Failed to load templates");
+                return Result.Failure<List<FinancialProjectionResponse>>(
+                    Error.InternalServerError("FinancialProjection.TemplateLoadFailed", _localizationService.GetString("FinancialProjection.TemplateLoadFailed")));
             }
 
             var template = templatesResult.Value!.FirstOrDefault(t => t.Id == templateId);
             if (template == null)
             {
-                return Result.Failure<List<FinancialProjection>>("Template not found");
+                return Result.Failure<List<FinancialProjectionResponse>>(
+                    Error.NotFound("FinancialProjection.TemplateNotFound", _localizationService.GetString("FinancialProjection.TemplateNotFound")));
             }
 
             // Validate required parameters
@@ -399,7 +446,8 @@ public class FinancialProjectionService : IFinancialProjectionService
             {
                 if (!parameters.ContainsKey(requiredParam))
                 {
-                    return Result.Failure<List<FinancialProjection>>($"Missing required parameter: {requiredParam}");
+                    return Result.Failure<List<FinancialProjectionResponse>>(
+                        Error.Validation("FinancialProjection.MissingParameter", _localizationService.GetString("FinancialProjection.MissingParameter", requiredParam)));
                 }
             }
 
@@ -413,18 +461,26 @@ public class FinancialProjectionService : IFinancialProjectionService
             _logger.LogInformation("Applied template '{TemplateId}' to business plan {BusinessPlanId}, generated {Count} projections",
                 templateId, businessPlanId, projections.Count);
 
-            return Result.Success(projections);
+            return Result.Success(projections.Select(MapToResponse).ToList());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error applying template {TemplateId} to business plan {BusinessPlanId}", templateId, businessPlanId);
-            return Result.Failure<List<FinancialProjection>>($"Failed to apply template: {ex.Message}");
+            return Result.Failure<List<FinancialProjectionResponse>>(
+                    Error.InternalServerError("FinancialProjection.TemplateFailed", _localizationService.GetString("FinancialProjection.TemplateFailed")));
         }
     }
 
-    public async Task<Result<FinancialValidationResult>> ValidateProjectionAsync(FinancialProjection projection)
+    public async Task<Result<FinancialValidationResult>> ValidateProjectionAsync(Guid projectionId, CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask; // Synchronous validation
+        var projection = await _context.BusinessPlanFinancialProjections
+            .FirstOrDefaultAsync(fp => fp.Id == projectionId, cancellationToken);
+
+        if (projection == null)
+        {
+            return Result.Failure<FinancialValidationResult>(
+                Error.NotFound("FinancialProjection.NotFound", _localizationService.GetString("FinancialProjection.NotFound")));
+        }
 
         var result = new FinancialValidationResult { IsValid = true };
 

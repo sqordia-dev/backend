@@ -4,9 +4,9 @@ using Sqordia.Persistence.Contexts;
 
 namespace WebAPI.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class DatabaseTestController : ControllerBase
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/database-test")]
+public class DatabaseTestController : BaseApiController
 {
     private readonly ApplicationDbContext _context;
 
@@ -16,13 +16,13 @@ public class DatabaseTestController : ControllerBase
     }
 
     [HttpGet("connection")]
-    public async Task<IActionResult> TestConnection()
+    public async Task<IActionResult> TestConnection(CancellationToken cancellationToken = default)
     {
         try
         {
             var connectionString = _context.Database.GetConnectionString();
-            var canConnect = await _context.Database.CanConnectAsync();
-            
+            var canConnect = await _context.Database.CanConnectAsync(cancellationToken);
+
             return Ok(new
             {
                 ConnectionString = connectionString,
@@ -49,13 +49,13 @@ public class DatabaseTestController : ControllerBase
     }
 
     [HttpGet("simple")]
-    public async Task<IActionResult> SimpleTest()
+    public async Task<IActionResult> SimpleTest(CancellationToken cancellationToken = default)
     {
         try
         {
             var connectionString = _context.Database.GetConnectionString();
-            var canConnect = await _context.Database.CanConnectAsync();
-            
+            var canConnect = await _context.Database.CanConnectAsync(cancellationToken);
+
             return Ok(new
             {
                 Success = true,

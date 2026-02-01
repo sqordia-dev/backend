@@ -26,7 +26,7 @@ public class SectionImprovementRequest
     /// </summary>
     [Required]
     [StringLength(2, MinimumLength = 2)]
-    public string Language { get; set; } = "fr";
+    public required string Language { get; set; }
     
     /// <summary>
     /// Business plan type context (BusinessPlan, StrategicPlan, LeanCanvas)

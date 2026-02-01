@@ -69,6 +69,20 @@ public class BusinessPlanService : IBusinessPlanService
                 return Result.Failure<BusinessPlanResponse>(Error.Forbidden("Organization.Error.Forbidden", _localizationService.GetString("Organization.Error.Forbidden")));
             }
 
+            // Get user to access their persona (if not provided in request)
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == currentUserId.Value, cancellationToken);
+
+            // Determine persona - use request persona if provided, otherwise use user's profile persona
+            PersonaType? personaType = null;
+            if (!string.IsNullOrEmpty(request.Persona) && Enum.TryParse<PersonaType>(request.Persona, true, out var requestPersona))
+            {
+                personaType = requestPersona;
+            }
+            else if (user?.Persona != null)
+            {
+                personaType = user.Persona;
+            }
+
             // Parse business plan type
             if (!Enum.TryParse<BusinessPlanType>(request.PlanType, out var planType))
             {
@@ -84,6 +98,12 @@ public class BusinessPlanService : IBusinessPlanService
 
             businessPlan.CreatedBy = currentUserId.Value.ToString();
 
+            // Set persona on the business plan
+            if (personaType.HasValue)
+            {
+                businessPlan.SetPersona(personaType.Value);
+            }
+
             _context.BusinessPlans.Add(businessPlan);
             await _context.SaveChangesAsync(cancellationToken);
 
@@ -98,6 +118,7 @@ public class BusinessPlanService : IBusinessPlanService
                 Description = businessPlan.Description,
                 PlanType = businessPlan.PlanType.ToString(),
                 Status = businessPlan.Status.ToString(),
+                Persona = businessPlan.Persona?.ToString(),
                 OrganizationId = businessPlan.OrganizationId,
                 OrganizationName = organization.Name,
                 Version = businessPlan.Version,
@@ -112,6 +133,8 @@ public class BusinessPlanService : IBusinessPlanService
                 LastModified = businessPlan.LastModified,
                 CreatedBy = businessPlan.CreatedBy ?? string.Empty
             };
+
+            _logger.LogInformation("Business plan {PlanId} created with persona {Persona}", businessPlan.Id, businessPlan.Persona);
 
             return Result.Success(response);
         }
@@ -159,6 +182,7 @@ public class BusinessPlanService : IBusinessPlanService
                 Description = businessPlan.Description,
                 PlanType = businessPlan.PlanType.ToString(),
                 Status = businessPlan.Status.ToString(),
+                Persona = businessPlan.Persona?.ToString(),
                 OrganizationId = businessPlan.OrganizationId,
                 OrganizationName = businessPlan.Organization.Name,
                 Version = businessPlan.Version,
@@ -217,6 +241,7 @@ public class BusinessPlanService : IBusinessPlanService
                 Description = bp.Description,
                 PlanType = bp.PlanType.ToString(),
                 Status = bp.Status.ToString(),
+                Persona = bp.Persona?.ToString(),
                 OrganizationId = bp.OrganizationId,
                 OrganizationName = bp.Organization.Name,
                 Version = bp.Version,
@@ -302,6 +327,7 @@ public class BusinessPlanService : IBusinessPlanService
                 Description = businessPlan.Description,
                 PlanType = businessPlan.PlanType.ToString(),
                 Status = businessPlan.Status.ToString(),
+                Persona = businessPlan.Persona?.ToString(),
                 OrganizationId = businessPlan.OrganizationId,
                 OrganizationName = businessPlan.Organization.Name,
                 Version = businessPlan.Version,
@@ -426,6 +452,7 @@ public class BusinessPlanService : IBusinessPlanService
                 Description = businessPlan.Description,
                 PlanType = businessPlan.PlanType.ToString(),
                 Status = businessPlan.Status.ToString(),
+                Persona = businessPlan.Persona?.ToString(),
                 OrganizationId = businessPlan.OrganizationId,
                 OrganizationName = businessPlan.Organization.Name,
                 Version = businessPlan.Version,
@@ -497,6 +524,7 @@ public class BusinessPlanService : IBusinessPlanService
                 Description = businessPlan.Description,
                 PlanType = businessPlan.PlanType.ToString(),
                 Status = businessPlan.Status.ToString(),
+                Persona = businessPlan.Persona?.ToString(),
                 OrganizationId = businessPlan.OrganizationId,
                 OrganizationName = businessPlan.Organization.Name,
                 Version = businessPlan.Version,
@@ -556,6 +584,7 @@ public class BusinessPlanService : IBusinessPlanService
                 Description = bp.Description,
                 PlanType = bp.PlanType.ToString(),
                 Status = bp.Status.ToString(),
+                Persona = bp.Persona?.ToString(),
                 OrganizationId = bp.OrganizationId,
                 OrganizationName = bp.Organization.Name,
                 Version = bp.Version,
@@ -635,16 +664,34 @@ public class BusinessPlanService : IBusinessPlanService
             // The duplicated plan will have Status = Draft by default
 
             _context.BusinessPlans.Add(duplicatedPlan);
-            await _context.SaveChangesAsync(cancellationToken);
 
             // Copy questionnaire responses
             foreach (var originalResponse in originalPlan.QuestionnaireResponses)
             {
-                var newResponse = new Domain.Entities.BusinessPlan.QuestionnaireResponse(
-                    duplicatedPlan.Id,
-                    originalResponse.QuestionTemplateId,
-                    originalResponse.ResponseText);
-                
+                Domain.Entities.BusinessPlan.QuestionnaireResponse newResponse;
+
+                if (originalResponse.QuestionTemplateV2Id.HasValue)
+                {
+                    // V2 question
+                    newResponse = Domain.Entities.BusinessPlan.QuestionnaireResponse.CreateForV2(
+                        duplicatedPlan.Id,
+                        originalResponse.QuestionTemplateV2Id.Value,
+                        originalResponse.ResponseText);
+                }
+                else if (originalResponse.QuestionTemplateId.HasValue)
+                {
+                    // V1 question
+                    newResponse = new Domain.Entities.BusinessPlan.QuestionnaireResponse(
+                        duplicatedPlan.Id,
+                        originalResponse.QuestionTemplateId.Value,
+                        originalResponse.ResponseText);
+                }
+                else
+                {
+                    // Skip responses without a valid question ID
+                    continue;
+                }
+
                 newResponse.SetNumericValue(originalResponse.NumericValue);
                 newResponse.SetBooleanValue(originalResponse.BooleanValue);
                 newResponse.SetDateValue(originalResponse.DateValue);
@@ -706,6 +753,7 @@ public class BusinessPlanService : IBusinessPlanService
                 Description = duplicatedPlanWithOrg.Description,
                 PlanType = duplicatedPlanWithOrg.PlanType.ToString(),
                 Status = duplicatedPlanWithOrg.Status.ToString(),
+                Persona = duplicatedPlanWithOrg.Persona?.ToString(),
                 OrganizationId = duplicatedPlanWithOrg.OrganizationId,
                 OrganizationName = duplicatedPlanWithOrg.Organization.Name,
                 Version = duplicatedPlanWithOrg.Version,

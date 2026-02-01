@@ -1,6 +1,7 @@
 using Sqordia.Application.Common.Models;
 using Sqordia.Application.Financial.Commands;
 using Sqordia.Application.Financial.Queries;
+using Sqordia.Contracts.Requests.Financial;
 using Sqordia.Domain.Enums;
 
 namespace Sqordia.Application.Financial.Services;
@@ -47,4 +48,9 @@ public interface IFinancialService
     Task<Result<List<ScenarioAnalysisDto>>> PerformScenarioAnalysisAsync(Guid businessPlanId);
     Task<Result<SensitivityAnalysisDto>> PerformSensitivityAnalysisAsync(Guid businessPlanId, string variable);
     Task<Result<BreakEvenAnalysisDto>> CalculateBreakEvenAsync(Guid businessPlanId);
+
+    // Consultant Financial Calculations
+    Task<Result<ConsultantFinancialProjectionDto>> CalculateConsultantFinancialsAsync(CalculateConsultantFinancialsRequest request);
+    Task<Result<LocationOverheadEstimateDto>> GetLocationOverheadEstimateAsync(string city, string province);
+    Task<Result<object>> UpdateFinancialCellAsync(Guid planId, UpdateFinancialCellRequest request);
 }

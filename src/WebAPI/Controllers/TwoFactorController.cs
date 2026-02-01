@@ -22,7 +22,7 @@ public class TwoFactorController : BaseApiController
     /// <returns>2FA setup information including QR code</returns>
     [HttpPost("setup")]
     [Authorize]
-    public async Task<IActionResult> Setup()
+    public async Task<IActionResult> Setup(CancellationToken cancellationToken = default)
     {
         var result = await _twoFactorService.SetupTwoFactorAsync();
         return HandleResult(result);
@@ -35,7 +35,7 @@ public class TwoFactorController : BaseApiController
     /// <returns>Backup codes</returns>
     [HttpPost("enable")]
     [Authorize]
-    public async Task<IActionResult> Enable([FromBody] EnableTwoFactorRequest request)
+    public async Task<IActionResult> Enable([FromBody] EnableTwoFactorRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _twoFactorService.EnableTwoFactorAsync(request);
         return HandleResult(result);
@@ -47,7 +47,7 @@ public class TwoFactorController : BaseApiController
     /// <returns>Success or failure</returns>
     [HttpPost("disable")]
     [Authorize]
-    public async Task<IActionResult> Disable()
+    public async Task<IActionResult> Disable(CancellationToken cancellationToken = default)
     {
         var result = await _twoFactorService.DisableTwoFactorAsync();
         return HandleResult(result);
@@ -59,7 +59,7 @@ public class TwoFactorController : BaseApiController
     /// <returns>2FA status</returns>
     [HttpGet("status")]
     [Authorize]
-    public async Task<IActionResult> GetStatus()
+    public async Task<IActionResult> GetStatus(CancellationToken cancellationToken = default)
     {
         var result = await _twoFactorService.GetTwoFactorStatusAsync();
         return HandleResult(result);
@@ -71,7 +71,7 @@ public class TwoFactorController : BaseApiController
     /// <returns>New backup codes</returns>
     [HttpPost("backup-codes/regenerate")]
     [Authorize]
-    public async Task<IActionResult> RegenerateBackupCodes()
+    public async Task<IActionResult> RegenerateBackupCodes(CancellationToken cancellationToken = default)
     {
         var result = await _twoFactorService.RegenerateBackupCodesAsync();
         return HandleResult(result);
@@ -84,10 +84,9 @@ public class TwoFactorController : BaseApiController
     /// <returns>Success or failure</returns>
     [HttpPost("verify")]
     [Authorize]
-    public async Task<IActionResult> Verify([FromBody] VerifyTwoFactorRequest request)
+    public async Task<IActionResult> Verify([FromBody] VerifyTwoFactorRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _twoFactorService.VerifyTwoFactorCodeAsync(request);
         return HandleResult(result);
     }
 }
-

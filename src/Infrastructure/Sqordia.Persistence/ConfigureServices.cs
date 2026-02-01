@@ -42,6 +42,9 @@ public static class ConfigureServices
         // Register generic repository
         services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 
+        // Register Prompt Repository
+        services.AddScoped<IPromptRepository, PromptRepository>();
+
         return services;
     }
 

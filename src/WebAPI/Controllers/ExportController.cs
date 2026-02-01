@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sqordia.Application.Services;
+using Sqordia.Contracts.Requests.Export;
 
 namespace WebAPI.Controllers;
 
@@ -104,6 +105,7 @@ public class ExportController : BaseApiController
     /// <response code="401">Unauthorized - authentication required</response>
     /// <response code="404">Business plan not found</response>
     [HttpGet("word")]
+    [HttpGet("docx")] // Alias for compatibility
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -231,7 +233,7 @@ public class ExportController : BaseApiController
     [HttpGet("templates")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetAvailableTemplates()
+    public async Task<IActionResult> GetAvailableTemplates(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Retrieving available export templates");
 
@@ -349,5 +351,254 @@ public class ExportController : BaseApiController
             supportedLanguages = new[] { "fr", "en" },
             lastChecked = DateTime.UtcNow
         });
+    }
+
+    /// <summary>
+    /// Export a business plan to PDF format with visual elements (charts, tables, metrics)
+    /// </summary>
+    /// <param name="businessPlanId">The business plan ID to export</param>
+    /// <param name="request">Export request with visual element options</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>PDF file download with embedded visual elements</returns>
+    /// <remarks>
+    /// This enhanced export endpoint supports visual elements including:
+    /// - Tables (financial, SWOT, comparison, etc.)
+    /// - Charts (line, bar, pie, donut, area, stacked-bar)
+    /// - Metric cards with values and trends
+    /// - Infographics (process-flow, icon-list, timeline)
+    ///
+    /// The request body can include:
+    /// - Custom cover page settings
+    /// - Section-level visual elements
+    /// - Table of contents toggle
+    /// - Visual rendering options
+    ///
+    /// Sample request:
+    ///     POST /api/v1/business-plans/3fa85f64-5717-4562-b3fc-2c963f66afa6/export/pdf-with-visuals
+    ///     {
+    ///         "format": "pdf",
+    ///         "language": "en",
+    ///         "includeVisuals": true,
+    ///         "includeTableOfContents": true,
+    ///         "coverPageSettings": {
+    ///             "companyName": "Acme Corp",
+    ///             "documentTitle": "Business Plan 2025",
+    ///             "primaryColor": "#2563EB"
+    ///         }
+    ///     }
+    /// </remarks>
+    /// <response code="200">PDF file with visual elements successfully generated</response>
+    /// <response code="400">Invalid request or business plan not ready for export</response>
+    /// <response code="401">Unauthorized - authentication required</response>
+    /// <response code="404">Business plan not found</response>
+    [HttpPost("pdf-with-visuals")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportToPdfWithVisuals(
+        Guid businessPlanId,
+        [FromBody] ExportWithVisualsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("PDF export with visuals request for business plan {BusinessPlanId} in {Language}",
+            businessPlanId, request.Language);
+
+        // Validate language parameter
+        if (request.Language != "fr" && request.Language != "en")
+        {
+            return BadRequest(new { error = "Language must be either 'fr' or 'en'" });
+        }
+
+        var result = await _exportService.ExportToPdfWithVisualsAsync(businessPlanId, request, cancellationToken);
+
+        if (!result.IsSuccess)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        var exportResult = result.Value!;
+
+        return File(
+            exportResult.FileData,
+            exportResult.ContentType,
+            exportResult.FileName);
+    }
+
+    /// <summary>
+    /// Export a business plan to Word (DOCX) format with visual elements
+    /// </summary>
+    /// <param name="businessPlanId">The business plan ID to export</param>
+    /// <param name="request">Export request with visual element options</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Word document file download with embedded visual elements</returns>
+    /// <remarks>
+    /// This enhanced export endpoint creates a Word document with visual elements including
+    /// formatted tables, metric summaries, and infographic representations.
+    /// Charts are rendered as placeholders with data summaries (interactive chart rendering
+    /// requires specialized Word add-ins).
+    ///
+    /// The Word document includes:
+    /// - Professional cover page with branding
+    /// - Table of contents
+    /// - Sections with prose content and visual elements
+    /// - Properly formatted tables with alternating row colors
+    /// - Metric cards displayed as styled tables
+    /// </remarks>
+    /// <response code="200">Word document with visual elements successfully generated</response>
+    /// <response code="400">Invalid request or business plan not ready for export</response>
+    /// <response code="401">Unauthorized - authentication required</response>
+    /// <response code="404">Business plan not found</response>
+    [HttpPost("word-with-visuals")]
+    [HttpPost("docx-with-visuals")] // Alias for compatibility
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportToWordWithVisuals(
+        Guid businessPlanId,
+        [FromBody] ExportWithVisualsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Word export with visuals request for business plan {BusinessPlanId} in {Language}",
+            businessPlanId, request.Language);
+
+        // Validate language parameter
+        if (request.Language != "fr" && request.Language != "en")
+        {
+            return BadRequest(new { error = "Language must be either 'fr' or 'en'" });
+        }
+
+        var result = await _exportService.ExportToWordWithVisualsAsync(businessPlanId, request, cancellationToken);
+
+        if (!result.IsSuccess)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        var exportResult = result.Value!;
+
+        return File(
+            exportResult.FileData,
+            exportResult.ContentType,
+            exportResult.FileName);
+    }
+
+    /// <summary>
+    /// Export a business plan to HTML format with visual elements for preview
+    /// </summary>
+    /// <param name="businessPlanId">The business plan ID to export</param>
+    /// <param name="request">Export request with visual element options</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>HTML content with embedded visual elements</returns>
+    /// <remarks>
+    /// This endpoint generates an HTML preview with visual elements that can be displayed
+    /// in a web browser. The HTML includes embedded CSS for styling and is optimized for
+    /// print output.
+    ///
+    /// Visual elements are rendered as:
+    /// - Tables: Full HTML tables with proper styling
+    /// - Charts: Placeholder divs (JavaScript charting library needed for interactivity)
+    /// - Metrics: Styled card components
+    /// - Infographics: Numbered step lists
+    /// </remarks>
+    /// <response code="200">HTML content with visual elements successfully generated</response>
+    /// <response code="400">Invalid request or business plan not ready for export</response>
+    /// <response code="401">Unauthorized - authentication required</response>
+    /// <response code="404">Business plan not found</response>
+    [HttpPost("html-with-visuals")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportToHtmlWithVisuals(
+        Guid businessPlanId,
+        [FromBody] ExportWithVisualsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("HTML export with visuals request for business plan {BusinessPlanId} in {Language}",
+            businessPlanId, request.Language);
+
+        // Validate language parameter
+        if (request.Language != "fr" && request.Language != "en")
+        {
+            return BadRequest(new { error = "Language must be either 'fr' or 'en'" });
+        }
+
+        var result = await _exportService.ExportToHtmlWithVisualsAsync(businessPlanId, request, cancellationToken);
+
+        if (!result.IsSuccess)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        var htmlContent = result.Value!;
+
+        return Ok(new
+        {
+            html = htmlContent,
+            language = request.Language,
+            businessPlanId = businessPlanId,
+            includesVisuals = request.IncludeVisuals,
+            generatedAt = DateTime.UtcNow
+        });
+    }
+
+    /// <summary>
+    /// Get detailed export preview information including visual element counts
+    /// </summary>
+    /// <param name="businessPlanId">The business plan ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Detailed export preview information with section and visual element details</returns>
+    /// <remarks>
+    /// This endpoint provides detailed information about the business plan's export readiness,
+    /// including:
+    /// - Section completion status and word counts
+    /// - Visual element counts by type
+    /// - Estimated page count for PDF
+    /// - Available export formats and languages
+    ///
+    /// Sample response:
+    /// {
+    ///     "businessPlanId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    ///     "isReadyForExport": true,
+    ///     "completedSections": 8,
+    ///     "totalSections": 10,
+    ///     "completionPercentage": 80.0,
+    ///     "totalVisualElements": 12,
+    ///     "estimatedPdfPages": 25,
+    ///     "sections": [
+    ///         {
+    ///             "sectionKey": "ExecutiveSummary",
+    ///             "title": "Executive Summary",
+    ///             "hasContent": true,
+    ///             "wordCount": 450,
+    ///             "visualElementCount": 2,
+    ///             "visualElementTypes": ["table", "metric"]
+    ///         }
+    ///     ]
+    /// }
+    /// </remarks>
+    /// <response code="200">Export preview information retrieved successfully</response>
+    /// <response code="401">Unauthorized - authentication required</response>
+    /// <response code="404">Business plan not found</response>
+    [HttpGet("preview")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetExportPreview(
+        Guid businessPlanId,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Getting export preview for business plan {BusinessPlanId}", businessPlanId);
+
+        var result = await _exportService.GetExportPreviewAsync(businessPlanId, cancellationToken);
+
+        if (!result.IsSuccess)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        return Ok(result.Value);
     }
 }

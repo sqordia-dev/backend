@@ -7,6 +7,7 @@ using Sqordia.Application.Common.Models;
 using Sqordia.Contracts.Requests.BusinessPlan;
 using Sqordia.Contracts.Responses.BusinessPlan;
 using Sqordia.Domain.Entities.BusinessPlan;
+using Sqordia.Domain.Enums;
 using System.Security.Claims;
 
 namespace Sqordia.Application.Services.Implementations;
@@ -78,15 +79,29 @@ public class QuestionnaireService : IQuestionnaireService
                 .OrderByDescending(qt => qt.Version)
                 .FirstOrDefaultAsync(cancellationToken);
 
+            // Fallback: if no template for StrategicPlan (or LeanCanvas), use BusinessPlan template until dedicated templates exist
+            if (template == null && businessPlan.PlanType != BusinessPlanType.BusinessPlan)
+            {
+                _logger.LogWarning(
+                    "No questionnaire template found for plan type {PlanType}. Using BusinessPlan template as fallback for business plan {BusinessPlanId}.",
+                    businessPlan.PlanType,
+                    businessPlanId);
+                template = await _context.QuestionnaireTemplates
+                    .Include(qt => qt.Questions)
+                    .Where(qt => qt.PlanType == BusinessPlanType.BusinessPlan && qt.IsActive)
+                    .OrderByDescending(qt => qt.Version)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
             if (template == null)
             {
                 return Result.Failure<IEnumerable<QuestionnaireQuestionResponse>>(Error.NotFound("Questionnaire.NotFound", $"No questionnaire template found for plan type {businessPlan.PlanType}."));
             }
 
-            // Get existing responses
+            // Get existing responses - use effective question ID (V1 or V2)
             var responses = await _context.QuestionnaireResponses
                 .Where(qr => qr.BusinessPlanId == businessPlanId)
-                .ToDictionaryAsync(qr => qr.QuestionTemplateId, cancellationToken);
+                .ToDictionaryAsync(qr => qr.QuestionTemplateId ?? qr.QuestionTemplateV2Id ?? Guid.Empty, cancellationToken);
 
             // Detect current language
             var currentLanguage = _localizationService.GetCurrentLanguage();
@@ -199,19 +214,28 @@ public class QuestionnaireService : IQuestionnaireService
                 return Result.Failure<QuestionnaireQuestionResponse>(Error.Forbidden("BusinessPlan.Forbidden", "You don't have access to this business plan."));
             }
 
-            // Get question template
+            // Get question template - check both V1 and V2 tables
             var questionTemplate = await _context.QuestionTemplates
                 .FirstOrDefaultAsync(qt => qt.Id == request.QuestionTemplateId, cancellationToken);
 
-            if (questionTemplate == null)
+            var questionTemplateV2 = questionTemplate == null
+                ? await _context.QuestionTemplatesV2
+                    .FirstOrDefaultAsync(qt => qt.Id == request.QuestionTemplateId, cancellationToken)
+                : null;
+
+            if (questionTemplate == null && questionTemplateV2 == null)
             {
                 return Result.Failure<QuestionnaireQuestionResponse>(Error.NotFound("Question.NotFound", "Question not found."));
             }
 
-            // Check if response already exists
-            var existingResponse = await _context.QuestionnaireResponses
-                .FirstOrDefaultAsync(qr => qr.BusinessPlanId == businessPlanId && 
-                                          qr.QuestionTemplateId == request.QuestionTemplateId, cancellationToken);
+            // Check if response already exists - check both V1 and V2 IDs
+            var existingResponse = questionTemplate != null
+                ? await _context.QuestionnaireResponses
+                    .FirstOrDefaultAsync(qr => qr.BusinessPlanId == businessPlanId &&
+                                              qr.QuestionTemplateId == request.QuestionTemplateId, cancellationToken)
+                : await _context.QuestionnaireResponses
+                    .FirstOrDefaultAsync(qr => qr.BusinessPlanId == businessPlanId &&
+                                              qr.QuestionTemplateV2Id == request.QuestionTemplateId, cancellationToken);
 
             if (existingResponse != null)
             {
@@ -220,7 +244,7 @@ public class QuestionnaireService : IQuestionnaireService
                 existingResponse.SetNumericValue(request.NumericValue);
                 existingResponse.SetDateValue(request.DateValue);
                 existingResponse.SetBooleanValue(request.BooleanValue);
-                
+
                 if (request.SelectedOptions != null && request.SelectedOptions.Any())
                 {
                     existingResponse.SetSelectedOptions(JsonConvert.SerializeObject(request.SelectedOptions));
@@ -230,12 +254,23 @@ public class QuestionnaireService : IQuestionnaireService
             }
             else
             {
-                // Create new response
-                var newResponse = new QuestionnaireResponse(businessPlanId, request.QuestionTemplateId, request.ResponseText);
+                // Create new response - use appropriate FK based on template version
+                QuestionnaireResponse newResponse;
+                if (questionTemplate != null)
+                {
+                    // V1 template
+                    newResponse = new QuestionnaireResponse(businessPlanId, request.QuestionTemplateId, request.ResponseText);
+                }
+                else
+                {
+                    // V2 template
+                    newResponse = QuestionnaireResponse.CreateForV2(businessPlanId, request.QuestionTemplateId, request.ResponseText);
+                }
+
                 newResponse.SetNumericValue(request.NumericValue);
                 newResponse.SetDateValue(request.DateValue);
                 newResponse.SetBooleanValue(request.BooleanValue);
-                
+
                 if (request.SelectedOptions != null && request.SelectedOptions.Any())
                 {
                     newResponse.SetSelectedOptions(JsonConvert.SerializeObject(request.SelectedOptions));
@@ -246,6 +281,13 @@ public class QuestionnaireService : IQuestionnaireService
                 existingResponse = newResponse;
             }
 
+            // Validate that at least one response field is populated
+            if (!existingResponse.HasResponse())
+            {
+                return Result.Failure<QuestionnaireQuestionResponse>(
+                    Error.Validation("Questionnaire.EmptyResponse", "At least one response field must be populated."));
+            }
+
             await _context.SaveChangesAsync(cancellationToken);
 
             // Update completion percentage
@@ -254,13 +296,14 @@ public class QuestionnaireService : IQuestionnaireService
             _logger.LogInformation("Response submitted for question {QuestionId} in business plan {PlanId} by user {UserId}",
                 request.QuestionTemplateId, businessPlanId, currentUserId.Value);
 
-            // Parse options and selected options
+            // Parse options and selected options - handle both V1 and V2 templates
             List<string>? options = null;
-            if (!string.IsNullOrWhiteSpace(questionTemplate.Options))
+            string? optionsJson = questionTemplate?.Options ?? questionTemplateV2?.Options;
+            if (!string.IsNullOrWhiteSpace(optionsJson))
             {
                 try
                 {
-                    options = JsonConvert.DeserializeObject<List<string>>(questionTemplate.Options);
+                    options = JsonConvert.DeserializeObject<List<string>>(optionsJson);
                 }
                 catch { }
             }
@@ -275,15 +318,16 @@ public class QuestionnaireService : IQuestionnaireService
                 catch { }
             }
 
+            // Build response using V1 or V2 template data
             var response = new QuestionnaireQuestionResponse
             {
-                Id = questionTemplate.Id,
-                QuestionText = questionTemplate.QuestionText,
-                HelpText = questionTemplate.HelpText,
-                QuestionType = questionTemplate.QuestionType.ToString(),
-                Order = questionTemplate.Order,
-                IsRequired = questionTemplate.IsRequired,
-                Section = questionTemplate.Section,
+                Id = questionTemplate?.Id ?? questionTemplateV2!.Id,
+                QuestionText = questionTemplate?.QuestionText ?? questionTemplateV2!.QuestionText,
+                HelpText = questionTemplate?.HelpText ?? questionTemplateV2?.HelpText,
+                QuestionType = questionTemplate?.QuestionType.ToString() ?? questionTemplateV2!.QuestionType.ToString(),
+                Order = questionTemplate?.Order ?? questionTemplateV2!.Order,
+                IsRequired = questionTemplate?.IsRequired ?? questionTemplateV2!.IsRequired,
+                Section = questionTemplate?.Section ?? questionTemplateV2?.Section,
                 Options = options,
                 UserResponse = existingResponse.ResponseText,
                 NumericValue = existingResponse.NumericValue,
@@ -331,26 +375,34 @@ public class QuestionnaireService : IQuestionnaireService
                 return Result.Failure<IEnumerable<QuestionnaireQuestionResponse>>(Error.Forbidden("BusinessPlan.Forbidden", "You don't have access to this business plan."));
             }
 
-            // Get responses with question templates
+            // Get responses (without Include to support both V1 and V2 templates)
             var responses = await _context.QuestionnaireResponses
-                .Include(qr => qr.QuestionTemplate)
                 .Where(qr => qr.BusinessPlanId == businessPlanId)
-                .OrderBy(qr => qr.QuestionTemplate.Order)
                 .ToListAsync(cancellationToken);
+
+            if (!responses.Any())
+            {
+                return Result.Success(Enumerable.Empty<QuestionnaireQuestionResponse>());
+            }
+
+            // Get question template IDs
+            var questionIds = responses.Select(r => r.QuestionTemplateId).Distinct().ToList();
+
+            // Load templates from both V1 and V2 tables
+            var v1Templates = await _context.QuestionTemplates
+                .Where(qt => questionIds.Contains(qt.Id))
+                .ToDictionaryAsync(qt => qt.Id, cancellationToken);
+
+            var v2Templates = await _context.QuestionTemplatesV2
+                .Where(qt => questionIds.Contains(qt.Id))
+                .ToDictionaryAsync(qt => qt.Id, cancellationToken);
+
+            // Detect current language
+            var currentLanguage = _localizationService.GetCurrentLanguage();
+            var isEnglish = currentLanguage.Equals("en", StringComparison.OrdinalIgnoreCase);
 
             var result = responses.Select(r =>
             {
-                // Parse options
-                List<string>? options = null;
-                if (!string.IsNullOrWhiteSpace(r.QuestionTemplate.Options))
-                {
-                    try
-                    {
-                        options = JsonConvert.DeserializeObject<List<string>>(r.QuestionTemplate.Options);
-                    }
-                    catch { }
-                }
-
                 // Parse selected options
                 List<string>? selectedOptions = null;
                 if (!string.IsNullOrWhiteSpace(r.SelectedOptions))
@@ -362,25 +414,88 @@ public class QuestionnaireService : IQuestionnaireService
                     catch { }
                 }
 
+                // Try V1 template first
+                if (r.QuestionTemplateId.HasValue && v1Templates.TryGetValue(r.QuestionTemplateId.Value, out var v1Template))
+                {
+                    List<string>? options = null;
+                    if (!string.IsNullOrWhiteSpace(v1Template.Options))
+                    {
+                        try { options = JsonConvert.DeserializeObject<List<string>>(v1Template.Options); } catch { }
+                    }
+
+                    return new QuestionnaireQuestionResponse
+                    {
+                        Id = v1Template.Id,
+                        QuestionText = v1Template.QuestionText,
+                        HelpText = v1Template.HelpText,
+                        QuestionType = v1Template.QuestionType.ToString(),
+                        Order = v1Template.Order,
+                        IsRequired = v1Template.IsRequired,
+                        Section = v1Template.Section,
+                        Options = options,
+                        UserResponse = r.ResponseText,
+                        NumericValue = r.NumericValue,
+                        DateValue = r.DateValue,
+                        BooleanValue = r.BooleanValue,
+                        SelectedOptions = selectedOptions
+                    };
+                }
+
+                // Try V2 template
+                var v2TemplateId = r.QuestionTemplateV2Id ?? r.QuestionTemplateId;
+                if (v2TemplateId.HasValue && v2Templates.TryGetValue(v2TemplateId.Value, out var v2Template))
+                {
+                    var questionText = isEnglish && !string.IsNullOrWhiteSpace(v2Template.QuestionTextEN)
+                        ? v2Template.QuestionTextEN
+                        : v2Template.QuestionText;
+                    var helpText = isEnglish && !string.IsNullOrWhiteSpace(v2Template.HelpTextEN)
+                        ? v2Template.HelpTextEN
+                        : v2Template.HelpText;
+
+                    List<string>? options = null;
+                    var optionsJson = isEnglish && !string.IsNullOrWhiteSpace(v2Template.OptionsEN)
+                        ? v2Template.OptionsEN
+                        : v2Template.Options;
+                    if (optionsJson != null)
+                    {
+                        try { options = JsonConvert.DeserializeObject<List<string>>(optionsJson); } catch { }
+                    }
+
+                    return new QuestionnaireQuestionResponse
+                    {
+                        Id = v2Template.Id,
+                        QuestionText = questionText,
+                        HelpText = helpText,
+                        QuestionType = v2Template.QuestionType.ToString(),
+                        Order = v2Template.Order,
+                        IsRequired = v2Template.IsRequired,
+                        Section = v2Template.Section,
+                        Options = options,
+                        UserResponse = r.ResponseText,
+                        NumericValue = r.NumericValue,
+                        DateValue = r.DateValue,
+                        BooleanValue = r.BooleanValue,
+                        SelectedOptions = selectedOptions
+                    };
+                }
+
+                // Fallback - return response with just the ID if template not found
                 return new QuestionnaireQuestionResponse
                 {
-                    Id = r.QuestionTemplate.Id,
-                    QuestionText = r.QuestionTemplate.QuestionText,
-                    HelpText = r.QuestionTemplate.HelpText,
-                    QuestionType = r.QuestionTemplate.QuestionType.ToString(),
-                    Order = r.QuestionTemplate.Order,
-                    IsRequired = r.QuestionTemplate.IsRequired,
-                    Section = r.QuestionTemplate.Section,
-                    Options = options,
+                    Id = r.QuestionTemplateId ?? r.QuestionTemplateV2Id ?? Guid.Empty,
+                    QuestionText = "",
+                    QuestionType = "LongText",
+                    Order = 0,
+                    IsRequired = false,
                     UserResponse = r.ResponseText,
                     NumericValue = r.NumericValue,
                     DateValue = r.DateValue,
                     BooleanValue = r.BooleanValue,
                     SelectedOptions = selectedOptions
                 };
-            });
+            }).OrderBy(r => r.Order);
 
-            return Result.Success(result);
+            return Result.Success<IEnumerable<QuestionnaireQuestionResponse>>(result);
         }
         catch (Exception ex)
         {
@@ -410,12 +525,21 @@ public class QuestionnaireService : IQuestionnaireService
 
         if (businessPlan == null) return;
 
-        // Get total questions for this plan type
+        // Get total questions for this plan type (with fallback to BusinessPlan template for StrategicPlan/LeanCanvas)
         var template = await _context.QuestionnaireTemplates
             .Include(qt => qt.Questions)
             .Where(qt => qt.PlanType == businessPlan.PlanType && qt.IsActive)
             .OrderByDescending(qt => qt.Version)
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (template == null && businessPlan.PlanType != BusinessPlanType.BusinessPlan)
+        {
+            template = await _context.QuestionnaireTemplates
+                .Include(qt => qt.Questions)
+                .Where(qt => qt.PlanType == BusinessPlanType.BusinessPlan && qt.IsActive)
+                .OrderByDescending(qt => qt.Version)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
 
         if (template == null) return;
 
@@ -429,7 +553,9 @@ public class QuestionnaireService : IQuestionnaireService
 
         // Check if all required questions are answered
         var answeredRequiredQuestions = await _context.QuestionnaireResponses
-            .Where(qr => qr.BusinessPlanId == businessPlanId && requiredQuestions.Contains(qr.QuestionTemplateId))
+            .Where(qr => qr.BusinessPlanId == businessPlanId &&
+                         qr.QuestionTemplateId.HasValue &&
+                         requiredQuestions.Contains(qr.QuestionTemplateId.Value))
             .CountAsync(cancellationToken);
 
         businessPlan.UpdateQuestionnaire(totalQuestions, completedResponses);

@@ -1,11 +1,15 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Services;
+using Sqordia.Application.Services.V2;
 using Sqordia.Contracts.Requests.BusinessPlan;
 using Sqordia.Contracts.Requests.Questionnaire;
+using Sqordia.Contracts.Requests.V2.Questionnaire;
 using Sqordia.Contracts.Responses.Questionnaire;
+using Sqordia.Domain.Enums;
 
 namespace WebAPI.Controllers;
 
@@ -15,16 +19,25 @@ namespace WebAPI.Controllers;
 public class QuestionnaireController : BaseApiController
 {
     private readonly IQuestionnaireService _questionnaireService;
+    private readonly IQuestionnaireServiceV2 _questionnaireServiceV2;
+    private readonly IQuestionPolishService _polishService;
     private readonly IAIService _aiService;
+    private readonly IApplicationDbContext _context;
     private readonly ILogger<QuestionnaireController> _logger;
 
     public QuestionnaireController(
-        IQuestionnaireService questionnaireService, 
+        IQuestionnaireService questionnaireService,
+        IQuestionnaireServiceV2 questionnaireServiceV2,
+        IQuestionPolishService polishService,
         IAIService aiService,
+        IApplicationDbContext context,
         ILogger<QuestionnaireController> logger)
     {
         _questionnaireService = questionnaireService;
+        _questionnaireServiceV2 = questionnaireServiceV2;
+        _polishService = polishService;
         _aiService = aiService;
+        _context = context;
         _logger = logger;
     }
 
@@ -286,60 +299,172 @@ public class QuestionnaireController : BaseApiController
     {
         try
         {
-            // Get the business plan to access progress information
-            var businessPlanResult = await _questionnaireService.GetQuestionnaireAsync(businessPlanId, cancellationToken);
-            if (!businessPlanResult.IsSuccess)
+            // Get the business plan with progress information
+            var businessPlan = await _context.BusinessPlans
+                .FirstOrDefaultAsync(bp => bp.Id == businessPlanId && !bp.IsDeleted, cancellationToken);
+
+            if (businessPlan == null)
             {
-                return HandleResult(businessPlanResult);
+                return NotFound(new { error = "Business plan not found" });
             }
 
-            // For now, we'll create a mock response based on the business plan data
-            // In a real implementation, this would come from the database
+            // Get questionnaire questions to identify unanswered ones
+            var questionnaireResult = await _questionnaireService.GetQuestionnaireAsync(businessPlanId, cancellationToken);
+            if (!questionnaireResult.IsSuccess)
+            {
+                return HandleResult(questionnaireResult);
+            }
+
+            var questions = questionnaireResult.Value.ToList();
+            var totalQuestions = questions.Count;
+            var answeredQuestions = questions.Where(q => !string.IsNullOrWhiteSpace(q.UserResponse)).ToList();
+            var completedQuestions = answeredQuestions.Count;
+            var remainingQuestions = totalQuestions - completedQuestions;
+            var completionPercentage = totalQuestions > 0
+                ? Math.Round((decimal)completedQuestions / totalQuestions * 100, 1)
+                : 0;
+
+            // Get unanswered question IDs
+            var unansweredQuestionIds = questions
+                .Where(q => string.IsNullOrWhiteSpace(q.UserResponse))
+                .Select(q => q.Id.ToString())
+                .ToList();
+
+            // Get recent answers (last 5 with responses, ordered by question order for consistency)
+            var recentAnswers = answeredQuestions
+                .OrderByDescending(q => q.Order)
+                .Take(5)
+                .Select(q => new RecentAnswerDto
+                {
+                    QuestionId = q.Id.ToString(),
+                    QuestionText = q.QuestionText ?? "",
+                    AnsweredAt = DateTime.UtcNow, // Response timestamp not tracked in DTO
+                    Answer = q.UserResponse?.Length > 100
+                        ? q.UserResponse.Substring(0, 100) + "..."
+                        : q.UserResponse ?? "",
+                    IsAISuggested = false // AI suggestion flag not tracked in DTO
+                })
+                .ToList();
+
+            // Calculate milestones
+            var milestonesAchieved = new List<string>();
+            if (completionPercentage >= 25) milestonesAchieved.Add("25% Complete");
+            if (completionPercentage >= 50) milestonesAchieved.Add("50% Complete");
+            if (completionPercentage >= 75) milestonesAchieved.Add("75% Complete");
+            if (completionPercentage >= 100) milestonesAchieved.Add("100% Complete");
+
+            string? nextMilestone = null;
+            int questionsToNextMilestone = 0;
+            if (completionPercentage < 25)
+            {
+                nextMilestone = "25% Complete";
+                questionsToNextMilestone = (int)Math.Ceiling(totalQuestions * 0.25) - completedQuestions;
+            }
+            else if (completionPercentage < 50)
+            {
+                nextMilestone = "50% Complete";
+                questionsToNextMilestone = (int)Math.Ceiling(totalQuestions * 0.50) - completedQuestions;
+            }
+            else if (completionPercentage < 75)
+            {
+                nextMilestone = "75% Complete";
+                questionsToNextMilestone = (int)Math.Ceiling(totalQuestions * 0.75) - completedQuestions;
+            }
+            else if (completionPercentage < 100)
+            {
+                nextMilestone = "100% Complete";
+                questionsToNextMilestone = remainingQuestions;
+            }
+
+            // Determine status
+            var status = completionPercentage switch
+            {
+                0 => "Not Started",
+                100 => "Completed",
+                _ => "In Progress"
+            };
+
             var progress = new QuestionnaireProgressDto
             {
                 BusinessPlanId = businessPlanId,
-                BusinessPlanTitle = "Sample Business Plan", // This would come from the business plan
-                TotalQuestions = 20,
-                CompletedQuestions = 12,
-                RemainingQuestions = 8,
-                CompletionPercentage = 60.0m,
-                Status = "In Progress",
-                IsComplete = false,
-                StartedAt = DateTime.UtcNow.AddHours(-2),
-                CompletedAt = null,
-                EstimatedTimeRemaining = 25,
-                AverageTimePerQuestion = 3.5m,
-                UnansweredQuestionIds = new List<string> { "q13", "q14", "q15", "q16", "q17", "q18", "q19", "q20" },
-                RecentAnswers = new List<RecentAnswerDto>
-                {
-                    new RecentAnswerDto
-                    {
-                        QuestionId = "q12",
-                        QuestionText = "What is your competitive advantage?",
-                        AnsweredAt = DateTime.UtcNow.AddMinutes(-30),
-                        Answer = "Our proprietary technology and experienced team...",
-                        IsAISuggested = false
-                    },
-                    new RecentAnswerDto
-                    {
-                        QuestionId = "q11",
-                        QuestionText = "What is your target market?",
-                        AnsweredAt = DateTime.UtcNow.AddMinutes(-45),
-                        Answer = "Small to medium-sized businesses in the technology sector...",
-                        IsAISuggested = true
-                    }
-                },
-                MilestonesAchieved = new List<string> { "25% Complete", "50% Complete" },
-                NextMilestone = "75% Complete",
-                QuestionsToNextMilestone = 3
+                BusinessPlanTitle = businessPlan.Title ?? "Untitled Business Plan",
+                TotalQuestions = totalQuestions,
+                CompletedQuestions = completedQuestions,
+                RemainingQuestions = remainingQuestions,
+                CompletionPercentage = completionPercentage,
+                Status = status,
+                IsComplete = completionPercentage >= 100,
+                StartedAt = businessPlan.Created,
+                CompletedAt = completionPercentage >= 100 ? businessPlan.LastModified : null,
+                EstimatedTimeRemaining = remainingQuestions * 3, // ~3 minutes per question
+                AverageTimePerQuestion = 3.0m,
+                UnansweredQuestionIds = unansweredQuestionIds,
+                RecentAnswers = recentAnswers,
+                MilestonesAchieved = milestonesAchieved,
+                NextMilestone = nextMilestone,
+                QuestionsToNextMilestone = Math.Max(0, questionsToNextMilestone)
             };
 
             return Ok(progress);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to get questionnaire progress for business plan {BusinessPlanId}", businessPlanId);
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Get questionnaire templates for a specific persona (V1 compatibility endpoint)
+    /// </summary>
+    /// <param name="persona">Persona type: Entrepreneur, Consultant, or OBNL</param>
+    /// <param name="language">Language code: fr (default) or en</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    [HttpGet("/api/v{version:apiVersion}/questionnaire/templates/{persona}")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetTemplatesByPersona(
+        string persona,
+        [FromQuery] string language = "fr",
+        CancellationToken cancellationToken = default)
+    {
+        if (!Enum.TryParse<PersonaType>(persona, true, out var personaType))
+        {
+            _logger.LogWarning("Invalid persona type: {Persona}", persona);
+            return BadRequest(new { error = $"Invalid persona type: {persona}. Valid values: Entrepreneur, Consultant, OBNL" });
+        }
+
+        _logger.LogInformation("Getting V1 questionnaire templates for persona {Persona} in language {Language}", persona, language);
+
+        var result = await _questionnaireServiceV2.GetQuestionsByPersonaAsync(personaType, language, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Polish/enhance text using AI (V1 compatibility endpoint)
+    /// Transforms raw notes into professional, BDC-standard prose
+    /// </summary>
+    /// <param name="request">Text polishing request</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    [HttpPost("/api/v{version:apiVersion}/questionnaire/polish-text")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> PolishText(
+        [FromBody] PolishTextRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+        {
+            _logger.LogWarning("Invalid polish text request: {Errors}", ModelState);
+            return BadRequest(ModelState);
+        }
+
+        _logger.LogInformation("Polishing text via V1 endpoint with {Length} characters", request.Text.Length);
+
+        var result = await _polishService.PolishTextAsync(request, cancellationToken);
+        return HandleResult(result);
     }
 }
 

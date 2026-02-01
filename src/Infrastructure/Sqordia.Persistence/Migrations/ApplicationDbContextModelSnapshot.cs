@@ -150,6 +150,10 @@ namespace Sqordia.Persistence.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("CurrentGenerationSection")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -181,6 +185,9 @@ namespace Sqordia.Persistence.Migrations
                     b.Property<string>("GenerationModel")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<int>("GenerationProgress")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("GenerationStartedAt")
                         .HasColumnType("timestamp with time zone");
@@ -218,6 +225,10 @@ namespace Sqordia.Persistence.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Persona")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("PlanType")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -228,6 +239,10 @@ namespace Sqordia.Persistence.Migrations
 
                     b.Property<DateTime?>("QuestionnaireCompletedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("ReadinessScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
 
                     b.Property<string>("RiskAnalysis")
                         .HasColumnType("text");
@@ -242,6 +257,9 @@ namespace Sqordia.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("StrategyMapJson")
+                        .HasColumnType("jsonb");
 
                     b.Property<string>("SustainabilityPlan")
                         .HasColumnType("text");
@@ -264,11 +282,19 @@ namespace Sqordia.Persistence.Migrations
 
                     b.HasIndex("CreatedBy");
 
+                    b.HasIndex("IsTemplate");
+
                     b.HasIndex("OrganizationId");
+
+                    b.HasIndex("Persona");
 
                     b.HasIndex("PlanType");
 
+                    b.HasIndex("ReadinessScore");
+
                     b.HasIndex("Status");
+
+                    b.HasIndex("OrganizationId", "Persona");
 
                     b.HasIndex("OrganizationId", "Status");
 
@@ -283,6 +309,11 @@ namespace Sqordia.Persistence.Migrations
 
                     b.Property<int>("AccessCount")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("AllowDownload")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<Guid>("BusinessPlanId")
                         .HasColumnType("uuid");
@@ -299,6 +330,11 @@ namespace Sqordia.Persistence.Migrations
                     b.Property<string>("DeletedBy")
                         .HasColumnType("text");
 
+                    b.Property<bool>("EnableWatermark")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTime?>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -311,6 +347,11 @@ namespace Sqordia.Persistence.Migrations
                     b.Property<bool>("IsPublic")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsVaultShare")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTime?>("LastAccessedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -319,6 +360,13 @@ namespace Sqordia.Persistence.Migrations
 
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
+
+                    b.Property<int?>("MaxViews")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PasswordHash")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<string>("Permission")
                         .IsRequired()
@@ -329,12 +377,26 @@ namespace Sqordia.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<bool>("RequireEmailVerification")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("SharedWithEmail")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
                     b.Property<Guid?>("SharedWithUserId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("TrackViews")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("WatermarkText")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.HasKey("Id");
 
@@ -480,6 +542,117 @@ namespace Sqordia.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("BusinessPlanVersions", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.CoverPageSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AddressLine1")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("AddressLine2")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("BusinessPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ContactEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ContactPhone")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("ContactTitle")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Country")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DocumentTitle")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LayoutStyle")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("PreparedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PrimaryColor")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<string>("StateProvince")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("StyleSettingsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Website")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessPlanId")
+                        .IsUnique();
+
+                    b.ToTable("CoverPageSettings", (string)null);
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.FinancialProjection", b =>
@@ -713,6 +886,106 @@ namespace Sqordia.Persistence.Migrations
                     b.ToTable("QuestionTemplates", (string)null);
                 });
 
+            modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplateV2", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConditionalLogic")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("HelpText")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("HelpTextEN")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Options")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("OptionsEN")
+                        .HasColumnType("jsonb");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PersonaType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("QuestionText")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("QuestionTextEN")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("QuestionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Section")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("StepNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ValidationRules")
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("PersonaType");
+
+                    b.HasIndex("StepNumber");
+
+                    b.HasIndex("StepNumber", "Order");
+
+                    b.HasIndex("PersonaType", "StepNumber", "Order");
+
+                    b.ToTable("QuestionTemplatesV2", (string)null);
+                });
+
             modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionnaireResponse", b =>
                 {
                     b.Property<Guid>("Id")
@@ -756,7 +1029,10 @@ namespace Sqordia.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<Guid>("QuestionTemplateId")
+                    b.Property<Guid?>("QuestionTemplateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("QuestionTemplateV2Id")
                         .HasColumnType("uuid");
 
                     b.Property<string>("ResponseText")
@@ -772,8 +1048,15 @@ namespace Sqordia.Persistence.Migrations
 
                     b.HasIndex("QuestionTemplateId");
 
+                    b.HasIndex("QuestionTemplateV2Id");
+
                     b.HasIndex("BusinessPlanId", "QuestionTemplateId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"QuestionTemplateId\" IS NOT NULL");
+
+                    b.HasIndex("BusinessPlanId", "QuestionTemplateV2Id")
+                        .IsUnique()
+                        .HasFilter("\"QuestionTemplateV2Id\" IS NOT NULL");
 
                     b.ToTable("QuestionnaireResponses", (string)null);
                 });
@@ -935,6 +1218,69 @@ namespace Sqordia.Persistence.Migrations
                     b.HasIndex("BusinessPlanId", "Category");
 
                     b.ToTable("SmartObjectives", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.TableOfContentsSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BusinessPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("ShowCategoryHeaders")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("ShowIcons")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("ShowPageNumbers")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Style")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("classic");
+
+                    b.Property<string>("StyleSettingsJson")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessPlanId")
+                        .IsUnique();
+
+                    b.ToTable("TableOfContentsSettings", (string)null);
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.ContentPage", b =>
@@ -1137,6 +1483,82 @@ namespace Sqordia.Persistence.Migrations
                     b.HasIndex("ToCurrencyId");
 
                     b.ToTable("ExchangeRates", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.FinancialCell", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BusinessPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CellType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("number");
+
+                    b.Property<string>("ColumnId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayFormat")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Formula")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<bool>("IsCalculated")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("RowId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SheetName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasDefaultValue("Main");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("Value")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessPlanId")
+                        .HasDatabaseName("IX_FinancialCells_BusinessPlanId");
+
+                    b.HasIndex("IsCalculated")
+                        .HasDatabaseName("IX_FinancialCells_IsCalculated");
+
+                    b.HasIndex("BusinessPlanId", "SheetName", "RowId", "ColumnId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_FinancialCells_BusinessPlan_Sheet_Row_Column");
+
+                    b.ToTable("FinancialCells", (string)null);
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.FinancialKPI", b =>
@@ -1959,11 +2381,30 @@ namespace Sqordia.Persistence.Migrations
                     b.Property<DateTime?>("LockoutEnd")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("MicrosoftId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("OnboardingCompleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("OnboardingData")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("OnboardingStep")
+                        .HasColumnType("integer");
+
                     b.Property<string>("PasswordHash")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("PasswordLastChangedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Persona")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("text");
@@ -1999,6 +2440,14 @@ namespace Sqordia.Persistence.Migrations
                     b.HasIndex("GoogleId")
                         .IsUnique()
                         .HasFilter("\"GoogleId\" IS NOT NULL");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("IsEmailConfirmed");
+
+                    b.HasIndex("MicrosoftId")
+                        .IsUnique()
+                        .HasFilter("\"MicrosoftId\" IS NOT NULL");
 
                     b.HasIndex("UserName")
                         .IsUnique();
@@ -2240,6 +2689,304 @@ namespace Sqordia.Persistence.Migrations
                     b.HasIndex("CurrencyId");
 
                     b.ToTable("InvestmentAnalyses", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.LocationOverheadRate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("CAD");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("InsuranceRate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<decimal>("OfficeCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("OverheadRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ProvinceCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<decimal>("TaxRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Province", "IsActive");
+
+                    b.HasIndex("ProvinceCode", "IsActive");
+
+                    b.ToTable("LocationOverheadRates", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000001"),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "System",
+                            Currency = "CAD",
+                            EffectiveDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            InsuranceRate = 200m,
+                            IsActive = true,
+                            OfficeCost = 600m,
+                            OverheadRate = 10.0m,
+                            Province = "Alberta",
+                            ProvinceCode = "AB",
+                            TaxRate = 15.0m,
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System"
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000002"),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "System",
+                            Currency = "CAD",
+                            EffectiveDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            InsuranceRate = 250m,
+                            IsActive = true,
+                            OfficeCost = 800m,
+                            OverheadRate = 12.0m,
+                            Province = "British Columbia",
+                            ProvinceCode = "BC",
+                            TaxRate = 20.0m,
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System"
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000003"),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "System",
+                            Currency = "CAD",
+                            EffectiveDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            InsuranceRate = 180m,
+                            IsActive = true,
+                            OfficeCost = 450m,
+                            OverheadRate = 10.0m,
+                            Province = "Manitoba",
+                            ProvinceCode = "MB",
+                            TaxRate = 17.0m,
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System"
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000004"),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "System",
+                            Currency = "CAD",
+                            EffectiveDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            InsuranceRate = 170m,
+                            IsActive = true,
+                            OfficeCost = 400m,
+                            OverheadRate = 9.0m,
+                            Province = "New Brunswick",
+                            ProvinceCode = "NB",
+                            TaxRate = 20.0m,
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System"
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000005"),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "System",
+                            Currency = "CAD",
+                            EffectiveDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            InsuranceRate = 175m,
+                            IsActive = true,
+                            OfficeCost = 420m,
+                            OverheadRate = 9.0m,
+                            Province = "Newfoundland and Labrador",
+                            ProvinceCode = "NL",
+                            TaxRate = 20.0m,
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System"
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000006"),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "System",
+                            Currency = "CAD",
+                            EffectiveDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            InsuranceRate = 175m,
+                            IsActive = true,
+                            OfficeCost = 450m,
+                            OverheadRate = 9.5m,
+                            Province = "Nova Scotia",
+                            ProvinceCode = "NS",
+                            TaxRate = 21.0m,
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System"
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000007"),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "System",
+                            Currency = "CAD",
+                            EffectiveDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            InsuranceRate = 250m,
+                            IsActive = true,
+                            OfficeCost = 750m,
+                            OverheadRate = 12.0m,
+                            Province = "Ontario",
+                            ProvinceCode = "ON",
+                            TaxRate = 20.0m,
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System"
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000008"),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "System",
+                            Currency = "CAD",
+                            EffectiveDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            InsuranceRate = 160m,
+                            IsActive = true,
+                            OfficeCost = 380m,
+                            OverheadRate = 8.5m,
+                            Province = "Prince Edward Island",
+                            ProvinceCode = "PE",
+                            TaxRate = 20.0m,
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System"
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000009"),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "System",
+                            Currency = "CAD",
+                            EffectiveDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            InsuranceRate = 220m,
+                            IsActive = true,
+                            OfficeCost = 600m,
+                            OverheadRate = 11.0m,
+                            Province = "Quebec",
+                            ProvinceCode = "QC",
+                            TaxRate = 24.0m,
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System"
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000010"),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "System",
+                            Currency = "CAD",
+                            EffectiveDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            InsuranceRate = 180m,
+                            IsActive = true,
+                            OfficeCost = 450m,
+                            OverheadRate = 9.5m,
+                            Province = "Saskatchewan",
+                            ProvinceCode = "SK",
+                            TaxRate = 16.0m,
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System"
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000011"),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "System",
+                            Currency = "CAD",
+                            EffectiveDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            InsuranceRate = 200m,
+                            IsActive = true,
+                            OfficeCost = 700m,
+                            OverheadRate = 11.0m,
+                            Province = "Northwest Territories",
+                            ProvinceCode = "NT",
+                            TaxRate = 15.0m,
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System"
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000012"),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "System",
+                            Currency = "CAD",
+                            EffectiveDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            InsuranceRate = 220m,
+                            IsActive = true,
+                            OfficeCost = 900m,
+                            OverheadRate = 12.0m,
+                            Province = "Nunavut",
+                            ProvinceCode = "NU",
+                            TaxRate = 15.0m,
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System"
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000013"),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "System",
+                            Currency = "CAD",
+                            EffectiveDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            InsuranceRate = 190m,
+                            IsActive = true,
+                            OfficeCost = 650m,
+                            OverheadRate = 10.5m,
+                            Province = "Yukon",
+                            ProvinceCode = "YT",
+                            TaxRate = 15.0m,
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System"
+                        });
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.OBNLBusinessPlan", b =>
@@ -2485,6 +3232,8 @@ namespace Sqordia.Persistence.Migrations
 
                     b.HasIndex("Name");
 
+                    b.HasIndex("IsActive", "CreatedBy");
+
                     b.ToTable("Organizations");
                 });
 
@@ -2555,6 +3304,167 @@ namespace Sqordia.Persistence.Migrations
                         .HasFilter("\"IsActive\" = true");
 
                     b.ToTable("OrganizationMembers");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.PromptPerformance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AcceptCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EditCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PromptTemplateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("RatingCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("RegenerateCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<double>("TotalRating")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(10, 2)
+                        .HasColumnType("double precision")
+                        .HasDefaultValue(0.0);
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UsageCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PeriodStart", "PeriodEnd")
+                        .HasDatabaseName("IX_PromptPerformance_Period");
+
+                    b.HasIndex("PromptTemplateId", "PeriodStart")
+                        .HasDatabaseName("IX_PromptPerformance_PromptId_PeriodStart");
+
+                    b.ToTable("PromptPerformance", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.PromptTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Alias")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ExampleOutput")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("IndustryCategory")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("OutputFormat")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PlanType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("SectionType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("SystemPrompt")
+                        .IsRequired()
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserPromptTemplate")
+                        .IsRequired()
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)");
+
+                    b.Property<int>("Version")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
+                    b.Property<string>("VisualElementsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SectionType", "IndustryCategory", "IsActive")
+                        .HasDatabaseName("IX_PromptTemplates_Section_Industry_Active");
+
+                    b.HasIndex("SectionType", "PlanType", "Alias")
+                        .HasDatabaseName("IX_PromptTemplates_Section_PlanType_Alias");
+
+                    b.HasIndex("SectionType", "PlanType", "IsActive")
+                        .HasDatabaseName("IX_PromptTemplates_Section_PlanType_Active");
+
+                    b.HasIndex("SectionType", "PlanType", "Version")
+                        .HasDatabaseName("IX_PromptTemplates_Section_PlanType_Version");
+
+                    b.HasIndex("SectionType", "PlanType", "IndustryCategory", "IsActive")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PromptTemplates_Unique_Active")
+                        .HasFilter("[IsActive] = 1");
+
+                    b.ToTable("PromptTemplates", (string)null);
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.Settings", b =>
@@ -3549,6 +4459,39 @@ namespace Sqordia.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.OwnsOne("Sqordia.Domain.ValueObjects.FinancialHealthMetrics", "HealthMetrics", b1 =>
+                        {
+                            b1.Property<Guid>("BusinessPlanId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<decimal?>("MonthlyBurnRate")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("MonthlyBurnRate");
+
+                            b1.Property<int?>("PivotPointMonth")
+                                .HasColumnType("integer")
+                                .HasColumnName("PivotPointMonth");
+
+                            b1.Property<int?>("RunwayMonths")
+                                .HasColumnType("integer")
+                                .HasColumnName("RunwayMonths");
+
+                            b1.Property<decimal?>("TargetCAC")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("TargetCAC");
+
+                            b1.HasKey("BusinessPlanId");
+
+                            b1.ToTable("BusinessPlans");
+
+                            b1.WithOwner()
+                                .HasForeignKey("BusinessPlanId");
+                        });
+
+                    b.Navigation("HealthMetrics");
+
                     b.Navigation("Organization");
                 });
 
@@ -3575,6 +4518,17 @@ namespace Sqordia.Persistence.Migrations
                     b.HasOne("Sqordia.Domain.Entities.BusinessPlan.BusinessPlan", "BusinessPlan")
                         .WithMany("Versions")
                         .HasForeignKey("BusinessPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BusinessPlan");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.CoverPageSettings", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.BusinessPlan.BusinessPlan", "BusinessPlan")
+                        .WithOne("CoverPageSettings")
+                        .HasForeignKey("Sqordia.Domain.Entities.BusinessPlan.CoverPageSettings", "BusinessPlanId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -3632,12 +4586,18 @@ namespace Sqordia.Persistence.Migrations
                     b.HasOne("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplate", "QuestionTemplate")
                         .WithMany("Responses")
                         .HasForeignKey("QuestionTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplateV2", "QuestionTemplateV2")
+                        .WithMany()
+                        .HasForeignKey("QuestionTemplateV2Id")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("BusinessPlan");
 
                     b.Navigation("QuestionTemplate");
+
+                    b.Navigation("QuestionTemplateV2");
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.SmartObjective", b =>
@@ -3645,6 +4605,17 @@ namespace Sqordia.Persistence.Migrations
                     b.HasOne("Sqordia.Domain.Entities.BusinessPlan.BusinessPlan", "BusinessPlan")
                         .WithMany()
                         .HasForeignKey("BusinessPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BusinessPlan");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.TableOfContentsSettings", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.BusinessPlan.BusinessPlan", "BusinessPlan")
+                        .WithOne("TableOfContentsSettings")
+                        .HasForeignKey("Sqordia.Domain.Entities.BusinessPlan.TableOfContentsSettings", "BusinessPlanId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -3668,6 +4639,17 @@ namespace Sqordia.Persistence.Migrations
                     b.Navigation("FromCurrency");
 
                     b.Navigation("ToCurrency");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.FinancialCell", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.BusinessPlan.BusinessPlan", "BusinessPlan")
+                        .WithMany()
+                        .HasForeignKey("BusinessPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BusinessPlan");
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.FinancialKPI", b =>
@@ -3966,6 +4948,17 @@ namespace Sqordia.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Sqordia.Domain.Entities.PromptPerformance", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.PromptTemplate", "PromptTemplate")
+                        .WithMany("PerformanceMetrics")
+                        .HasForeignKey("PromptTemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PromptTemplate");
+                });
+
             modelBuilder.Entity("Sqordia.Domain.Entities.Subscription", b =>
                 {
                     b.HasOne("Sqordia.Domain.Entities.Organization", "Organization")
@@ -4111,11 +5104,15 @@ namespace Sqordia.Persistence.Migrations
 
             modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.BusinessPlan", b =>
                 {
+                    b.Navigation("CoverPageSettings");
+
                     b.Navigation("FinancialProjectionDetails");
 
                     b.Navigation("QuestionnaireResponses");
 
                     b.Navigation("Shares");
+
+                    b.Navigation("TableOfContentsSettings");
 
                     b.Navigation("Versions");
                 });
@@ -4182,6 +5179,11 @@ namespace Sqordia.Persistence.Migrations
             modelBuilder.Entity("Sqordia.Domain.Entities.Organization", b =>
                 {
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.PromptTemplate", b =>
+                {
+                    b.Navigation("PerformanceMetrics");
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.SubscriptionPlan", b =>

@@ -19,6 +19,16 @@ public class BusinessPlanShare : BaseAuditableEntity
     public bool IsActive { get; private set; }
     public DateTime? LastAccessedAt { get; private set; }
     public int AccessCount { get; private set; }
+
+    // Vault Share Features (V2)
+    public bool IsVaultShare { get; private set; }
+    public bool EnableWatermark { get; private set; }
+    public string? WatermarkText { get; private set; }
+    public bool AllowDownload { get; private set; }
+    public bool TrackViews { get; private set; }
+    public bool RequireEmailVerification { get; private set; }
+    public string? PasswordHash { get; private set; }
+    public int? MaxViews { get; private set; }
     
     // Navigation properties
     public BusinessPlan BusinessPlan { get; private set; } = null!;
@@ -82,9 +92,41 @@ public class BusinessPlanShare : BaseAuditableEntity
     
     public bool CanAccess()
     {
-        return IsActive && !IsExpired();
+        return IsActive && !IsExpired() && !HasReachedMaxViews();
     }
-    
+
+    public bool HasReachedMaxViews()
+    {
+        return MaxViews.HasValue && AccessCount >= MaxViews.Value;
+    }
+
+    // Vault share configuration methods
+    public void ConfigureAsVaultShare(
+        bool enableWatermark = true,
+        string? watermarkText = null,
+        bool allowDownload = false,
+        bool trackViews = true,
+        bool requireEmailVerification = false,
+        string? passwordHash = null,
+        int? maxViews = null)
+    {
+        IsVaultShare = true;
+        EnableWatermark = enableWatermark;
+        WatermarkText = watermarkText;
+        AllowDownload = allowDownload;
+        TrackViews = trackViews;
+        RequireEmailVerification = requireEmailVerification;
+        PasswordHash = passwordHash;
+        MaxViews = maxViews;
+    }
+
+    public bool VerifyPassword(string password, Func<string, string, bool> verifyFunc)
+    {
+        if (string.IsNullOrEmpty(PasswordHash))
+            return true; // No password required
+        return verifyFunc(password, PasswordHash);
+    }
+
     private string GeneratePublicToken()
     {
         return Convert.ToBase64String(Guid.NewGuid().ToByteArray())

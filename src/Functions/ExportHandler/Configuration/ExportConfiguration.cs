@@ -8,5 +8,7 @@ public class ExportConfiguration
     public string StorageAccountName { get; set; } = string.Empty;
     public string StorageConnectionString { get; set; } = string.Empty;
     public string ContainerName { get; set; } = "exports";
+    public string DatabaseConnectionString { get; set; } = string.Empty;
+    public int SasTokenExpirationHours { get; set; } = 24;
 }
 

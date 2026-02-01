@@ -22,7 +22,31 @@ public class BusinessPlanShareConfiguration : IEntityTypeConfiguration<BusinessP
             
         builder.Property(bs => bs.PublicToken)
             .HasMaxLength(50);
-        
+
+        // Vault Share Features (V2)
+        builder.Property(bs => bs.IsVaultShare)
+            .HasDefaultValue(false);
+
+        builder.Property(bs => bs.EnableWatermark)
+            .HasDefaultValue(false);
+
+        builder.Property(bs => bs.WatermarkText)
+            .HasMaxLength(500);
+
+        builder.Property(bs => bs.AllowDownload)
+            .HasDefaultValue(false);
+
+        builder.Property(bs => bs.TrackViews)
+            .HasDefaultValue(true);
+
+        builder.Property(bs => bs.RequireEmailVerification)
+            .HasDefaultValue(false);
+
+        builder.Property(bs => bs.PasswordHash)
+            .HasMaxLength(256);
+
+        builder.Property(bs => bs.MaxViews);
+
         // Relationships
         builder.HasOne(bs => bs.BusinessPlan)
             .WithMany(bp => bp.Shares)

@@ -83,7 +83,6 @@ public class AuthenticationService : IAuthenticationService
             user.SetPasswordHash(passwordHash);
 
             _context.Users.Add(user);
-            await _context.SaveChangesAsync(cancellationToken);
 
             // Generate JWT token and refresh token
             var accessToken = await _jwtTokenService.GenerateAccessTokenAsync(user);
@@ -93,6 +92,8 @@ public class AuthenticationService : IAuthenticationService
             var verificationToken = _securityService.GenerateSecureToken();
             var emailVerificationToken = new EmailVerificationToken(user.Id, verificationToken, DateTime.UtcNow.AddHours(24));
             _context.EmailVerificationTokens.Add(emailVerificationToken);
+
+            // Single save: User + RefreshToken + EmailVerificationToken
             await _context.SaveChangesAsync(cancellationToken);
 
             // Send combined welcome and verification email

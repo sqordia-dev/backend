@@ -87,6 +87,12 @@ resource "azurerm_linux_function_app" "ai_generation_handler" {
     AzureServiceBus__AiGenerationTopic        = azurerm_servicebus_topic.ai_generation.name
     AzureServiceBus__AiGenerationSubscription = azurerm_servicebus_subscription.ai_generation.name
     AzureKeyVault__VaultUrl                   = azurerm_key_vault.main.vault_uri
+    OPENAI_API_KEY                            = var.openai_api_key
+    OpenAI__ApiKey                            = var.openai_api_key
+    AI__OpenAI__ApiKey                        = var.openai_api_key
+    OPENAI_MODEL                              = var.openai_model
+    OpenAI__Model                             = var.openai_model
+    AI__OpenAI__Model                         = var.openai_model
     WEBSITE_CONTENTSHARE                      = "${var.project_name}-${var.environment}-ai-generation-handler-content"
     WEBSITE_CONTENTAZUREFILECONNECTIONSTRING  = azurerm_storage_account.functions.primary_connection_string
   }

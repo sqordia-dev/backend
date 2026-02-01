@@ -12,5 +12,6 @@ public interface IUserProfileService
     Task<Result<string>> UploadProfilePictureAsync(IFormFile file, CancellationToken cancellationToken = default);
     Task<Result> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken = default);
     Task<Result> DeleteAccountAsync(CancellationToken cancellationToken = default);
+    Task<Result<UserProfileResponse>> SetPersonaAsync(SetPersonaRequest request, CancellationToken cancellationToken = default);
 }
 

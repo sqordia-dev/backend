@@ -45,7 +45,10 @@ public interface IApplicationDbContext
     DbSet<BusinessPlanVersion> BusinessPlanVersions { get; }
     DbSet<SmartObjective> SmartObjectives { get; }
     DbSet<PlanSectionComment> PlanSectionComments { get; }
-    
+    DbSet<QuestionTemplateV2> QuestionTemplatesV2 { get; }
+    DbSet<CoverPageSettings> CoverPageSettings { get; }
+    DbSet<TableOfContentsSettings> TableOfContentsSettings { get; }
+
     // OBNL Management
     DbSet<OBNLBusinessPlan> OBNLBusinessPlans { get; }
     DbSet<OBNLCompliance> OBNLCompliances { get; }
@@ -68,9 +71,13 @@ public interface IApplicationDbContext
     DbSet<TaxCalculation> TaxCalculations { get; }
     DbSet<FinancialKPI> FinancialKPIs { get; }
     DbSet<InvestmentAnalysis> InvestmentAnalyses { get; }
-    
+    DbSet<LocationOverheadRate> LocationOverheadRates { get; }
+    DbSet<FinancialCell> FinancialCells { get; }
+
     // AI Prompt Management
     DbSet<AIPrompt> AIPrompts { get; }
+    DbSet<PromptTemplate> PromptTemplates { get; }
+    DbSet<PromptPerformance> PromptPerformance { get; }
     
     // Audit logging
     DbSet<AuditLog> AuditLogs { get; }

@@ -48,6 +48,7 @@ public class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
         builder.HasIndex(o => o.Name);
         builder.HasIndex(o => o.IsActive);
         builder.HasIndex(o => o.CreatedBy);
+        builder.HasIndex(o => new { o.IsActive, o.CreatedBy });
     }
 }
 

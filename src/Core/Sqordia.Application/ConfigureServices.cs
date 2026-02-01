@@ -34,6 +34,8 @@ public static class ConfigureServices
             services.AddScoped<ISectionService, SectionService>();
             services.AddScoped<IBusinessPlanShareService, BusinessPlanShareService>();
             services.AddScoped<IBusinessPlanVersionService, BusinessPlanVersionService>();
+            services.AddScoped<ICoverPageService, CoverPageService>();
+            services.AddScoped<ITableOfContentsService, TableOfContentsService>();
 
             // OBNL services
             services.AddScoped<IOBNLPlanService, OBNLPlanService>();
@@ -44,12 +46,22 @@ public static class ConfigureServices
             // AI Prompt management service
             services.AddScoped<IAIPromptService, AIPromptService>();
             services.AddScoped<IPromptMigrationService, PromptMigrationService>();
+            services.AddScoped<IPromptSelectorService, PromptSelectorService>();
+
+            // Enhanced content generation service (with visual elements)
+            services.AddScoped<IEnhancedContentGenerationService, EnhancedContentGenerationService>();
 
             // Settings service
             services.AddScoped<ISettingsService, SettingsService>();
 
             // Feature flags service
             services.AddScoped<IFeatureFlagsService, FeatureFlagsService>();
+
+            // OAuth service
+            services.AddScoped<IOAuthService, OAuthService>();
+
+            // Onboarding service
+            services.AddScoped<IOnboardingService, OnboardingService>();
 
             return services;
     }

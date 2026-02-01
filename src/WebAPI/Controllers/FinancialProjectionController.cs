@@ -512,20 +512,7 @@ public class FinancialProjectionController : BaseApiController
         _logger.LogInformation("Validating financial projection {ProjectionId} for business plan {BusinessPlanId}",
             projectionId, businessPlanId);
 
-        // First get the projection
-        var projectionsResult = await _financialProjectionService.GetProjectionsAsync(businessPlanId, cancellationToken: cancellationToken);
-        if (!projectionsResult.IsSuccess)
-        {
-            return HandleResult(projectionsResult);
-        }
-
-        var projection = projectionsResult.Value!.FirstOrDefault(p => p.Id == projectionId);
-        if (projection == null)
-        {
-            return NotFound(new { error = "Financial projection not found" });
-        }
-
-        var validationResult = await _financialProjectionService.ValidateProjectionAsync(projection);
+        var validationResult = await _financialProjectionService.ValidateProjectionAsync(projectionId, cancellationToken);
         return HandleResult(validationResult);
     }
 }

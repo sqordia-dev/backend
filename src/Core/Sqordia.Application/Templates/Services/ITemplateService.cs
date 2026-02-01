@@ -24,4 +24,12 @@ public interface ITemplateService
     Task<Result<List<TemplateDto>>> GetRecentTemplatesAsync(int count = 10);
     Task<Result<List<TemplateDto>>> GetTemplatesByAuthorAsync(string author);
     Task<Result<TemplateAnalyticsDto>> GetTemplateAnalyticsAsync(Guid templateId);
+
+    /// <summary>
+    /// Get recommended templates based on persona and industry
+    /// </summary>
+    /// <param name="persona">User persona (Entrepreneur, Consultant, OBNL)</param>
+    /// <param name="industry">Industry sector (optional)</param>
+    /// <returns>List of recommended templates</returns>
+    Task<Result<List<TemplateDto>>> GetRecommendedTemplatesAsync(string? persona, string? industry);
 }

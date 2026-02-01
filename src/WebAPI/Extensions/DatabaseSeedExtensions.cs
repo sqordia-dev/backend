@@ -1,4 +1,6 @@
 using Npgsql;
+using Sqordia.Persistence.Contexts;
+using Sqordia.Persistence.Seeds;
 
 namespace WebAPI.Extensions;
 
@@ -23,7 +25,7 @@ public static class DatabaseSeedExtensions
 
             // Check if we should run seeds (only in Development or if explicitly enabled)
             var environment = app.Environment.EnvironmentName;
-            var runSeeds = environment == "Development" || 
+            var runSeeds = environment == "Development" ||
                           configuration.GetValue<bool>("Database:RunSeedsOnStartup", false);
 
             if (!runSeeds)
@@ -69,12 +71,15 @@ public static class DatabaseSeedExtensions
             }
             else
             {
-                logger.LogWarning("Seed script not found. Tried paths: {Paths}. Continuing with AI prompts seeding.", 
+                logger.LogWarning("Seed script not found. Tried paths: {Paths}. Continuing with AI prompts seeding.",
                     string.Join(", ", possiblePaths));
             }
 
             // Seed AI prompts from SQL script (after main SQL seed)
             await SeedAIPromptsFromSqlAsync(connectionString, logger);
+
+            // Seed prompt templates using EF Core seeder
+            await SeedPromptTemplatesAsync(services, logger);
         }
         catch (PostgresException pgEx)
         {
@@ -138,6 +143,27 @@ public static class DatabaseSeedExtensions
         catch (Exception ex)
         {
             logger.LogError(ex, "An error occurred while seeding AI prompts. Application will continue.");
+            // Don't throw - allow application to continue
+        }
+    }
+
+    private static async Task SeedPromptTemplatesAsync(IServiceProvider services, ILogger logger)
+    {
+        try
+        {
+            logger.LogInformation("Starting prompt templates seeding...");
+
+            var context = services.GetRequiredService<ApplicationDbContext>();
+            var seederLogger = services.GetRequiredService<ILoggerFactory>().CreateLogger<PromptSeeder>();
+            var seeder = new PromptSeeder(context, seederLogger);
+
+            await seeder.SeedAsync();
+
+            logger.LogInformation("Prompt templates seeding completed successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An error occurred while seeding prompt templates. Application will continue.");
             // Don't throw - allow application to continue
         }
     }

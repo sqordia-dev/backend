@@ -7,11 +7,10 @@ using System.Data.SqlClient;
 
 namespace WebAPI.Controllers
 {
-    [ApiController]
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/seed")]
     [Authorize(Roles = "Admin")]
-    public class SeedController : ControllerBase
+    public class SeedController : BaseApiController
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<SeedController> _logger;
@@ -28,7 +27,7 @@ namespace WebAPI.Controllers
         }
 
         [HttpPost("database")]
-        public async Task<IActionResult> SeedDatabase()
+        public async Task<IActionResult> SeedDatabase(CancellationToken cancellationToken = default)
         {
             try
             {
@@ -148,7 +147,7 @@ namespace WebAPI.Controllers
         }
 
         [HttpGet("status")]
-        public async Task<IActionResult> GetSeedStatus()
+        public async Task<IActionResult> GetSeedStatus(CancellationToken cancellationToken = default)
         {
             try
             {

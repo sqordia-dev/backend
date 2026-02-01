@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sqordia.Application.OBNL.Commands;
 using Sqordia.Application.OBNL.Queries;
@@ -5,10 +6,10 @@ using Sqordia.Application.OBNL.Services;
 
 namespace WebAPI.Controllers;
 
-[ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/obnl")]
-public class OBNLController : ControllerBase
+[Authorize]
+public class OBNLController : BaseApiController
 {
     private readonly IOBNLPlanService _obnlPlanService;
 
@@ -18,7 +19,7 @@ public class OBNLController : ControllerBase
     }
 
     [HttpPost("plans")]
-    public async Task<IActionResult> CreateOBNLPlan([FromBody] CreateOBNLPlanCommand command)
+    public async Task<IActionResult> CreateOBNLPlan([FromBody] CreateOBNLPlanCommand command, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -32,7 +33,7 @@ public class OBNLController : ControllerBase
     }
 
     [HttpGet("plans/{planId}")]
-    public async Task<IActionResult> GetOBNLPlan(Guid planId)
+    public async Task<IActionResult> GetOBNLPlan(Guid planId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -46,7 +47,7 @@ public class OBNLController : ControllerBase
     }
 
     [HttpGet("organizations/{organizationId}/plans")]
-    public async Task<IActionResult> GetOBNLPlansByOrganization(Guid organizationId)
+    public async Task<IActionResult> GetOBNLPlansByOrganization(Guid organizationId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -60,7 +61,7 @@ public class OBNLController : ControllerBase
     }
 
     [HttpPost("plans/{planId}/compliance/analyze")]
-    public async Task<IActionResult> AnalyzeCompliance(Guid planId)
+    public async Task<IActionResult> AnalyzeCompliance(Guid planId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -74,7 +75,7 @@ public class OBNLController : ControllerBase
     }
 
     [HttpGet("plans/{planId}/grants")]
-    public async Task<IActionResult> GetGrantApplications(Guid planId)
+    public async Task<IActionResult> GetGrantApplications(Guid planId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -88,7 +89,7 @@ public class OBNLController : ControllerBase
     }
 
     [HttpPost("plans/{planId}/grants")]
-    public async Task<IActionResult> CreateGrantApplication(Guid planId, [FromBody] CreateGrantApplicationCommand command)
+    public async Task<IActionResult> CreateGrantApplication(Guid planId, [FromBody] CreateGrantApplicationCommand command, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -102,7 +103,7 @@ public class OBNLController : ControllerBase
     }
 
     [HttpGet("plans/{planId}/impact-measurements")]
-    public async Task<IActionResult> GetImpactMeasurements(Guid planId)
+    public async Task<IActionResult> GetImpactMeasurements(Guid planId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -116,7 +117,7 @@ public class OBNLController : ControllerBase
     }
 
     [HttpPost("plans/{planId}/impact-measurements")]
-    public async Task<IActionResult> CreateImpactMeasurement(Guid planId, [FromBody] CreateImpactMeasurementCommand command)
+    public async Task<IActionResult> CreateImpactMeasurement(Guid planId, [FromBody] CreateImpactMeasurementCommand command, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -130,7 +131,7 @@ public class OBNLController : ControllerBase
     }
 
     [HttpPut("plans/{planId}")]
-    public async Task<IActionResult> UpdateOBNLPlan(Guid planId, [FromBody] UpdateOBNLPlanCommand command)
+    public async Task<IActionResult> UpdateOBNLPlan(Guid planId, [FromBody] UpdateOBNLPlanCommand command, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -145,7 +146,7 @@ public class OBNLController : ControllerBase
     }
 
     [HttpDelete("plans/{planId}")]
-    public async Task<IActionResult> DeleteOBNLPlan(Guid planId)
+    public async Task<IActionResult> DeleteOBNLPlan(Guid planId, CancellationToken cancellationToken = default)
     {
         try
         {

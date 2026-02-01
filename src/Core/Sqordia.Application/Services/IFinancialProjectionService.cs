@@ -1,4 +1,5 @@
 using Sqordia.Application.Common.Models;
+using Sqordia.Contracts.Responses.Financial;
 using Sqordia.Domain.Entities.BusinessPlan;
 
 namespace Sqordia.Application.Services;
@@ -15,7 +16,7 @@ public interface IFinancialProjectionService
     /// <param name="request">Financial projection creation request</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Created financial projection</returns>
-    Task<Result<FinancialProjection>> CreateProjectionAsync(Guid businessPlanId, CreateFinancialProjectionRequest request, CancellationToken cancellationToken = default);
+    Task<Result<FinancialProjectionResponse>> CreateProjectionAsync(Guid businessPlanId, CreateFinancialProjectionRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Update an existing financial projection
@@ -24,7 +25,7 @@ public interface IFinancialProjectionService
     /// <param name="request">Update request</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Updated financial projection</returns>
-    Task<Result<FinancialProjection>> UpdateProjectionAsync(Guid projectionId, UpdateFinancialProjectionRequest request, CancellationToken cancellationToken = default);
+    Task<Result<FinancialProjectionResponse>> UpdateProjectionAsync(Guid projectionId, UpdateFinancialProjectionRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get financial projections for a business plan
@@ -33,7 +34,7 @@ public interface IFinancialProjectionService
     /// <param name="year">Optional year filter</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of financial projections</returns>
-    Task<Result<List<FinancialProjection>>> GetProjectionsAsync(Guid businessPlanId, int? year = null, CancellationToken cancellationToken = default);
+    Task<Result<List<FinancialProjectionResponse>>> GetProjectionsAsync(Guid businessPlanId, int? year = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Delete a financial projection
@@ -50,7 +51,7 @@ public interface IFinancialProjectionService
     /// <param name="request">Financial scenario request</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Generated financial projections for multiple years</returns>
-    Task<Result<List<FinancialProjection>>> GenerateProjectionScenarioAsync(Guid businessPlanId, GenerateProjectionScenarioRequest request, CancellationToken cancellationToken = default);
+    Task<Result<List<FinancialProjectionResponse>>> GenerateProjectionScenarioAsync(Guid businessPlanId, GenerateProjectionScenarioRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Calculate key financial metrics and ratios
@@ -83,14 +84,15 @@ public interface IFinancialProjectionService
     /// <param name="parameters">Template parameters</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Generated projections from template</returns>
-    Task<Result<List<FinancialProjection>>> ApplyTemplateAsync(Guid businessPlanId, string templateId, Dictionary<string, object> parameters, CancellationToken cancellationToken = default);
+    Task<Result<List<FinancialProjectionResponse>>> ApplyTemplateAsync(Guid businessPlanId, string templateId, Dictionary<string, object> parameters, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Validate financial projection consistency and logic
     /// </summary>
-    /// <param name="projection">Financial projection to validate</param>
+    /// <param name="projectionId">Financial projection ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Validation results</returns>
-    Task<Result<FinancialValidationResult>> ValidateProjectionAsync(FinancialProjection projection);
+    Task<Result<FinancialValidationResult>> ValidateProjectionAsync(Guid projectionId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

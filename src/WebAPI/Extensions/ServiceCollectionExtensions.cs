@@ -29,6 +29,9 @@ public static class ServiceCollectionExtensions
             });
         services.AddHttpContextAccessor();
 
+        // Add HttpClient for external API calls (e.g., Microsoft Graph API)
+        services.AddHttpClient();
+
         services.AddApiVersioning(options =>
         {
             options.DefaultApiVersion = new ApiVersion(1, 0);
@@ -51,6 +54,13 @@ public static class ServiceCollectionExtensions
                 Title = "Sqordia API",
                 Version = "v1",
                 Description = "API for Sqordia Business Plan Management System"
+            });
+
+            options.SwaggerDoc("v2", new Microsoft.OpenApi.Models.OpenApiInfo
+            {
+                Title = "Sqordia API V2",
+                Version = "v2",
+                Description = "Growth Architect Intelligence Layer - Persona-based questionnaires, Socratic Coach auditing, strategy mapping, and bank-readiness scoring"
             });
 
             options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme

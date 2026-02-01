@@ -48,35 +48,24 @@ public class CreateTemplateCommandHandler : IRequestHandler<CreateTemplateComman
             }
         }
         
-        var template = new Template
-        {
-            Name = request.Name,
-            Description = request.Description,
-            Content = request.Content,
-            Category = request.Category,
-            Type = request.Type,
-            Industry = request.Industry,
-            TargetAudience = request.TargetAudience,
-            Language = request.Language,
-            Country = request.Country,
-            IsPublic = request.IsPublic,
-            Tags = request.Tags,
-            PreviewImage = request.PreviewImage,
-            Author = request.Author,
-            AuthorEmail = request.AuthorEmail,
-            Version = request.Version,
-            Changelog = request.Changelog,
-            Status = TemplateStatus.Draft,
-            IsDefault = false,
-            UsageCount = 0,
-            Rating = 0,
-            RatingCount = 0,
-            LastUsed = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            CreatedBy = _currentUserService.UserId ?? "System",
-            UpdatedBy = _currentUserService.UserId ?? "System"
-        };
+        var template = Template.Create(
+            name: request.Name,
+            description: request.Description,
+            content: request.Content,
+            category: request.Category,
+            type: request.Type,
+            author: request.Author,
+            authorEmail: request.AuthorEmail,
+            createdBy: _currentUserService.UserId ?? "System",
+            industry: request.Industry,
+            targetAudience: request.TargetAudience,
+            language: request.Language,
+            country: request.Country,
+            isPublic: request.IsPublic,
+            tags: request.Tags,
+            previewImage: request.PreviewImage,
+            version: request.Version,
+            changelog: request.Changelog);
 
         _context.Templates.Add(template);
         await _context.SaveChangesAsync(cancellationToken);
