@@ -702,9 +702,17 @@ public class AuthenticationService : IAuthenticationService
                     return Result.Success(emailUserAuthResponse);
                 }
 
-                _logger.LogInformation("Found existing user with email {Email}, linking Google account", email);
+                _logger.LogInformation("Found existing user with email {Email}, linking Google account. Current provider: {Provider}", email, emailUser.Provider);
 
                 // Link Google account to existing user (must be local provider)
+                if (emailUser.Provider != "local")
+                {
+                    _logger.LogWarning("Cannot link Google account to user {UserId} with provider {Provider}. Only local accounts can be linked.", emailUser.Id, emailUser.Provider);
+                    return Result.Failure<AuthResponse>(Error.Conflict(
+                        "Auth.Error.AccountAlreadyLinkedToProvider",
+                        $"This email is already associated with a {emailUser.Provider} account. Please sign in using {emailUser.Provider} instead."));
+                }
+
                 emailUser.LinkGoogleAccount(googleId, profilePictureUrl);
 
                 // Confirm email if not already confirmed (Google emails are pre-verified)
@@ -793,10 +801,15 @@ public class AuthenticationService : IAuthenticationService
 
             return Result.Success(newAuthResponse);
         }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid operation during Google authentication for ID: {GoogleId}. Message: {Message}", googleId, ex.Message);
+            return Result.Failure<AuthResponse>(Error.Conflict("Auth.Error.GoogleAuthenticationConflict", ex.Message));
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to authenticate with Google for ID: {GoogleId}", googleId);
-            return Result.Failure<AuthResponse>(Error.InternalServerError("Auth.Error.GoogleAuthenticationFailed", _localizationService.GetString("Auth.Error.GoogleAuthenticationFailed")));
+            _logger.LogError(ex, "Failed to authenticate with Google for ID: {GoogleId}. Exception type: {ExceptionType}, Message: {Message}", googleId, ex.GetType().Name, ex.Message);
+            return Result.Failure<AuthResponse>(Error.Failure("Auth.Error.GoogleAuthenticationFailed", _localizationService.GetString("Auth.Error.GoogleAuthenticationFailed")));
         }
     }
 

@@ -74,7 +74,7 @@ public class AuthControllerTests
     }
 
     [Fact]
-    public async Task Register_WithInvalidRequest_ShouldReturnBadRequest()
+    public async Task Register_WithConflictError_ShouldReturnConflict()
     {
         // Arrange
         var request = _fixture.Create<RegisterRequest>();
@@ -88,9 +88,9 @@ public class AuthControllerTests
         var response = await _sut.Register(request);
 
         // Assert
-        response.Should().BeOfType<BadRequestObjectResult>();
-        var badRequestResult = response as BadRequestObjectResult;
-        badRequestResult!.Value.Should().Be(error);
+        response.Should().BeOfType<ConflictObjectResult>();
+        var conflictResult = response as ConflictObjectResult;
+        conflictResult!.Value.Should().Be(error);
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public class AuthControllerTests
     }
 
     [Fact]
-    public async Task Login_WithInvalidRequest_ShouldReturnBadRequest()
+    public async Task Login_WithInvalidCredentials_ShouldReturnUnauthorized()
     {
         // Arrange
         var request = _fixture.Create<LoginRequest>();
@@ -128,9 +128,7 @@ public class AuthControllerTests
         var response = await _sut.Login(request);
 
         // Assert
-        response.Should().BeOfType<BadRequestObjectResult>();
-        var badRequestResult = response as BadRequestObjectResult;
-        badRequestResult!.Value.Should().Be(error);
+        response.Should().BeOfType<UnauthorizedObjectResult>();
     }
 
     [Fact]
@@ -154,7 +152,7 @@ public class AuthControllerTests
     }
 
     [Fact]
-    public async Task RefreshToken_WithInvalidRequest_ShouldReturnBadRequest()
+    public async Task RefreshToken_WithInvalidToken_ShouldReturnUnauthorized()
     {
         // Arrange
         var request = _fixture.Create<RefreshTokenRequest>();
@@ -168,9 +166,7 @@ public class AuthControllerTests
         var response = await _sut.RefreshToken(request);
 
         // Assert
-        response.Should().BeOfType<BadRequestObjectResult>();
-        var badRequestResult = response as BadRequestObjectResult;
-        badRequestResult!.Value.Should().Be(error);
+        response.Should().BeOfType<UnauthorizedObjectResult>();
     }
 
     [Fact]
@@ -265,7 +261,7 @@ public class AuthControllerTests
     }
 
     [Fact]
-    public async Task ResetPassword_WithInvalidRequest_ShouldReturnBadRequest()
+    public async Task ResetPassword_WithInvalidToken_ShouldReturnUnauthorized()
     {
         // Arrange
         var request = _fixture.Create<ResetPasswordRequest>();
@@ -279,9 +275,7 @@ public class AuthControllerTests
         var response = await _sut.ResetPassword(request);
 
         // Assert
-        response.Should().BeOfType<BadRequestObjectResult>();
-        var badRequestResult = response as BadRequestObjectResult;
-        badRequestResult!.Value.Should().Be(error);
+        response.Should().BeOfType<UnauthorizedObjectResult>();
     }
 
     [Fact]
@@ -302,7 +296,7 @@ public class AuthControllerTests
     }
 
     [Fact]
-    public async Task VerifyEmail_WithInvalidRequest_ShouldReturnBadRequest()
+    public async Task VerifyEmail_WithInvalidToken_ShouldReturnUnauthorized()
     {
         // Arrange
         var request = _fixture.Create<VerifyEmailRequest>();
@@ -316,9 +310,7 @@ public class AuthControllerTests
         var response = await _sut.VerifyEmail(request);
 
         // Assert
-        response.Should().BeOfType<BadRequestObjectResult>();
-        var badRequestResult = response as BadRequestObjectResult;
-        badRequestResult!.Value.Should().Be(error);
+        response.Should().BeOfType<UnauthorizedObjectResult>();
     }
 
     [Fact]

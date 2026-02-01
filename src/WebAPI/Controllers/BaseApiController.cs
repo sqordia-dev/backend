@@ -37,7 +37,7 @@ public abstract class BaseApiController : ControllerBase
     }
 
     /// <summary>
-    /// Maps an Error to the appropriate HTTP status code based on the error code
+    /// Maps an Error to the appropriate HTTP status code based on the error type and code
     /// </summary>
     private IActionResult MapErrorToStatusCode(Error? error)
     {
@@ -46,29 +46,42 @@ public abstract class BaseApiController : ControllerBase
             return BadRequest(new { message = ControllerConstants.ErrorAnErrorOccurred });
         }
 
-        var errorCode = error.Code;
-        var errorMessage = error.Message;
-
-        // Map error codes to HTTP status codes
-        if (errorCode.Contains("Unauthorized", StringComparison.OrdinalIgnoreCase))
+        // Use ErrorType for primary mapping (preferred)
+        switch (error.Type)
         {
-            return Unauthorized(error);
+            case ErrorType.Unauthorized:
+                return Unauthorized(error);
+            case ErrorType.Forbidden:
+                return StatusCode(403, error);
+            case ErrorType.NotFound:
+                return NotFound(error);
+            case ErrorType.Conflict:
+                return Conflict(error);
+            case ErrorType.InternalServerError:
+                return StatusCode(500, error);
+            case ErrorType.NotImplemented:
+                return StatusCode(501, error);
+            case ErrorType.Validation:
+                return BadRequest(error);
+            case ErrorType.Failure:
+            default:
+                break;
         }
+
+        // Fallback: check error code string for backward compatibility
+        var errorCode = error.Code;
+
+        if (errorCode.Contains("Unauthorized", StringComparison.OrdinalIgnoreCase))
+            return Unauthorized(error);
 
         if (errorCode.Contains("Forbidden", StringComparison.OrdinalIgnoreCase))
-        {
             return StatusCode(403, error);
-        }
 
         if (errorCode.Contains("NotFound", StringComparison.OrdinalIgnoreCase))
-        {
             return NotFound(error);
-        }
 
         if (errorCode.Contains("Conflict", StringComparison.OrdinalIgnoreCase))
-        {
             return Conflict(error);
-        }
 
         // Default to BadRequest for validation errors and other failures
         return BadRequest(error);
