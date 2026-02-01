@@ -48,7 +48,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<BusinessPlanVersion> BusinessPlanVersions { get; set; }
     public DbSet<SmartObjective> SmartObjectives { get; set; }
     public DbSet<PlanSectionComment> PlanSectionComments { get; set; }
-    
+    public DbSet<CoverPageSettings> CoverPageSettings { get; set; }
+    public DbSet<TableOfContentsSettings> TableOfContentsSettings { get; set; }
+
     // OBNL Management
     public DbSet<OBNLBusinessPlan> OBNLBusinessPlans { get; set; }
     public DbSet<OBNLCompliance> OBNLCompliances { get; set; }
@@ -76,6 +78,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     // AI Prompt Management
     public DbSet<AIPrompt> AIPrompts { get; set; }
+    public DbSet<PromptTemplate> PromptTemplates { get; set; }
+    public DbSet<PromptPerformance> PromptPerformance { get; set; }
     
     // Audit logging
     public DbSet<AuditLog> AuditLogs { get; set; }
@@ -166,24 +170,19 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     private void ConfigureGlobalQueryFilters(ModelBuilder modelBuilder)
     {
-        // Apply soft delete filter to AuditLog entity
-        var entitiesWithSoftDelete = new[]
+        // Apply soft delete filter to all entities that inherit BaseAuditableEntity
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
-            typeof(AuditLog)
-        };
-
-        foreach (var entityType in entitiesWithSoftDelete)
-        {
-            if (typeof(BaseAuditableEntity).IsAssignableFrom(entityType))
+            if (typeof(BaseAuditableEntity).IsAssignableFrom(entityType.ClrType))
             {
                 var method = typeof(ApplicationDbContext)
                     .GetMethod(nameof(GetSoftDeleteFilter), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
-                    ?.MakeGenericMethod(entityType);
-                
+                    ?.MakeGenericMethod(entityType.ClrType);
+
                 var filter = method?.Invoke(null, Array.Empty<object>());
                 if (filter != null)
                 {
-                    modelBuilder.Entity(entityType).HasQueryFilter((System.Linq.Expressions.LambdaExpression)filter);
+                    modelBuilder.Entity(entityType.ClrType).HasQueryFilter((System.Linq.Expressions.LambdaExpression)filter);
                 }
             }
         }

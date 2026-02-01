@@ -156,6 +156,10 @@ public class BusinessPlanConfiguration : IEntityTypeConfiguration<Domain.Entitie
         builder.HasIndex(bp => bp.PlanType);
         builder.HasIndex(bp => bp.CreatedBy);
         builder.HasIndex(bp => new { bp.OrganizationId, bp.Status });
+        builder.HasIndex(bp => bp.Persona);
+        builder.HasIndex(bp => bp.ReadinessScore);
+        builder.HasIndex(bp => bp.IsTemplate);
+        builder.HasIndex(bp => new { bp.OrganizationId, bp.Persona });
     }
 }
 

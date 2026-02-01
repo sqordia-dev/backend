@@ -70,6 +70,8 @@ public class BusinessPlan : BaseAuditableEntity
 
     // Navigation properties
     public Organization Organization { get; private set; } = null!;
+    public CoverPageSettings? CoverPageSettings { get; private set; }
+    public TableOfContentsSettings? TableOfContentsSettings { get; private set; }
     public ICollection<QuestionnaireResponse> QuestionnaireResponses { get; private set; } = new List<QuestionnaireResponse>();
     public ICollection<FinancialProjection> FinancialProjectionDetails { get; private set; } = new List<FinancialProjection>();
     public ICollection<BusinessPlanShare> Shares { get; private set; } = new List<BusinessPlanShare>();

@@ -33,7 +33,7 @@ public class UserController : BaseApiController
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> SetPersona([FromBody] SetPersonaRequest request)
+    public async Task<IActionResult> SetPersona([FromBody] SetPersonaRequest request, CancellationToken cancellationToken = default)
     {
         if (!ModelState.IsValid)
         {

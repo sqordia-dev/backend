@@ -664,16 +664,34 @@ public class BusinessPlanService : IBusinessPlanService
             // The duplicated plan will have Status = Draft by default
 
             _context.BusinessPlans.Add(duplicatedPlan);
-            await _context.SaveChangesAsync(cancellationToken);
 
             // Copy questionnaire responses
             foreach (var originalResponse in originalPlan.QuestionnaireResponses)
             {
-                var newResponse = new Domain.Entities.BusinessPlan.QuestionnaireResponse(
-                    duplicatedPlan.Id,
-                    originalResponse.QuestionTemplateId,
-                    originalResponse.ResponseText);
-                
+                Domain.Entities.BusinessPlan.QuestionnaireResponse newResponse;
+
+                if (originalResponse.QuestionTemplateV2Id.HasValue)
+                {
+                    // V2 question
+                    newResponse = Domain.Entities.BusinessPlan.QuestionnaireResponse.CreateForV2(
+                        duplicatedPlan.Id,
+                        originalResponse.QuestionTemplateV2Id.Value,
+                        originalResponse.ResponseText);
+                }
+                else if (originalResponse.QuestionTemplateId.HasValue)
+                {
+                    // V1 question
+                    newResponse = new Domain.Entities.BusinessPlan.QuestionnaireResponse(
+                        duplicatedPlan.Id,
+                        originalResponse.QuestionTemplateId.Value,
+                        originalResponse.ResponseText);
+                }
+                else
+                {
+                    // Skip responses without a valid question ID
+                    continue;
+                }
+
                 newResponse.SetNumericValue(originalResponse.NumericValue);
                 newResponse.SetBooleanValue(originalResponse.BooleanValue);
                 newResponse.SetDateValue(originalResponse.DateValue);

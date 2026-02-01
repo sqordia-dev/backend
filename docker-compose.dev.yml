@@ -26,15 +26,16 @@ services:
       # Client ID: 787375969256-r1qbhjb39t2r77ro1evr849ph75s8i4n.apps.googleusercontent.com
       # NOTE: Explicitly set to override any system environment variables
       - GoogleOAuth__ClientId=787375969256-r1qbhjb39t2r77ro1evr849ph75s8i4n.apps.googleusercontent.com
-      - GoogleOAuth__ClientSecret=${GOOGLE_OAUTH_CLIENT_SECRET:-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}
+      - GoogleOAuth__ClientSecret=${GOOGLE_OAUTH_CLIENT_SECRET:-}
       
       # OpenAI Configuration
-      # If OPENAI_API_KEY is not set in environment, use the value from appsettings.json
-      # To override, set OPENAI_API_KEY in your .env file or system environment
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-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}
-      - OpenAI__ApiKey=${OPENAI_API_KEY:-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}
+      # For local dev: Set OPENAI_API_KEY in your .env file or system environment
+      # For production: Use Azure Container App environment variables
+      # This file is safe for local development defaults (not committed to git)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OpenAI__ApiKey=${OPENAI_API_KEY:-}
       - OpenAI__Model=${OPENAI_MODEL:-gpt-4o}
-      - AI__OpenAI__ApiKey=${OPENAI_API_KEY:-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}
+      - AI__OpenAI__ApiKey=${OPENAI_API_KEY:-}
       - AI__OpenAI__Model=${OPENAI_MODEL:-gpt-4o}
       
       # Alternative AI Providers (optional)

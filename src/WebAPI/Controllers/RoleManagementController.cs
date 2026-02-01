@@ -22,7 +22,7 @@ public class RoleManagementController : BaseApiController
     /// <returns>List of all roles</returns>
     [HttpGet]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> GetAllRoles()
+    public async Task<IActionResult> GetAllRoles(CancellationToken cancellationToken = default)
     {
         var result = await _roleManagementService.GetAllRolesAsync();
         return HandleResult(result);
@@ -35,7 +35,7 @@ public class RoleManagementController : BaseApiController
     /// <returns>Role details</returns>
     [HttpGet("{id}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> GetRoleById(Guid id)
+    public async Task<IActionResult> GetRoleById(Guid id, CancellationToken cancellationToken = default)
     {
         var result = await _roleManagementService.GetRoleByIdAsync(id);
         return HandleResult(result);
@@ -48,7 +48,7 @@ public class RoleManagementController : BaseApiController
     /// <returns>Created role</returns>
     [HttpPost]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
+    public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _roleManagementService.CreateRoleAsync(request);
         return HandleResult(result);
@@ -62,7 +62,7 @@ public class RoleManagementController : BaseApiController
     /// <returns>Updated role</returns>
     [HttpPut("{id}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UpdateRoleRequest request)
+    public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UpdateRoleRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _roleManagementService.UpdateRoleAsync(id, request);
         return HandleResult(result);
@@ -75,7 +75,7 @@ public class RoleManagementController : BaseApiController
     /// <returns>Success or failure</returns>
     [HttpDelete("{id}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> DeleteRole(Guid id)
+    public async Task<IActionResult> DeleteRole(Guid id, CancellationToken cancellationToken = default)
     {
         var result = await _roleManagementService.DeleteRoleAsync(id);
         return HandleResult(result);
@@ -88,7 +88,7 @@ public class RoleManagementController : BaseApiController
     /// <returns>Success or failure</returns>
     [HttpPost("assign")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> AssignRole([FromBody] AssignRoleRequest request)
+    public async Task<IActionResult> AssignRole([FromBody] AssignRoleRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _roleManagementService.AssignRoleToUserAsync(request);
         return HandleResult(result);
@@ -102,7 +102,7 @@ public class RoleManagementController : BaseApiController
     /// <returns>Success or failure</returns>
     [HttpDelete("users/{userId}/roles/{roleId}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> RemoveRole(Guid userId, Guid roleId)
+    public async Task<IActionResult> RemoveRole(Guid userId, Guid roleId, CancellationToken cancellationToken = default)
     {
         var result = await _roleManagementService.RemoveRoleFromUserAsync(userId, roleId);
         return HandleResult(result);
@@ -115,7 +115,7 @@ public class RoleManagementController : BaseApiController
     /// <returns>List of user's roles</returns>
     [HttpGet("users/{userId}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> GetUserRoles(Guid userId)
+    public async Task<IActionResult> GetUserRoles(Guid userId, CancellationToken cancellationToken = default)
     {
         var result = await _roleManagementService.GetUserRolesAsync(userId);
         return HandleResult(result);
@@ -127,10 +127,9 @@ public class RoleManagementController : BaseApiController
     /// <returns>List of all permissions</returns>
     [HttpGet("permissions")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> GetAllPermissions()
+    public async Task<IActionResult> GetAllPermissions(CancellationToken cancellationToken = default)
     {
         var result = await _roleManagementService.GetAllPermissionsAsync();
         return HandleResult(result);
     }
 }
-

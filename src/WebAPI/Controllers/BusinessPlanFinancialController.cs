@@ -37,7 +37,8 @@ public class BusinessPlanFinancialController : BaseApiController
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateFinancialCell(
         Guid planId,
-        [FromBody] UpdateFinancialCellRequest request)
+        [FromBody] UpdateFinancialCellRequest request,
+        CancellationToken cancellationToken = default)
     {
         if (!ModelState.IsValid)
         {

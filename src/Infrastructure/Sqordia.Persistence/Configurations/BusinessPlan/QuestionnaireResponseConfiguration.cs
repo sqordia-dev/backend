@@ -31,18 +31,35 @@ public class QuestionnaireResponseConfiguration : IEntityTypeConfiguration<Quest
             .HasForeignKey(qr => qr.BusinessPlanId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
-            
+
+        // V1 question template (optional)
         builder.HasOne(qr => qr.QuestionTemplate)
             .WithMany(qt => qt.Responses)
             .HasForeignKey(qr => qr.QuestionTemplateId)
-            .IsRequired()
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
-        
+
+        // V2 question template (optional)
+        builder.HasOne(qr => qr.QuestionTemplateV2)
+            .WithMany()
+            .HasForeignKey(qr => qr.QuestionTemplateV2Id)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Indexes
         builder.HasIndex(qr => qr.BusinessPlanId);
         builder.HasIndex(qr => qr.QuestionTemplateId);
+        builder.HasIndex(qr => qr.QuestionTemplateV2Id);
+
+        // Unique constraint: one response per question per business plan (for V1)
         builder.HasIndex(qr => new { qr.BusinessPlanId, qr.QuestionTemplateId })
-            .IsUnique(); // One response per question per business plan
+            .IsUnique()
+            .HasFilter("\"QuestionTemplateId\" IS NOT NULL");
+
+        // Unique constraint: one response per question per business plan (for V2)
+        builder.HasIndex(qr => new { qr.BusinessPlanId, qr.QuestionTemplateV2Id })
+            .IsUnique()
+            .HasFilter("\"QuestionTemplateV2Id\" IS NOT NULL");
     }
 }
 

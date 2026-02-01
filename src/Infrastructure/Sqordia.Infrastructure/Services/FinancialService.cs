@@ -2371,7 +2371,7 @@ public class FinancialService : IFinancialService
                 RowId = request.RowId,
                 ColumnId = request.CellId,
                 SheetName = request.SheetName ?? "Main",
-                CellType = request.CellType ?? "number",
+                CellType = Domain.Entities.FinancialCell.ParseCellType(request.CellType),
                 CreatedAt = DateTime.UtcNow
             };
 

@@ -26,7 +26,7 @@ public class ActivityLogsController : BaseApiController
     /// <param name="request">Activity details</param>
     /// <returns>Activity log confirmation</returns>
     [HttpPost]
-    public async Task<IActionResult> LogActivity([FromBody] CreateActivityLogRequest request)
+    public async Task<IActionResult> LogActivity([FromBody] CreateActivityLogRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _activityLogService.LogActivityAsync(request);
         return HandleResult(result);

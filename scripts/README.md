@@ -37,7 +37,8 @@ This directory contains PowerShell scripts for deployment, monitoring, and maint
 - `test-db-connection.ps1` - Test database connection
 - `check-migration-status.ps1` - Check migration status
 - `seed-database.sql` - Database seed script (roles, permissions, admin user)
-- `seed-questionnaire.sql` - Questionnaire seed script (templates and questions)
+- `seed-questionnaire.sql` - Questionnaire seed script (BusinessPlan templates and questions)
+- `seed-questionnaire-strategic-plan.sql` - Questionnaire seed for StrategicPlan (OBNL). Run in production after initial deploy if StrategicPlan plans are used.
 
 ## Database Admin Scripts
 

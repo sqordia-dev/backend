@@ -28,7 +28,7 @@ public class UserProfileController : BaseApiController
     /// <returns>User profile information</returns>
     [HttpGet]
     [Authorize]
-    public async Task<IActionResult> GetProfile()
+    public async Task<IActionResult> GetProfile(CancellationToken cancellationToken = default)
     {
         var result = await _userProfileService.GetProfileAsync();
         return HandleResult(result);
@@ -41,7 +41,7 @@ public class UserProfileController : BaseApiController
     /// <returns>Updated user profile</returns>
     [HttpPut]
     [Authorize]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _userProfileService.UpdateProfileAsync(request);
         return HandleResult(result);
@@ -54,7 +54,7 @@ public class UserProfileController : BaseApiController
     /// <returns>URL of the uploaded profile picture</returns>
     [HttpPost("upload-picture")]
     [Authorize]
-    public async Task<IActionResult> UploadProfilePicture(IFormFile file)
+    public async Task<IActionResult> UploadProfilePicture(IFormFile file, CancellationToken cancellationToken = default)
     {
         var result = await _userProfileService.UploadProfilePictureAsync(file);
         return HandleResult(result);
@@ -67,7 +67,7 @@ public class UserProfileController : BaseApiController
     /// <returns>The profile picture image file</returns>
     [HttpGet("picture/{*key}")]
     [AllowAnonymous]
-    public async Task<IActionResult> GetProfilePicture(string key)
+    public async Task<IActionResult> GetProfilePicture(string key, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -116,7 +116,7 @@ public class UserProfileController : BaseApiController
     /// <returns>Success or failure</returns>
     [HttpPost("change-password")]
     [Authorize]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _userProfileService.ChangePasswordAsync(request);
         return HandleResult(result);
@@ -128,7 +128,7 @@ public class UserProfileController : BaseApiController
     /// <returns>Success or failure</returns>
     [HttpDelete]
     [Authorize]
-    public async Task<IActionResult> DeleteAccount()
+    public async Task<IActionResult> DeleteAccount(CancellationToken cancellationToken = default)
     {
         var result = await _userProfileService.DeleteAccountAsync();
         return HandleResult(result);

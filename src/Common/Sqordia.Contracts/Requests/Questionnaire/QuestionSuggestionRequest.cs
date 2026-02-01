@@ -39,8 +39,9 @@ public class QuestionSuggestionRequest
     public int SuggestionCount { get; set; } = 3;
     
     /// <summary>
-    /// Language for the suggestions (fr or en, default: fr)
+    /// Language for the suggestions (fr or en)
     /// </summary>
+    [Required]
     [StringLength(2, MinimumLength = 2)]
-    public string Language { get; set; } = "fr";
+    public required string Language { get; set; }
 }

@@ -312,7 +312,10 @@ public class UserProfileService : IUserProfileService
 
             if (user == null)
             {
-                return Result.Failure<UserProfileResponse>(Error.NotFound("Auth.Error.UserNotFound", _localizationService.GetString("Auth.Error.UserNotFound")));
+                _logger.LogWarning(
+                    "SetPersona: User not found in database for authenticated identity. UserId from token: {UserId}. Ensure user sync on login creates the Users row.",
+                    userGuid);
+                return Result.Failure<UserProfileResponse>(Error.Unauthorized("Auth.Error.UserNotFound", _localizationService.GetString("Auth.Error.UserNotFound")));
             }
 
             user.SetPersona(personaType);

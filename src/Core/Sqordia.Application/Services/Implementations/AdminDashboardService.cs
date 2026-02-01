@@ -66,51 +66,35 @@ public class AdminDashboardService : IAdminDashboardService
 
             var popularFeatures = new List<AdminFeatureUsage>();
             
-            // Business Plan Generation
-            var businessPlanLogs = await _context.AuditLogs
-                .Where(log => log.EntityType == "BusinessPlan" && log.Success)
-                .ToListAsync(cancellationToken);
-            if (businessPlanLogs.Any())
+            // Aggregate feature usage at the database level instead of loading all rows
+            var featureEntityTypes = new[] { "BusinessPlan", "FinancialProjection", "Organization" };
+            var featureNames = new Dictionary<string, string>
             {
-                var uniqueUsers = businessPlanLogs.Where(log => log.UserId.HasValue).Select(log => log.UserId!.Value).Distinct().Count();
-                popularFeatures.Add(new AdminFeatureUsage
-                {
-                    FeatureName = "Business Plan Generation",
-                    UsageCount = businessPlanLogs.Count,
-                    UniqueUsers = uniqueUsers,
-                    LastUsed = businessPlanLogs.Max(log => log.Timestamp)
-                });
-            }
+                { "BusinessPlan", "Business Plan Generation" },
+                { "FinancialProjection", "Financial Projections" },
+                { "Organization", "Organization Management" }
+            };
 
-            // Financial Projections
-            var financialLogs = await _context.AuditLogs
-                .Where(log => log.EntityType == "FinancialProjection" && log.Success)
-                .ToListAsync(cancellationToken);
-            if (financialLogs.Any())
-            {
-                var uniqueUsers = financialLogs.Where(log => log.UserId.HasValue).Select(log => log.UserId!.Value).Distinct().Count();
-                popularFeatures.Add(new AdminFeatureUsage
+            var featureStats = await _context.AuditLogs
+                .Where(log => featureEntityTypes.Contains(log.EntityType) && log.Success)
+                .GroupBy(log => log.EntityType)
+                .Select(g => new
                 {
-                    FeatureName = "Financial Projections",
-                    UsageCount = financialLogs.Count,
-                    UniqueUsers = uniqueUsers,
-                    LastUsed = financialLogs.Max(log => log.Timestamp)
-                });
-            }
+                    EntityType = g.Key,
+                    UsageCount = g.Count(),
+                    UniqueUsers = g.Where(log => log.UserId.HasValue).Select(log => log.UserId!.Value).Distinct().Count(),
+                    LastUsed = g.Max(log => log.Timestamp)
+                })
+                .ToListAsync(cancellationToken);
 
-            // Organization Management
-            var orgLogs = await _context.AuditLogs
-                .Where(log => log.EntityType == "Organization" && log.Success)
-                .ToListAsync(cancellationToken);
-            if (orgLogs.Any())
+            foreach (var stat in featureStats)
             {
-                var uniqueUsers = orgLogs.Where(log => log.UserId.HasValue).Select(log => log.UserId!.Value).Distinct().Count();
                 popularFeatures.Add(new AdminFeatureUsage
                 {
-                    FeatureName = "Organization Management",
-                    UsageCount = orgLogs.Count,
-                    UniqueUsers = uniqueUsers,
-                    LastUsed = orgLogs.Max(log => log.Timestamp)
+                    FeatureName = featureNames[stat.EntityType],
+                    UsageCount = stat.UsageCount,
+                    UniqueUsers = stat.UniqueUsers,
+                    LastUsed = stat.LastUsed
                 });
             }
 
@@ -352,7 +336,7 @@ public class AdminDashboardService : IAdminDashboardService
 
             var totalCount = await query.CountAsync(cancellationToken);
             var organizationsData = await query
-                .Include(o => o.Members)
+                .Include(o => o.Members.Where(m => m.IsActive))
                 .Skip((request.Page - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
@@ -378,7 +362,7 @@ public class AdminDashboardService : IAdminDashboardService
                     OwnerId = Guid.Empty, // Would need to parse CreatedBy or find owner member
                     OwnerEmail = o.CreatedBy ?? "Unknown",
                     OwnerName = "Unknown",
-                    MemberCount = o.Members.Count(m => m.IsActive),
+                    MemberCount = o.Members.Count,
                     BusinessPlanCount = bpCounts.Total,
                     CompletedBusinessPlanCount = bpCounts.Completed,
                     LastActivityAt = o.LastModified

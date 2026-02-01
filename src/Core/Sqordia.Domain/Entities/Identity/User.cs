@@ -28,7 +28,13 @@ public class User : BaseAuditableEntity
     
     // OAuth fields
     public string? GoogleId { get; private set; }
-    public string Provider { get; private set; } = "local"; // "local", "google", etc.
+    public string? MicrosoftId { get; private set; }
+    public string Provider { get; private set; } = "local"; // "local", "google", "microsoft"
+
+    // Onboarding fields
+    public bool OnboardingCompleted { get; private set; }
+    public int? OnboardingStep { get; private set; }
+    public string? OnboardingData { get; private set; } // JSON storage for onboarding step data
 
     // Navigation properties
     public ICollection<UserRole> UserRoles { get; private set; } = new List<UserRole>();
@@ -203,4 +209,61 @@ public class User : BaseAuditableEntity
     }
 
     public bool IsGoogleUser => Provider == "google" && !string.IsNullOrEmpty(GoogleId);
+    public bool IsMicrosoftUser => Provider == "microsoft" && !string.IsNullOrEmpty(MicrosoftId);
+
+    // Microsoft OAuth methods
+    public static User CreateMicrosoftUser(string microsoftId, string firstName, string lastName, EmailAddress email, string? profilePictureUrl = null)
+    {
+        var user = new User(firstName, lastName, email, email.Value, UserType.Entrepreneur);
+        user.MicrosoftId = microsoftId;
+        user.Provider = "microsoft";
+        user.IsEmailConfirmed = true; // Microsoft emails are pre-verified
+        user.EmailConfirmedAt = DateTime.UtcNow;
+        user.ProfilePictureUrl = profilePictureUrl;
+        return user;
+    }
+
+    public void LinkMicrosoftAccount(string microsoftId, string? profilePictureUrl = null)
+    {
+        if (Provider != "local")
+            throw new InvalidOperationException("Cannot link Microsoft account to non-local user");
+
+        MicrosoftId = microsoftId;
+        Provider = "microsoft";
+        if (!string.IsNullOrEmpty(profilePictureUrl))
+        {
+            ProfilePictureUrl = profilePictureUrl;
+        }
+    }
+
+    public void UnlinkMicrosoftAccount()
+    {
+        if (Provider != "microsoft")
+            throw new InvalidOperationException("Cannot unlink Microsoft account from non-Microsoft user");
+
+        MicrosoftId = null;
+        Provider = "local";
+    }
+
+    // Onboarding methods
+    public void UpdateOnboardingProgress(int step, string? data = null)
+    {
+        OnboardingStep = step;
+        if (data != null)
+        {
+            OnboardingData = data;
+        }
+    }
+
+    public void CompleteOnboarding()
+    {
+        OnboardingCompleted = true;
+    }
+
+    public void ResetOnboarding()
+    {
+        OnboardingCompleted = false;
+        OnboardingStep = null;
+        OnboardingData = null;
+    }
 }

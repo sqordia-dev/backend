@@ -13,9 +13,3 @@ public class AnalyzeSectionRequest
 
     public string Language { get; set; } = "fr";
 }
-
-public class LocationInfo
-{
-    public string City { get; set; } = null!;
-    public string Province { get; set; } = null!;
-}

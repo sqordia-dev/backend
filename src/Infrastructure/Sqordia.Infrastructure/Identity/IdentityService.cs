@@ -14,14 +14,14 @@ public class IdentityService : IIdentityService, Application.Common.Interfaces.I
         _context = context;
     }
 
-    public async Task<string> HashPasswordAsync(string password)
+    public Task<string> HashPasswordAsync(string password)
     {
-        return await Task.FromResult(BCrypt.Net.BCrypt.HashPassword(password, BCrypt.Net.BCrypt.GenerateSalt()));
+        return Task.FromResult(BCrypt.Net.BCrypt.HashPassword(password, BCrypt.Net.BCrypt.GenerateSalt()));
     }
 
-    public async Task<bool> VerifyPasswordAsync(string password, string hash)
+    public Task<bool> VerifyPasswordAsync(string password, string hash)
     {
-        return await Task.FromResult(BCrypt.Net.BCrypt.Verify(password, hash));
+        return Task.FromResult(BCrypt.Net.BCrypt.Verify(password, hash));
     }
 
     public async Task<User?> GetUserByEmailAsync(string email)

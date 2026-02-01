@@ -59,10 +59,25 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.GoogleId)
             .HasMaxLength(100);
 
+        builder.Property(u => u.MicrosoftId)
+            .HasMaxLength(100);
+
         builder.Property(u => u.Provider)
             .HasMaxLength(50)
             .IsRequired()
             .HasDefaultValue("local");
+
+        // Onboarding fields
+        builder.Property(u => u.OnboardingCompleted)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(u => u.OnboardingStep)
+            .IsRequired(false);
+
+        builder.Property(u => u.OnboardingData)
+            .HasColumnType("text")
+            .IsRequired(false);
 
         // Unique indices
 
@@ -72,6 +87,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasIndex(u => u.GoogleId)
             .IsUnique()
             .HasFilter("\"GoogleId\" IS NOT NULL");
+
+        builder.HasIndex(u => u.MicrosoftId)
+            .IsUnique()
+            .HasFilter("\"MicrosoftId\" IS NOT NULL");
+
+        builder.HasIndex(u => u.IsActive);
+        builder.HasIndex(u => u.IsEmailConfirmed);
 
         // Relationships
         builder.HasMany(u => u.UserRoles)

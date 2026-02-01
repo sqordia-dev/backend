@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Sqordia.Domain.Entities;
+using Sqordia.Domain.Enums;
 
 namespace Sqordia.Persistence.Configurations;
 
@@ -33,8 +34,9 @@ public class FinancialCellConfiguration : IEntityTypeConfiguration<FinancialCell
 
         builder.Property(c => c.CellType)
             .IsRequired()
+            .HasConversion<string>()
             .HasMaxLength(50)
-            .HasDefaultValue("number");
+            .HasDefaultValue(CellType.Number);
 
         builder.Property(c => c.DisplayFormat)
             .HasMaxLength(50);
@@ -53,6 +55,9 @@ public class FinancialCellConfiguration : IEntityTypeConfiguration<FinancialCell
         // Index for business plan queries
         builder.HasIndex(c => c.BusinessPlanId)
             .HasDatabaseName("IX_FinancialCells_BusinessPlanId");
+
+        builder.HasIndex(c => c.IsCalculated)
+            .HasDatabaseName("IX_FinancialCells_IsCalculated");
 
         // Relationship with BusinessPlan
         builder.HasOne(c => c.BusinessPlan)

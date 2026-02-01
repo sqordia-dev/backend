@@ -17,7 +17,8 @@ public class PolishTextRequest
     /// <summary>
     /// Language for the polished output (fr or en)
     /// </summary>
-    public string Language { get; set; } = "fr";
+    [Required]
+    public required string Language { get; set; }
 
     /// <summary>
     /// Optional context about the text (e.g., section name, business type)

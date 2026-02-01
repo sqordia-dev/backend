@@ -466,5 +466,57 @@
   <data name="Email.Footer.DoNotReply" xml:space="preserve">
     <value>Cet email a été envoyé depuis une adresse qui n'accepte pas les réponses. Veuillez ne pas répondre à cet email.</value>
   </data>
+  <!-- Projections financières -->
+  <data name="FinancialProjection.NotFound" xml:space="preserve">
+    <value>Projection financière introuvable.</value>
+  </data>
+  <data name="FinancialProjection.BusinessPlanNotFound" xml:space="preserve">
+    <value>Plan d'affaires introuvable ou accès refusé.</value>
+  </data>
+  <data name="FinancialProjection.DuplicatePeriod" xml:space="preserve">
+    <value>Une projection financière existe déjà pour cette période.</value>
+  </data>
+  <data name="FinancialProjection.CreateFailed" xml:space="preserve">
+    <value>Échec de la création de la projection financière.</value>
+  </data>
+  <data name="FinancialProjection.UpdateFailed" xml:space="preserve">
+    <value>Échec de la mise à jour de la projection financière.</value>
+  </data>
+  <data name="FinancialProjection.DeleteFailed" xml:space="preserve">
+    <value>Échec de la suppression de la projection financière.</value>
+  </data>
+  <data name="FinancialProjection.RetrieveFailed" xml:space="preserve">
+    <value>Échec de la récupération des projections financières.</value>
+  </data>
+  <data name="FinancialProjection.InvalidFrequency" xml:space="preserve">
+    <value>Fréquence invalide. Doit être 'yearly', 'quarterly' ou 'monthly'.</value>
+  </data>
+  <data name="FinancialProjection.ScenarioFailed" xml:space="preserve">
+    <value>Échec de la génération du scénario de projection.</value>
+  </data>
+  <data name="FinancialProjection.NoProjectionsFound" xml:space="preserve">
+    <value>Aucune projection financière trouvée pour ce plan d'affaires.</value>
+  </data>
+  <data name="FinancialProjection.MetricsFailed" xml:space="preserve">
+    <value>Échec du calcul des métriques financières.</value>
+  </data>
+  <data name="FinancialProjection.NoProjectionsForExport" xml:space="preserve">
+    <value>Aucune projection financière trouvée pour l'exportation.</value>
+  </data>
+  <data name="FinancialProjection.ExportFailed" xml:space="preserve">
+    <value>Échec de l'exportation des projections financières.</value>
+  </data>
+  <data name="FinancialProjection.TemplateLoadFailed" xml:space="preserve">
+    <value>Échec du chargement des modèles.</value>
+  </data>
+  <data name="FinancialProjection.TemplateNotFound" xml:space="preserve">
+    <value>Modèle introuvable.</value>
+  </data>
+  <data name="FinancialProjection.MissingParameter" xml:space="preserve">
+    <value>Paramètre requis manquant : {0}.</value>
+  </data>
+  <data name="FinancialProjection.TemplateFailed" xml:space="preserve">
+    <value>Échec de l'application du modèle.</value>
+  </data>
 </root>
 

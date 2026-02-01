@@ -32,6 +32,7 @@ public interface IAIProviderFactory
 public class AIProviderFactory : IAIProviderFactory
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<AIProviderFactory> _logger;
     private string? _cachedActiveProvider;
     private List<string>? _cachedFallbackProviders;
@@ -40,9 +41,11 @@ public class AIProviderFactory : IAIProviderFactory
 
     public AIProviderFactory(
         IServiceProvider serviceProvider,
+        IServiceScopeFactory serviceScopeFactory,
         ILogger<AIProviderFactory> logger)
     {
         _serviceProvider = serviceProvider;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
     }
 
@@ -134,7 +137,8 @@ public class AIProviderFactory : IAIProviderFactory
 
         try
         {
-            var settingsService = _serviceProvider.GetService<ISettingsService>();
+            using var scope = _serviceScopeFactory.CreateScope();
+            var settingsService = scope.ServiceProvider.GetService<ISettingsService>();
             if (settingsService != null)
             {
                 var result = await settingsService.GetSettingAsync("AI.ActiveProvider");
@@ -169,7 +173,8 @@ public class AIProviderFactory : IAIProviderFactory
 
         try
         {
-            var settingsService = _serviceProvider.GetService<ISettingsService>();
+            using var scope = _serviceScopeFactory.CreateScope();
+            var settingsService = scope.ServiceProvider.GetService<ISettingsService>();
             if (settingsService != null)
             {
                 var result = await settingsService.GetSettingAsync("AI.FallbackProviders");

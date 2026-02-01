@@ -29,6 +29,9 @@ public static class ServiceCollectionExtensions
             });
         services.AddHttpContextAccessor();
 
+        // Add HttpClient for external API calls (e.g., Microsoft Graph API)
+        services.AddHttpClient();
+
         services.AddApiVersioning(options =>
         {
             options.DefaultApiVersion = new ApiVersion(1, 0);
