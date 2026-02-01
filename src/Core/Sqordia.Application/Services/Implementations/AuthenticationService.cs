@@ -809,7 +809,10 @@ public class AuthenticationService : IAuthenticationService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to authenticate with Google for ID: {GoogleId}. Exception type: {ExceptionType}, Message: {Message}", googleId, ex.GetType().Name, ex.Message);
-            return Result.Failure<AuthResponse>(Error.Failure("Auth.Error.GoogleAuthenticationFailed", _localizationService.GetString("Auth.Error.GoogleAuthenticationFailed")));
+            return Result.Failure<AuthResponse>(Error.Failure(
+                "Auth.Error.GoogleAuthenticationFailed",
+                _localizationService.GetString("Auth.Error.GoogleAuthenticationFailed"),
+                $"{ex.GetType().Name}: {ex.Message}"));
         }
     }
 

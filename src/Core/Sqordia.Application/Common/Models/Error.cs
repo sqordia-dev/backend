@@ -50,8 +50,8 @@ public class Error
     public static Error Conflict(string code, string message) =>
         new(code, message, ErrorType.Conflict);
 
-    public static Error Failure(string code, string message) =>
-        new(code, message, ErrorType.Failure);
+    public static Error Failure(string code, string message, string? details = null) =>
+        new(code, message, ErrorType.Failure, details);
 
     public static Error NotImplemented(string code, string message) =>
         new(code, message, ErrorType.NotImplemented);

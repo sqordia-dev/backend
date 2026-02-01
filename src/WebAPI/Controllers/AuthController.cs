@@ -176,8 +176,8 @@ public class AuthController : BaseApiController
                     // Successfully validated ID token
                     googleId = payload.Subject ?? string.Empty;
                     email = payload.Email ?? string.Empty;
-                    firstName = payload.GivenName ?? string.Empty;
-                    lastName = payload.FamilyName ?? string.Empty;
+                    firstName = !string.IsNullOrWhiteSpace(payload.GivenName) ? payload.GivenName : email.Split('@')[0];
+                    lastName = !string.IsNullOrWhiteSpace(payload.FamilyName) ? payload.FamilyName : "User";
                     profilePictureUrl = payload.Picture;
 
                     if (string.IsNullOrWhiteSpace(googleId) || string.IsNullOrWhiteSpace(email))
@@ -214,8 +214,10 @@ public class AuthController : BaseApiController
 
                     googleId = userInfo.GetProperty("sub").GetString() ?? string.Empty;
                     email = userInfo.GetProperty("email").GetString() ?? string.Empty;
-                    firstName = userInfo.TryGetProperty("given_name", out var givenName) ? givenName.GetString() ?? string.Empty : string.Empty;
-                    lastName = userInfo.TryGetProperty("family_name", out var familyName) ? familyName.GetString() ?? string.Empty : string.Empty;
+                    var givenNameStr = userInfo.TryGetProperty("given_name", out var givenName) ? givenName.GetString() : null;
+                    var familyNameStr = userInfo.TryGetProperty("family_name", out var familyName) ? familyName.GetString() : null;
+                    firstName = !string.IsNullOrWhiteSpace(givenNameStr) ? givenNameStr : email.Split('@')[0];
+                    lastName = !string.IsNullOrWhiteSpace(familyNameStr) ? familyNameStr : "User";
                     profilePictureUrl = userInfo.TryGetProperty("picture", out var picture) ? picture.GetString() : null;
 
                     if (string.IsNullOrWhiteSpace(googleId) || string.IsNullOrWhiteSpace(email))
