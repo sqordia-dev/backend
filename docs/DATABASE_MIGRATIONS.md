@@ -125,9 +125,27 @@ Install EF Core tools (if not already installed):
 dotnet tool install --global dotnet-ef
 ```
 
+### Connection string
+
+The EF Core design-time factory (used by `dotnet ef`) does **not** read WebAPI's `appsettings.json`. Use one of:
+
+1. **Script (recommended):** From the `backend` folder run `.\scripts\run-migrations.ps1`. It reads the connection string from `src/WebAPI/appsettings.json` and runs the migration with it, so you apply migrations against the same database the API uses.
+2. **Environment variable:** Set `ConnectionStrings__DefaultConnection` to the same value your API uses, then run the command below from the `backend` folder.
+3. **Explicit connection:** `dotnet ef database update ... --connection "<your-connection-string>"` (same as the API).
+
+If you get **password authentication failed**, the database may not be running or the connection string does not match the API (e.g. different password). The API also applies pending migrations on startup; restarting the WebAPI (with a working connection) will run `MigrateAsync()` and apply pending migrations.
+
 ### Basic Commands
 
 #### Apply All Pending Migrations
+
+From the `backend` folder:
+
+```powershell
+.\scripts\run-migrations.ps1
+```
+
+Or, if `ConnectionStrings__DefaultConnection` is set:
 
 ```powershell
 dotnet ef database update \

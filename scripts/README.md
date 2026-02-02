@@ -27,6 +27,7 @@ This directory contains PowerShell scripts for deployment, monitoring, and maint
 ## Database Scripts
 
 - `CreateAdminUser.sql` - Create admin user (PostgreSQL)
+- `run-migrations.ps1` - Run EF Core migrations using the WebAPI connection string (from appsettings or env). Run from `backend`: `.\scripts\run-migrations.ps1`. After it succeeds, retry login to verify schema (e.g. `MicrosoftId` column).
 - `run-db-migrations.ps1` - Run database migrations
 - `run-gcp-migrations.ps1` - Run GCP database migrations
 - `run-seed-scripts.ps1` - Run seed scripts

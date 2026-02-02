@@ -172,13 +172,9 @@ If the browser console shows **"Resize command was not sent due to missing verif
    - Use **no trailing slash**; use **HTTPS** if the site is served over HTTPS.
    - Save; changes can take 5–10 minutes to propagate.
 
-2. **Cross-Origin-Opener-Policy header**  
-   The production host must send:
-   - `Cross-Origin-Opener-Policy: same-origin-allow-popups`  
-   so Google Sign-In’s popup can use `postMessage`. This is already set in:
-   - **Azure Static Web Apps:** `frontend/staticwebapp.config.json` (`globalHeaders`)
-   - **Netlify:** `frontend/netlify.toml` (under `[headers.values]`)  
-   For other hosts, configure the same header in their response-headers / security settings.
+2. **Do not set Cross-Origin-Opener-Policy (COOP)**  
+   Google Sign-In uses an iframe that communicates via `postMessage`. If your site sends a COOP header, the browser can block that and you will see "Cross-Origin-Opener-Policy policy would block the window.postMessage call".  
+   This project does **not** set COOP. If you add security headers on another host, do not include `Cross-Origin-Opener-Policy`.
 
 ### Issue: Email Links Point to localhost
 
