@@ -178,6 +178,7 @@ jobs:
           dotnet ef database update \
             --project src/Infrastructure/Sqordia.Persistence \
             --startup-project src/WebAPI \
+            --configuration Release \
             --connection "${{ steps.get-db-connection.outputs.connection_string }}" \
             --no-build
 
@@ -200,6 +201,7 @@ jobs:
           dotnet ef database update \
             --project src/Infrastructure/Sqordia.Persistence \
             --startup-project src/WebAPI \
+            --configuration Release \
             --connection "$CONNECTION_STRING" \
             --no-build
 
