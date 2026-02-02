@@ -60,11 +60,12 @@ public static class ConfigureServices
         // Get the connection string from configuration
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 
-        // If no connection string, throw an error with more details
+        // If no connection string, return a placeholder for design-time EF Core tooling.
+        // At runtime the real connection string is always provided via DATABASE_URL,
+        // appsettings.json, or Key Vault. In CI, dotnet ef --connection overrides this.
         if (string.IsNullOrEmpty(connectionString))
         {
-            var availableConnectionStrings = string.Join(", ", configuration.GetSection("ConnectionStrings").GetChildren().Select(cs => cs.Key));
-            throw new InvalidOperationException($"No database connection string found. Please configure 'DefaultConnection' in appsettings. Available connection strings: {availableConnectionStrings}");
+            return "Host=localhost;Port=5432;Database=SqordiaDb;Username=postgres;Password=postgres";
         }
 
         return connectionString;
