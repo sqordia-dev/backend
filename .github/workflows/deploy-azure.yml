@@ -19,6 +19,7 @@ env:
   RESOURCE_GROUP_NAME: ${{ secrets.AZURE_RESOURCE_GROUP_NAME || 'sqordia-production-rg' }}
   CONTAINER_REGISTRY_NAME: ${{ secrets.AZURE_CONTAINER_REGISTRY_NAME || 'sqordiaproductionacr' }}
   CONTAINER_APP_NAME: ${{ secrets.AZURE_CONTAINER_APP_NAME || 'sqordia-production-api' }}
+  POSTGRESQL_SERVER_NAME: ${{ secrets.AZURE_POSTGRESQL_SERVER_NAME || 'sqordia-production-postgres' }}
   IMAGE_NAME: api
   DOTNET_VERSION: '8.0.x'
 
@@ -80,10 +81,130 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_tests }}
         run: dotnet test --no-build --configuration Release --verbosity normal
 
+  migrate-database:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+        continue-on-error: true
+        id: azure_login_oidc
+
+      - name: Azure Login (Service Principal Fallback)
+        if: steps.azure_login_oidc.outcome == 'failure'
+        run: |
+          if [ -z "${{ secrets.AZURE_CLIENT_SECRET }}" ]; then
+            echo "⚠️ AZURE_CLIENT_SECRET not set, skipping service principal fallback"
+            exit 1
+          fi
+          az login --service-principal \
+            --username "${{ secrets.AZURE_CLIENT_ID }}" \
+            --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
+            --tenant "${{ secrets.AZURE_TENANT_ID }}"
+          az account set --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}"
+        continue-on-error: true
+        id: azure_login_secret
+
+      - name: Fail if all authentication methods failed
+        if: steps.azure_login_oidc.outcome == 'failure' && (steps.azure_login_secret.outcome == 'failure' || steps.azure_login_secret.outcome == 'skipped')
+        run: |
+          echo "❌ All authentication methods failed"
+          exit 1
+
+      - name: Set Azure subscription
+        if: steps.azure_login_oidc.outcome == 'success' || steps.azure_login_secret.outcome == 'success'
+        run: az account set --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Get PostgreSQL connection string from Key Vault
+        id: get-db-connection
+        run: |
+          KEY_VAULT_NAME=$(az keyvault list \
+            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+            --query "[?contains(name, 'kv')].name" \
+            --output tsv | head -1)
+          if [ -z "$KEY_VAULT_NAME" ]; then
+            echo "Key Vault not found"
+            exit 1
+          fi
+          CONNECTION_STRING=$(az keyvault secret show \
+            --vault-name "$KEY_VAULT_NAME" \
+            --name "database-connection-string" \
+            --query "value" \
+            --output tsv 2>/dev/null || echo "")
+          if [ -z "$CONNECTION_STRING" ]; then
+            SERVER_FQDN=$(az postgres flexible-server show \
+              --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+              --name ${{ env.POSTGRESQL_SERVER_NAME }} \
+              --query "fullyQualifiedDomainName" \
+              --output tsv 2>/dev/null || echo "")
+            if [ -n "$SERVER_FQDN" ]; then
+              echo "server_fqdn=$SERVER_FQDN" >> $GITHUB_OUTPUT
+              echo "connection_available=false" >> $GITHUB_OUTPUT
+            else
+              echo "connection_available=false" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          else
+            echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
+            echo "connection_available=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run migrations (connection string from Key Vault)
+        if: steps.get-db-connection.outputs.connection_available == 'true'
+        run: |
+          dotnet restore Sqordia.sln
+          dotnet build Sqordia.sln -c Release --no-restore
+          dotnet ef database update \
+            --project src/Infrastructure/Sqordia.Persistence \
+            --startup-project src/WebAPI \
+            --connection "${{ steps.get-db-connection.outputs.connection_string }}" \
+            --no-build
+
+      - name: Run migrations (constructed connection string)
+        if: steps.get-db-connection.outputs.connection_available == 'false' && steps.get-db-connection.outputs.server_fqdn != ''
+        env:
+          DB_USER: ${{ secrets.AZURE_POSTGRESQL_ADMIN_USERNAME }}
+          DB_PASSWORD: ${{ secrets.AZURE_POSTGRESQL_ADMIN_PASSWORD }}
+        run: |
+          KEY_VAULT_NAME=$(az keyvault list --resource-group ${{ env.RESOURCE_GROUP_NAME }} --query '[0].name' -o tsv)
+          DB_USER=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "postgresql-admin-username" --query "value" -o tsv 2>/dev/null || echo "$DB_USER")
+          DB_PASSWORD=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "postgresql-admin-password" --query "value" -o tsv 2>/dev/null || echo "$DB_PASSWORD")
+          if [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+            echo "⚠️ Database credentials not available. Set Key Vault secrets or AZURE_POSTGRESQL_ADMIN_*"
+            exit 1
+          fi
+          CONNECTION_STRING="Host=${{ steps.get-db-connection.outputs.server_fqdn }};Port=5432;Database=SqordiaDb;Username=$DB_USER;Password=$DB_PASSWORD;SSL Mode=Require;"
+          dotnet restore Sqordia.sln
+          dotnet build Sqordia.sln -c Release --no-restore
+          dotnet ef database update \
+            --project src/Infrastructure/Sqordia.Persistence \
+            --startup-project src/WebAPI \
+            --connection "$CONNECTION_STRING" \
+            --no-build
+
+      - name: Migration summary
+        run: echo "✅ Database migrations completed"
+
   deploy-image:
     name: Deploy Docker Image
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: [build-and-test, migrate-database]
     permissions:
       contents: read
       id-token: write
