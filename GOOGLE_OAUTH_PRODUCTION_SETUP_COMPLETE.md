@@ -18,11 +18,12 @@ This guide will help you complete the Google OAuth 2.0 setup for your production
 **Name:** Sqordia Production
 
 **Authorized JavaScript origins:**
-Add the following URLs:
+Add the **exact** origin where your frontend is served (no trailing slash; use HTTPS in production). If the production origin is missing, Google Sign-In will show "missing verified parent origin" and COOP/postMessage errors.
 ```
 https://sqordia.app
 http://localhost:5173
 ```
+If you use a different production URL (e.g. Azure Static Web Apps: `https://<name>.azurestaticapps.net`), add that origin here as well.
 
 **Authorized redirect URIs:**
 Add the following URLs:
@@ -157,6 +158,27 @@ All email links (verification, password reset, invitations) should now point to:
 - Check that the JavaScript origin `https://sqordia.app` is added
 - Clear browser cache and cookies
 - Check browser console for specific error messages
+
+### Issue: "Missing verified parent origin" / COOP blocking postMessage (Google Sign-In)
+
+If the browser console shows **"Resize command was not sent due to missing verified parent origin"** or **"Cross-Origin-Opener-Policy policy would block the window.postMessage call"**, the production frontend origin is not correctly configured for Google Sign-In.
+
+**Solution:**
+
+1. **Authorized JavaScript origins (required)**  
+   In **Google Cloud Console** → **APIs & Services** → **Credentials** → your **OAuth 2.0 Client ID**:
+   - Open **Authorized JavaScript origins**.
+   - Add the **exact** production frontend origin (e.g. `https://sqordia.app` or your Azure Static Web Apps URL like `https://<app>.azurestaticapps.net`).
+   - Use **no trailing slash**; use **HTTPS** if the site is served over HTTPS.
+   - Save; changes can take 5–10 minutes to propagate.
+
+2. **Cross-Origin-Opener-Policy header**  
+   The production host must send:
+   - `Cross-Origin-Opener-Policy: same-origin-allow-popups`  
+   so Google Sign-In’s popup can use `postMessage`. This is already set in:
+   - **Azure Static Web Apps:** `frontend/staticwebapp.config.json` (`globalHeaders`)
+   - **Netlify:** `frontend/netlify.toml` (under `[headers.values]`)  
+   For other hosts, configure the same header in their response-headers / security settings.
 
 ### Issue: Email Links Point to localhost
 

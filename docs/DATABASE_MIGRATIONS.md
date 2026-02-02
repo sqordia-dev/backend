@@ -57,11 +57,17 @@ The migration process is **non-blocking**:
 
 ## 2. GitHub Actions Workflow (Azure)
 
+### 2a. Deploy Pipeline (runs migrations before every production deploy)
+
+**Location:** `.github/workflows/deploy-azure.yml`
+
+On every push to `main`/`master`, the deploy workflow runs a **migrate-database** job after build-and-test and **before** deploying the new Docker image. Migrations use the production connection string from Azure Key Vault (secret `database-connection-string`) or, if missing, a constructed connection string from Key Vault credentials. This ensures the production database schema stays in sync with the application (e.g. new columns like `MicrosoftId` are applied before the new API version runs).
+
+### 2b. Standalone Migration Workflow (manual or release branch)
+
 **Location:** `.github/workflows/migrate-database-azure.yml`
 
-### How It Works
-
-A dedicated GitHub Actions workflow runs migrations separately from application deployment.
+This workflow runs migrations on demand or when migration files change on the release branch.
 
 ### Triggers
 
