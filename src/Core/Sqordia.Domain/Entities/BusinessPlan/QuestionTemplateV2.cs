@@ -152,6 +152,26 @@ public class QuestionTemplateV2 : BaseAuditableEntity
     public void Activate() => IsActive = true;
     public void Deactivate() => IsActive = false;
 
+    /// <summary>
+    /// Updates the core question fields (text, type, step, persona, required status)
+    /// </summary>
+    public void UpdateCoreFields(
+        string questionText,
+        QuestionType questionType,
+        int stepNumber,
+        PersonaType? personaType,
+        bool isRequired)
+    {
+        if (stepNumber < 1 || stepNumber > 5)
+            throw new ArgumentException("Step number must be between 1 and 5");
+
+        QuestionText = questionText ?? throw new ArgumentNullException(nameof(questionText));
+        QuestionType = questionType;
+        StepNumber = stepNumber;
+        PersonaType = personaType;
+        IsRequired = isRequired;
+    }
+
     public void UpdateOrder(int order)
     {
         if (order < 0)

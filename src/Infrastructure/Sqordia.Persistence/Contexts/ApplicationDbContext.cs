@@ -3,6 +3,7 @@ using Sqordia.Application.Common.Interfaces;
 using Sqordia.Domain.Common;
 using Sqordia.Domain.Entities;
 using Sqordia.Domain.Entities.BusinessPlan;
+using Sqordia.Domain.Entities.Cms;
 using Sqordia.Domain.Entities.Identity;
 
 namespace Sqordia.Persistence.Contexts;
@@ -93,6 +94,11 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     
     // Content Management (CMS)
     public DbSet<ContentPage> ContentPages { get; set; }
+
+    // CMS Versioning
+    public DbSet<CmsVersion> CmsVersions { get; set; }
+    public DbSet<CmsContentBlock> CmsContentBlocks { get; set; }
+    public DbSet<CmsAsset> CmsAssets { get; set; }
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {

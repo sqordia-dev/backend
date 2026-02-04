@@ -1283,6 +1283,190 @@ namespace Sqordia.Persistence.Migrations
                     b.ToTable("TableOfContentsSettings", (string)null);
                 });
 
+            modelBuilder.Entity("Sqordia.Domain.Entities.Cms.CmsAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Category");
+
+                    b.HasIndex("UploadedByUserId");
+
+                    b.ToTable("CmsAssets", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Cms.CmsContentBlock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BlockKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("BlockType")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("CmsVersionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Metadata")
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<string>("SectionKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SectionKey");
+
+                    b.HasIndex("CmsVersionId", "BlockKey", "Language")
+                        .IsUnique();
+
+                    b.ToTable("CmsContentBlocks", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Cms.CmsVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PublishedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("CmsVersions", (string)null);
+                });
+
             modelBuilder.Entity("Sqordia.Domain.Entities.ContentPage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1499,7 +1683,7 @@ namespace Sqordia.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
-                        .HasDefaultValue("number");
+                        .HasDefaultValue("Number");
 
                     b.Property<string>("ColumnId")
                         .IsRequired()
@@ -3965,8 +4149,10 @@ namespace Sqordia.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
-                    b.Property<int>("Category")
-                        .HasColumnType("integer");
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("Changelog")
                         .IsRequired()
@@ -3986,12 +4172,13 @@ namespace Sqordia.Persistence.Migrations
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<string>("Industry")
                         .IsRequired()
@@ -4019,7 +4206,8 @@ namespace Sqordia.Persistence.Migrations
 
                     b.Property<string>("PreviewImage")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<decimal>("Rating")
                         .HasPrecision(3, 2)
@@ -4028,27 +4216,35 @@ namespace Sqordia.Persistence.Migrations
                     b.Property<int>("RatingCount")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Draft");
 
                     b.Property<string>("Tags")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("TargetAudience")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int>("UsageCount")
                         .HasColumnType("integer");
@@ -4059,6 +4255,18 @@ namespace Sqordia.Persistence.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Author");
+
+                    b.HasIndex("Category");
+
+                    b.HasIndex("IsPublic");
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("Category", "Status");
 
                     b.ToTable("Templates", (string)null);
                 });
@@ -4622,6 +4830,17 @@ namespace Sqordia.Persistence.Migrations
                     b.Navigation("BusinessPlan");
                 });
 
+            modelBuilder.Entity("Sqordia.Domain.Entities.Cms.CmsContentBlock", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.Cms.CmsVersion", "Version")
+                        .WithMany("ContentBlocks")
+                        .HasForeignKey("CmsVersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Version");
+                });
+
             modelBuilder.Entity("Sqordia.Domain.Entities.ExchangeRate", b =>
                 {
                     b.HasOne("Sqordia.Domain.Entities.Currency", "FromCurrency")
@@ -5130,6 +5349,11 @@ namespace Sqordia.Persistence.Migrations
             modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionnaireTemplate", b =>
                 {
                     b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Cms.CmsVersion", b =>
+                {
+                    b.Navigation("ContentBlocks");
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.Currency", b =>

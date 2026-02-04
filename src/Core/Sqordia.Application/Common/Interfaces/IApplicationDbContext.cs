@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sqordia.Domain.Entities;
 using Sqordia.Domain.Entities.BusinessPlan;
+using Sqordia.Domain.Entities.Cms;
 using Sqordia.Domain.Entities.Identity;
 
 namespace Sqordia.Application.Common.Interfaces;
@@ -91,6 +92,11 @@ public interface IApplicationDbContext
     
     // Content Management (CMS)
     DbSet<ContentPage> ContentPages { get; }
+
+    // CMS Versioning
+    DbSet<CmsVersion> CmsVersions { get; }
+    DbSet<CmsContentBlock> CmsContentBlocks { get; }
+    DbSet<CmsAsset> CmsAssets { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default);

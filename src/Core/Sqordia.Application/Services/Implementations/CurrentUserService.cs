@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Sqordia.Application.Common.Interfaces;
 
@@ -20,7 +21,8 @@ public class CurrentUserService : ICurrentUserService
 
     public string? GetUserId()
     {
-        return _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value 
+        return _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+               ?? _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
                ?? _httpContextAccessor.HttpContext?.User?.FindFirst("user_id")?.Value
                ?? _httpContextAccessor.HttpContext?.User?.FindFirst("id")?.Value;
     }

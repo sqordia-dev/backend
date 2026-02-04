@@ -48,6 +48,9 @@ public static class ConfigureServices
             services.AddScoped<IPromptMigrationService, PromptMigrationService>();
             services.AddScoped<IPromptSelectorService, PromptSelectorService>();
 
+            // Admin Question Template management service
+            services.AddScoped<IAdminQuestionTemplateService, AdminQuestionTemplateService>();
+
             // Enhanced content generation service (with visual elements)
             services.AddScoped<IEnhancedContentGenerationService, EnhancedContentGenerationService>();
 

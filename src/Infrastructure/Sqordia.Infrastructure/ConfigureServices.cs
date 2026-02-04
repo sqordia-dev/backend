@@ -11,6 +11,8 @@ using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Security;
 using Sqordia.Application.Services;
 using Sqordia.Application.Services.Implementations;
+using Sqordia.Application.Services.Cms;
+using Sqordia.Application.Services.Implementations.Cms;
 using Sqordia.Application.Services.V2;
 using Sqordia.Application.Services.V2.Implementations;
 using Sqordia.Application.Financial.Services;
@@ -302,6 +304,12 @@ public static class ConfigureServices
         
         // Content management service - Required for admin CMS
         services.AddTransient<IContentManagementService, ContentManagementService>();
+
+        // CMS Versioning services
+        services.AddTransient<ICmsVersionService, CmsVersionService>();
+        services.AddTransient<ICmsContentBlockService, CmsContentBlockService>();
+        services.AddTransient<ICmsAssetService, CmsAssetService>();
+        services.AddTransient<IPublishedContentService, PublishedContentService>();
 
         // V2 Services - Growth Architect Intelligence Layer
         services.AddTransient<IAuditService, AuditService>();
