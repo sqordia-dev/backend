@@ -20,14 +20,25 @@ namespace Sqordia.Persistence.Migrations
                 oldClrType: typeof(string),
                 oldType: "text");
 
-            migrationBuilder.AlterColumn<string>(
-                name: "Type",
-                table: "Templates",
-                type: "character varying(50)",
-                maxLength: 50,
-                nullable: false,
-                oldClrType: typeof(int),
-                oldType: "integer");
+            // PostgreSQL cannot implicitly cast integer to varchar — use CASE to map enum values
+            migrationBuilder.Sql(@"
+                ALTER TABLE ""Templates""
+                ALTER COLUMN ""Type"" TYPE character varying(50)
+                USING CASE ""Type""
+                    WHEN 1 THEN 'Standard'
+                    WHEN 2 THEN 'Premium'
+                    WHEN 3 THEN 'Custom'
+                    WHEN 4 THEN 'IndustrySpecific'
+                    WHEN 5 THEN 'Regional'
+                    WHEN 6 THEN 'LanguageSpecific'
+                    WHEN 7 THEN 'SizeSpecific'
+                    WHEN 8 THEN 'SectorSpecific'
+                    WHEN 9 THEN 'ComplianceSpecific'
+                    WHEN 10 THEN 'FundingSpecific'
+                    WHEN 11 THEN 'Other'
+                    ELSE 'Standard'
+                END;
+            ");
 
             migrationBuilder.AlterColumn<string>(
                 name: "Tags",
@@ -38,15 +49,25 @@ namespace Sqordia.Persistence.Migrations
                 oldClrType: typeof(string),
                 oldType: "text");
 
-            migrationBuilder.AlterColumn<string>(
-                name: "Status",
-                table: "Templates",
-                type: "character varying(50)",
-                maxLength: 50,
-                nullable: false,
-                defaultValue: "Draft",
-                oldClrType: typeof(int),
-                oldType: "integer");
+            migrationBuilder.Sql(@"
+                ALTER TABLE ""Templates""
+                ALTER COLUMN ""Status"" TYPE character varying(50)
+                USING CASE ""Status""
+                    WHEN 1 THEN 'Draft'
+                    WHEN 2 THEN 'Review'
+                    WHEN 3 THEN 'Approved'
+                    WHEN 4 THEN 'Published'
+                    WHEN 5 THEN 'Archived'
+                    WHEN 6 THEN 'Deprecated'
+                    WHEN 7 THEN 'UnderMaintenance'
+                    WHEN 8 THEN 'PendingApproval'
+                    WHEN 9 THEN 'Rejected'
+                    WHEN 10 THEN 'Other'
+                    ELSE 'Draft'
+                END;
+                ALTER TABLE ""Templates"" ALTER COLUMN ""Status"" SET DEFAULT 'Draft';
+                ALTER TABLE ""Templates"" ALTER COLUMN ""Status"" SET NOT NULL;
+            ");
 
             migrationBuilder.AlterColumn<string>(
                 name: "PreviewImage",
@@ -76,14 +97,29 @@ namespace Sqordia.Persistence.Migrations
                 oldClrType: typeof(string),
                 oldType: "text");
 
-            migrationBuilder.AlterColumn<string>(
-                name: "Category",
-                table: "Templates",
-                type: "character varying(50)",
-                maxLength: 50,
-                nullable: false,
-                oldClrType: typeof(int),
-                oldType: "integer");
+            migrationBuilder.Sql(@"
+                ALTER TABLE ""Templates""
+                ALTER COLUMN ""Category"" TYPE character varying(50)
+                USING CASE ""Category""
+                    WHEN 1 THEN 'BusinessPlan'
+                    WHEN 2 THEN 'FinancialProjection'
+                    WHEN 3 THEN 'MarketingPlan'
+                    WHEN 4 THEN 'OperationsPlan'
+                    WHEN 5 THEN 'RiskAssessment'
+                    WHEN 6 THEN 'ExecutiveSummary'
+                    WHEN 7 THEN 'CompanyProfile'
+                    WHEN 8 THEN 'MarketAnalysis'
+                    WHEN 9 THEN 'CompetitiveAnalysis'
+                    WHEN 10 THEN 'SalesPlan'
+                    WHEN 11 THEN 'HRPlan'
+                    WHEN 12 THEN 'TechnologyPlan'
+                    WHEN 13 THEN 'SustainabilityPlan'
+                    WHEN 14 THEN 'ExitStrategy'
+                    WHEN 15 THEN 'LegalCompliance'
+                    WHEN 16 THEN 'Other'
+                    ELSE 'BusinessPlan'
+                END;
+            ");
 
             migrationBuilder.AlterColumn<string>(
                 name: "CellType",
@@ -279,14 +315,25 @@ namespace Sqordia.Persistence.Migrations
                 oldType: "character varying(200)",
                 oldMaxLength: 200);
 
-            migrationBuilder.AlterColumn<int>(
-                name: "Type",
-                table: "Templates",
-                type: "integer",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(50)",
-                oldMaxLength: 50);
+            // Reverse: varchar back to integer with CASE mapping
+            migrationBuilder.Sql(@"
+                ALTER TABLE ""Templates""
+                ALTER COLUMN ""Type"" TYPE integer
+                USING CASE ""Type""
+                    WHEN 'Standard' THEN 1
+                    WHEN 'Premium' THEN 2
+                    WHEN 'Custom' THEN 3
+                    WHEN 'IndustrySpecific' THEN 4
+                    WHEN 'Regional' THEN 5
+                    WHEN 'LanguageSpecific' THEN 6
+                    WHEN 'SizeSpecific' THEN 7
+                    WHEN 'SectorSpecific' THEN 8
+                    WHEN 'ComplianceSpecific' THEN 9
+                    WHEN 'FundingSpecific' THEN 10
+                    WHEN 'Other' THEN 11
+                    ELSE 1
+                END;
+            ");
 
             migrationBuilder.AlterColumn<string>(
                 name: "Tags",
@@ -297,15 +344,24 @@ namespace Sqordia.Persistence.Migrations
                 oldType: "character varying(500)",
                 oldMaxLength: 500);
 
-            migrationBuilder.AlterColumn<int>(
-                name: "Status",
-                table: "Templates",
-                type: "integer",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(50)",
-                oldMaxLength: 50,
-                oldDefaultValue: "Draft");
+            migrationBuilder.Sql(@"
+                ALTER TABLE ""Templates"" ALTER COLUMN ""Status"" DROP DEFAULT;
+                ALTER TABLE ""Templates""
+                ALTER COLUMN ""Status"" TYPE integer
+                USING CASE ""Status""
+                    WHEN 'Draft' THEN 1
+                    WHEN 'Review' THEN 2
+                    WHEN 'Approved' THEN 3
+                    WHEN 'Published' THEN 4
+                    WHEN 'Archived' THEN 5
+                    WHEN 'Deprecated' THEN 6
+                    WHEN 'UnderMaintenance' THEN 7
+                    WHEN 'PendingApproval' THEN 8
+                    WHEN 'Rejected' THEN 9
+                    WHEN 'Other' THEN 10
+                    ELSE 1
+                END;
+            ");
 
             migrationBuilder.AlterColumn<string>(
                 name: "PreviewImage",
@@ -335,14 +391,29 @@ namespace Sqordia.Persistence.Migrations
                 oldType: "character varying(200)",
                 oldMaxLength: 200);
 
-            migrationBuilder.AlterColumn<int>(
-                name: "Category",
-                table: "Templates",
-                type: "integer",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(50)",
-                oldMaxLength: 50);
+            migrationBuilder.Sql(@"
+                ALTER TABLE ""Templates""
+                ALTER COLUMN ""Category"" TYPE integer
+                USING CASE ""Category""
+                    WHEN 'BusinessPlan' THEN 1
+                    WHEN 'FinancialProjection' THEN 2
+                    WHEN 'MarketingPlan' THEN 3
+                    WHEN 'OperationsPlan' THEN 4
+                    WHEN 'RiskAssessment' THEN 5
+                    WHEN 'ExecutiveSummary' THEN 6
+                    WHEN 'CompanyProfile' THEN 7
+                    WHEN 'MarketAnalysis' THEN 8
+                    WHEN 'CompetitiveAnalysis' THEN 9
+                    WHEN 'SalesPlan' THEN 10
+                    WHEN 'HRPlan' THEN 11
+                    WHEN 'TechnologyPlan' THEN 12
+                    WHEN 'SustainabilityPlan' THEN 13
+                    WHEN 'ExitStrategy' THEN 14
+                    WHEN 'LegalCompliance' THEN 15
+                    WHEN 'Other' THEN 16
+                    ELSE 1
+                END;
+            ");
 
             migrationBuilder.AlterColumn<string>(
                 name: "CellType",
