@@ -2,6 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Models;
+using Sqordia.Application.Common.Security;
+using Sqordia.Domain.Entities.Identity;
+using Sqordia.Domain.Enums;
+using Sqordia.Domain.ValueObjects;
 using System.Text;
 
 namespace Sqordia.Application.Services.Implementations;
@@ -13,13 +17,16 @@ public class AdminDashboardService : IAdminDashboardService
 {
     private readonly IApplicationDbContext _context;
     private readonly ILogger<AdminDashboardService> _logger;
+    private readonly ISecurityService _securityService;
 
     public AdminDashboardService(
         IApplicationDbContext context,
-        ILogger<AdminDashboardService> logger)
+        ILogger<AdminDashboardService> logger,
+        ISecurityService securityService)
     {
         _context = context;
         _logger = logger;
+        _securityService = securityService;
     }
 
     public async Task<Result<AdminSystemOverview>> GetSystemOverviewAsync(CancellationToken cancellationToken = default)
@@ -770,6 +777,498 @@ public class AdminDashboardService : IAdminDashboardService
         {
             _logger.LogError(ex, "Error forcing business plan regeneration for {BusinessPlanId}", businessPlanId);
             return Result.Failure<AdminRegenerationResult>("Failed to force business plan regeneration.");
+        }
+    }
+
+    public async Task<Result<AdminUserDetail>> GetUserDetailAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Getting user detail for {UserId}", userId);
+
+            var user = await _context.Users
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+            if (user == null)
+            {
+                return Result.Failure<AdminUserDetail>("User not found.");
+            }
+
+            // Get login stats
+            var loginStats = await _context.LoginHistories
+                .Where(lh => lh.UserId == userId)
+                .GroupBy(lh => lh.UserId)
+                .Select(g => new
+                {
+                    Total = g.Count(),
+                    Successful = g.Count(lh => lh.IsSuccessful),
+                    Failed = g.Count(lh => !lh.IsSuccessful)
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            // Get active session count
+            var activeSessionCount = await _context.ActiveSessions
+                .CountAsync(s => s.UserId == userId && s.IsActive && s.ExpiresAt > DateTime.UtcNow, cancellationToken);
+
+            // Get organization memberships
+            var organizations = await _context.OrganizationMembers
+                .Include(om => om.Organization)
+                .Where(om => om.UserId == userId && om.IsActive)
+                .Select(om => new AdminUserOrganizationInfo
+                {
+                    Id = om.OrganizationId,
+                    Name = om.Organization.Name,
+                    Role = om.Role.ToString(),
+                    JoinedAt = om.Created,
+                    IsActive = om.Organization.IsActive
+                })
+                .ToListAsync(cancellationToken);
+
+            // Get business plan count
+            var businessPlanCount = await _context.BusinessPlans
+                .CountAsync(bp => bp.CreatedBy == userId.ToString(), cancellationToken);
+
+            // Check 2FA status
+            var has2FA = await _context.TwoFactorAuths
+                .AnyAsync(t => t.UserId == userId && t.IsEnabled, cancellationToken);
+
+            var detail = new AdminUserDetail
+            {
+                Id = user.Id,
+                Email = user.Email.Value,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                UserName = user.UserName,
+                UserType = user.UserType.ToString(),
+                Persona = user.Persona?.ToString(),
+                Status = user.IsActive ? UserStatus.Active : UserStatus.Inactive,
+                Provider = user.IsGoogleUser ? "google" : user.IsMicrosoftUser ? "microsoft" : "local",
+                EmailVerified = user.IsEmailConfirmed,
+                EmailConfirmedAt = user.EmailConfirmedAt,
+                TwoFactorEnabled = has2FA,
+                PhoneNumber = user.PhoneNumber,
+                PhoneNumberVerified = user.PhoneNumberVerified,
+                ProfilePictureUrl = user.ProfilePictureUrl,
+                OnboardingCompleted = user.OnboardingCompleted,
+                OnboardingStep = user.OnboardingStep,
+                IsLockedOut = user.IsLockedOut,
+                LockoutEnd = user.LockoutEnd,
+                AccessFailedCount = user.AccessFailedCount,
+                RequirePasswordChange = user.RequirePasswordChange,
+                PasswordLastChangedAt = user.PasswordLastChangedAt,
+                CreatedAt = user.Created,
+                LastLoginAt = user.LastLoginAt,
+                LastModifiedAt = user.LastModified,
+                LoginCount = loginStats?.Total ?? 0,
+                SuccessfulLoginCount = loginStats?.Successful ?? 0,
+                FailedLoginCount = loginStats?.Failed ?? 0,
+                ActiveSessionCount = activeSessionCount,
+                OrganizationCount = organizations.Count,
+                BusinessPlanCount = businessPlanCount,
+                Roles = user.UserRoles.Select(ur => new AdminUserRoleInfo
+                {
+                    Id = ur.Role.Id,
+                    Name = ur.Role.Name,
+                    Description = ur.Role.Description,
+                    IsSystemRole = ur.Role.IsSystemRole
+                }).ToList(),
+                Organizations = organizations
+            };
+
+            return Result.Success(detail);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting user detail for {UserId}", userId);
+            return Result.Failure<AdminUserDetail>("Failed to get user detail.");
+        }
+    }
+
+    public async Task<Result<Guid>> CreateUserAsync(AdminCreateUserRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Admin creating new user with email {Email}", request.Email);
+
+            // Check if email already exists
+            var emailExists = await _context.Users
+                .AnyAsync(u => u.Email.Value.ToLower() == request.Email.ToLower(), cancellationToken);
+
+            if (emailExists)
+            {
+                return Result.Failure<Guid>("A user with this email already exists.");
+            }
+
+            // Parse user type
+            if (!Enum.TryParse<UserType>(request.UserType, true, out var userType))
+            {
+                userType = UserType.Entrepreneur;
+            }
+
+            var email = new EmailAddress(request.Email);
+            var user = new User(request.FirstName, request.LastName, email, request.Email, userType);
+
+            // Set password
+            var password = request.Password ?? _securityService.GenerateSecureToken(12);
+            var passwordHash = _securityService.HashPassword(password);
+            user.SetPasswordHash(passwordHash);
+
+            // Set email verified if requested
+            if (request.EmailVerified)
+            {
+                user.ConfirmEmail();
+            }
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Assign roles if provided
+            if (request.RoleIds != null && request.RoleIds.Any())
+            {
+                foreach (var roleId in request.RoleIds)
+                {
+                    var role = await _context.Roles.FindAsync(new object[] { roleId }, cancellationToken);
+                    if (role != null)
+                    {
+                        var userRole = new UserRole(user.Id, role.Id);
+                        _context.UserRoles.Add(userRole);
+                    }
+                }
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+
+            _logger.LogInformation("Admin created user {UserId} with email {Email}", user.Id, request.Email);
+            return Result.Success(user.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating user from admin panel");
+            return Result.Failure<Guid>("Failed to create user.");
+        }
+    }
+
+    public async Task<Result> UpdateUserProfileAsync(Guid userId, AdminUpdateUserProfileRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Admin updating user profile for {UserId}", userId);
+
+            var user = await _context.Users.FindAsync(new object[] { userId }, cancellationToken);
+            if (user == null)
+            {
+                return Result.Failure("User not found.");
+            }
+
+            if (!string.IsNullOrEmpty(request.FirstName) || !string.IsNullOrEmpty(request.LastName))
+            {
+                user.UpdateProfile(
+                    request.FirstName ?? user.FirstName,
+                    request.LastName ?? user.LastName,
+                    request.UserName);
+            }
+
+            if (!string.IsNullOrEmpty(request.UserType) && Enum.TryParse<UserType>(request.UserType, true, out var userType))
+            {
+                user.UpdateUserType(userType);
+            }
+
+            if (request.PhoneNumber != null)
+            {
+                user.UpdatePhoneNumber(request.PhoneNumber);
+            }
+
+            if (request.EmailVerified.HasValue)
+            {
+                if (request.EmailVerified.Value && !user.IsEmailConfirmed)
+                {
+                    user.ConfirmEmail();
+                }
+            }
+
+            if (request.IsActive.HasValue)
+            {
+                if (request.IsActive.Value)
+                    user.Activate();
+                else
+                    user.Deactivate();
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Admin updated user profile for {UserId}", userId);
+
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating user profile for {UserId}", userId);
+            return Result.Failure("Failed to update user profile.");
+        }
+    }
+
+    public async Task<Result> AdminResetPasswordAsync(Guid userId, string? newPassword = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Admin resetting password for user {UserId}", userId);
+
+            var user = await _context.Users.FindAsync(new object[] { userId }, cancellationToken);
+            if (user == null)
+            {
+                return Result.Failure("User not found.");
+            }
+
+            var password = newPassword ?? _securityService.GenerateSecureToken(12);
+            var passwordHash = _securityService.HashPassword(password);
+            user.UpdatePassword(passwordHash);
+            user.ForcePasswordChange();
+            user.UnlockAccount();
+
+            await _context.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Admin reset password for user {UserId}", userId);
+
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting password for user {UserId}", userId);
+            return Result.Failure("Failed to reset user password.");
+        }
+    }
+
+    public async Task<Result<List<AdminUserSession>>> GetUserSessionsAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var sessions = await _context.ActiveSessions
+                .Where(s => s.UserId == userId)
+                .OrderByDescending(s => s.LastActivityAt)
+                .Select(s => new AdminUserSession
+                {
+                    Id = s.Id,
+                    CreatedAt = s.CreatedAt,
+                    LastActivityAt = s.LastActivityAt,
+                    ExpiresAt = s.ExpiresAt,
+                    IsActive = s.IsActive,
+                    IpAddress = s.IpAddress,
+                    UserAgent = s.UserAgent,
+                    DeviceType = s.DeviceType,
+                    Browser = s.Browser,
+                    OperatingSystem = s.OperatingSystem,
+                    Country = s.Country,
+                    City = s.City,
+                    IsExpired = s.ExpiresAt < DateTime.UtcNow
+                })
+                .ToListAsync(cancellationToken);
+
+            return Result.Success(sessions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting sessions for user {UserId}", userId);
+            return Result.Failure<List<AdminUserSession>>("Failed to get user sessions.");
+        }
+    }
+
+    public async Task<Result> TerminateUserSessionAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var session = await _context.ActiveSessions
+                .FirstOrDefaultAsync(s => s.Id == sessionId && s.UserId == userId, cancellationToken);
+
+            if (session == null)
+            {
+                return Result.Failure("Session not found.");
+            }
+
+            session.Revoke();
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Admin terminated session {SessionId} for user {UserId}", sessionId, userId);
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error terminating session {SessionId} for user {UserId}", sessionId, userId);
+            return Result.Failure("Failed to terminate session.");
+        }
+    }
+
+    public async Task<Result> TerminateAllUserSessionsAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var sessions = await _context.ActiveSessions
+                .Where(s => s.UserId == userId && s.IsActive)
+                .ToListAsync(cancellationToken);
+
+            foreach (var session in sessions)
+            {
+                session.Revoke();
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Admin terminated all sessions for user {UserId}. Count: {Count}", userId, sessions.Count);
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error terminating all sessions for user {UserId}", userId);
+            return Result.Failure("Failed to terminate user sessions.");
+        }
+    }
+
+    public async Task<Result<List<AdminLoginHistoryEntry>>> GetUserLoginHistoryAsync(Guid userId, int limit = 50, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var history = await _context.LoginHistories
+                .Where(lh => lh.UserId == userId)
+                .OrderByDescending(lh => lh.LoginAttemptAt)
+                .Take(limit)
+                .Select(lh => new AdminLoginHistoryEntry
+                {
+                    Id = lh.Id,
+                    LoginAttemptAt = lh.LoginAttemptAt,
+                    IsSuccessful = lh.IsSuccessful,
+                    FailureReason = lh.FailureReason,
+                    IpAddress = lh.IpAddress,
+                    UserAgent = lh.UserAgent,
+                    DeviceType = lh.DeviceType,
+                    Browser = lh.Browser,
+                    OperatingSystem = lh.OperatingSystem,
+                    Country = lh.Country,
+                    City = lh.City
+                })
+                .ToListAsync(cancellationToken);
+
+            return Result.Success(history);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting login history for user {UserId}", userId);
+            return Result.Failure<List<AdminLoginHistoryEntry>>("Failed to get login history.");
+        }
+    }
+
+    public async Task<Result<byte[]>> ExportUsersAsync(AdminUserRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Exporting users to CSV");
+
+            // Use existing query logic but without pagination
+            var query = _context.Users.AsQueryable();
+
+            if (!string.IsNullOrEmpty(request.SearchTerm))
+            {
+                var searchTerm = request.SearchTerm.ToLower();
+                query = query.Where(u => u.Email.Value.ToLower().Contains(searchTerm) ||
+                                       u.FirstName.ToLower().Contains(searchTerm) ||
+                                       u.LastName.ToLower().Contains(searchTerm));
+            }
+
+            if (request.Status.HasValue)
+            {
+                var isActive = request.Status.Value == UserStatus.Active;
+                query = query.Where(u => u.IsActive == isActive);
+            }
+
+            if (!string.IsNullOrEmpty(request.UserType))
+            {
+                query = query.Where(u => u.UserType.ToString() == request.UserType);
+            }
+
+            if (request.EmailVerified.HasValue)
+            {
+                query = query.Where(u => u.IsEmailConfirmed == request.EmailVerified.Value);
+            }
+
+            var users = await query
+                .OrderByDescending(u => u.Created)
+                .Select(u => new
+                {
+                    u.Id,
+                    Email = u.Email.Value,
+                    u.FirstName,
+                    u.LastName,
+                    u.UserName,
+                    UserType = u.UserType.ToString(),
+                    Status = u.IsActive ? "Active" : "Inactive",
+                    EmailVerified = u.IsEmailConfirmed ? "Yes" : "No",
+                    Created = u.Created,
+                    LastLogin = u.LastLoginAt
+                })
+                .ToListAsync(cancellationToken);
+
+            var csv = new StringBuilder();
+            csv.AppendLine("Id,Email,FirstName,LastName,UserName,UserType,Status,EmailVerified,Created,LastLogin");
+
+            foreach (var user in users)
+            {
+                csv.AppendLine($"\"{user.Id}\",\"{user.Email}\",\"{user.FirstName}\",\"{user.LastName}\",\"{user.UserName}\",\"{user.UserType}\",\"{user.Status}\",\"{user.EmailVerified}\",\"{user.Created:yyyy-MM-dd HH:mm:ss}\",\"{user.LastLogin?.ToString("yyyy-MM-dd HH:mm:ss") ?? "Never"}\"");
+            }
+
+            return Result.Success(Encoding.UTF8.GetBytes(csv.ToString()));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting users to CSV");
+            return Result.Failure<byte[]>("Failed to export users.");
+        }
+    }
+
+    public async Task<Result<AdminBulkActionResult>> BulkUpdateUserStatusAsync(List<Guid> userIds, UserStatus status, string reason, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Bulk updating {Count} users to status {Status}. Reason: {Reason}", userIds.Count, status, reason);
+
+            var result = new AdminBulkActionResult
+            {
+                TotalRequested = userIds.Count
+            };
+
+            var isActive = status == UserStatus.Active;
+
+            foreach (var userId in userIds)
+            {
+                try
+                {
+                    var user = await _context.Users.FindAsync(new object[] { userId }, cancellationToken);
+                    if (user == null)
+                    {
+                        result.FailedCount++;
+                        result.Errors.Add($"User {userId} not found.");
+                        continue;
+                    }
+
+                    if (isActive)
+                        user.Activate();
+                    else
+                        user.Deactivate();
+
+                    result.SuccessCount++;
+                }
+                catch (Exception ex)
+                {
+                    result.FailedCount++;
+                    result.Errors.Add($"Failed to update user {userId}: {ex.Message}");
+                }
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Bulk status update completed. Success: {Success}, Failed: {Failed}", result.SuccessCount, result.FailedCount);
+            return Result.Success(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error performing bulk user status update");
+            return Result.Failure<AdminBulkActionResult>("Failed to perform bulk status update.");
         }
     }
 }

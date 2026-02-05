@@ -323,6 +323,184 @@ public class AdminDashboardController : BaseApiController
         var result = await _adminDashboardService.ForceBusinessPlanRegenerationAsync(businessPlanId, request.Sections, cancellationToken);
         return HandleResult(result);
     }
+
+    /// <summary>
+    /// Get detailed user information
+    /// </summary>
+    [HttpGet("users/{userId}")]
+    public async Task<IActionResult> GetUserDetail(Guid userId, CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return BadRequest(new { message = "Invalid user ID." });
+        }
+
+        var result = await _adminDashboardService.GetUserDetailAsync(userId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Create a new user from admin panel
+    /// </summary>
+    [HttpPost("users")]
+    public async Task<IActionResult> CreateUser(
+        [FromBody] AdminCreateUserRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
+        {
+            return BadRequest(new { message = "Email, first name, and last name are required." });
+        }
+
+        var result = await _adminDashboardService.CreateUserAsync(request, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Update user profile from admin panel
+    /// </summary>
+    [HttpPut("users/{userId}/profile")]
+    public async Task<IActionResult> UpdateUserProfile(
+        Guid userId,
+        [FromBody] AdminUpdateUserProfileRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return BadRequest(new { message = "Invalid user ID." });
+        }
+
+        var result = await _adminDashboardService.UpdateUserProfileAsync(userId, request, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Force password reset for a user
+    /// </summary>
+    [HttpPost("users/{userId}/reset-password")]
+    public async Task<IActionResult> ResetUserPassword(
+        Guid userId,
+        [FromBody] AdminResetPasswordRequest? request = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return BadRequest(new { message = "Invalid user ID." });
+        }
+
+        var result = await _adminDashboardService.AdminResetPasswordAsync(userId, request?.NewPassword, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get active sessions for a user
+    /// </summary>
+    [HttpGet("users/{userId}/sessions")]
+    public async Task<IActionResult> GetUserSessions(Guid userId, CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return BadRequest(new { message = "Invalid user ID." });
+        }
+
+        var result = await _adminDashboardService.GetUserSessionsAsync(userId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Terminate a specific user session
+    /// </summary>
+    [HttpDelete("users/{userId}/sessions/{sessionId}")]
+    public async Task<IActionResult> TerminateUserSession(
+        Guid userId,
+        Guid sessionId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _adminDashboardService.TerminateUserSessionAsync(userId, sessionId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Terminate all sessions for a user
+    /// </summary>
+    [HttpDelete("users/{userId}/sessions")]
+    public async Task<IActionResult> TerminateAllUserSessions(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _adminDashboardService.TerminateAllUserSessionsAsync(userId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get login history for a user
+    /// </summary>
+    [HttpGet("users/{userId}/login-history")]
+    public async Task<IActionResult> GetUserLoginHistory(
+        Guid userId,
+        [FromQuery] int limit = 50,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return BadRequest(new { message = "Invalid user ID." });
+        }
+
+        var result = await _adminDashboardService.GetUserLoginHistoryAsync(userId, limit, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Export users to CSV
+    /// </summary>
+    [HttpGet("users/export")]
+    public async Task<IActionResult> ExportUsers(
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] UserStatus? status = null,
+        [FromQuery] string? userType = null,
+        [FromQuery] bool? emailVerified = null,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new AdminUserRequest
+        {
+            SearchTerm = searchTerm,
+            Status = status,
+            UserType = userType,
+            EmailVerified = emailVerified,
+            PageSize = int.MaxValue
+        };
+
+        var result = await _adminDashboardService.ExportUsersAsync(request, cancellationToken);
+
+        if (result.IsSuccess && result.Value != null)
+        {
+            return File(result.Value, "text/csv", $"users_export_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
+        }
+
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Bulk update user status
+    /// </summary>
+    [HttpPost("users/bulk-status")]
+    public async Task<IActionResult> BulkUpdateUserStatus(
+        [FromBody] AdminBulkStatusRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.UserIds == null || !request.UserIds.Any())
+        {
+            return BadRequest(new { message = "At least one user ID is required." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return BadRequest(new { message = "Reason is required for bulk status changes." });
+        }
+
+        var result = await _adminDashboardService.BulkUpdateUserStatusAsync(request.UserIds, request.Status, request.Reason, cancellationToken);
+        return HandleResult(result);
+    }
 }
 
 /// <summary>
@@ -371,4 +549,22 @@ public class ForceRegenerationRequest
     /// Reason for regeneration (optional)
     /// </summary>
     public string? Reason { get; set; }
+}
+
+/// <summary>
+/// Request model for admin password reset
+/// </summary>
+public class AdminResetPasswordRequest
+{
+    public string? NewPassword { get; set; }
+}
+
+/// <summary>
+/// Request model for bulk status update
+/// </summary>
+public class AdminBulkStatusRequest
+{
+    public List<Guid> UserIds { get; set; } = new();
+    public UserStatus Status { get; set; }
+    public string Reason { get; set; } = string.Empty;
 }

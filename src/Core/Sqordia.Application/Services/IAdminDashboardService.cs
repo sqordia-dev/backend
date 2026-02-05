@@ -99,6 +99,56 @@ public interface IAdminDashboardService
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Regeneration result</returns>
     Task<Result<AdminRegenerationResult>> ForceBusinessPlanRegenerationAsync(Guid businessPlanId, List<string>? sections = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get comprehensive user detail for admin management
+    /// </summary>
+    Task<Result<AdminUserDetail>> GetUserDetailAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Create a new user from admin panel
+    /// </summary>
+    Task<Result<Guid>> CreateUserAsync(AdminCreateUserRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Update user profile from admin panel
+    /// </summary>
+    Task<Result> UpdateUserProfileAsync(Guid userId, AdminUpdateUserProfileRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Force password reset for a user
+    /// </summary>
+    Task<Result> AdminResetPasswordAsync(Guid userId, string? newPassword = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get active sessions for a user
+    /// </summary>
+    Task<Result<List<AdminUserSession>>> GetUserSessionsAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Terminate a specific user session
+    /// </summary>
+    Task<Result> TerminateUserSessionAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Terminate all sessions for a user
+    /// </summary>
+    Task<Result> TerminateAllUserSessionsAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get login history for a user
+    /// </summary>
+    Task<Result<List<AdminLoginHistoryEntry>>> GetUserLoginHistoryAsync(Guid userId, int limit = 50, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Export users to CSV
+    /// </summary>
+    Task<Result<byte[]>> ExportUsersAsync(AdminUserRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bulk update user status
+    /// </summary>
+    Task<Result<AdminBulkActionResult>> BulkUpdateUserStatusAsync(List<Guid> userIds, UserStatus status, string reason, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -442,4 +492,153 @@ public class PaginationRequest
 {
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 25;
+}
+
+/// <summary>
+/// Comprehensive user detail for admin management
+/// </summary>
+public class AdminUserDetail
+{
+    public Guid Id { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
+    public string UserType { get; set; } = string.Empty;
+    public string? Persona { get; set; }
+    public UserStatus Status { get; set; }
+    public string Provider { get; set; } = "local";
+    public bool EmailVerified { get; set; }
+    public DateTime? EmailConfirmedAt { get; set; }
+    public bool TwoFactorEnabled { get; set; }
+    public string? PhoneNumber { get; set; }
+    public bool PhoneNumberVerified { get; set; }
+    public string? ProfilePictureUrl { get; set; }
+    public bool OnboardingCompleted { get; set; }
+    public int? OnboardingStep { get; set; }
+    public bool IsLockedOut { get; set; }
+    public DateTime? LockoutEnd { get; set; }
+    public int AccessFailedCount { get; set; }
+    public bool RequirePasswordChange { get; set; }
+    public DateTime? PasswordLastChangedAt { get; set; }
+
+    // Timestamps
+    public DateTime CreatedAt { get; set; }
+    public DateTime? LastLoginAt { get; set; }
+    public DateTime? LastModifiedAt { get; set; }
+
+    // Statistics
+    public int LoginCount { get; set; }
+    public int SuccessfulLoginCount { get; set; }
+    public int FailedLoginCount { get; set; }
+    public int ActiveSessionCount { get; set; }
+    public int OrganizationCount { get; set; }
+    public int BusinessPlanCount { get; set; }
+
+    // Roles
+    public List<AdminUserRoleInfo> Roles { get; set; } = new();
+
+    // Organizations
+    public List<AdminUserOrganizationInfo> Organizations { get; set; } = new();
+}
+
+/// <summary>
+/// Role info for user detail
+/// </summary>
+public class AdminUserRoleInfo
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public bool IsSystemRole { get; set; }
+}
+
+/// <summary>
+/// Organization info for user detail
+/// </summary>
+public class AdminUserOrganizationInfo
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public DateTime JoinedAt { get; set; }
+    public bool IsActive { get; set; }
+}
+
+/// <summary>
+/// Request to create user from admin panel
+/// </summary>
+public class AdminCreateUserRequest
+{
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string? Password { get; set; }
+    public string UserType { get; set; } = "Entrepreneur";
+    public bool SendWelcomeEmail { get; set; } = true;
+    public bool EmailVerified { get; set; }
+    public List<Guid>? RoleIds { get; set; }
+}
+
+/// <summary>
+/// Request to update user profile from admin panel
+/// </summary>
+public class AdminUpdateUserProfileRequest
+{
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+    public string? UserName { get; set; }
+    public string? UserType { get; set; }
+    public string? PhoneNumber { get; set; }
+    public bool? EmailVerified { get; set; }
+    public bool? IsActive { get; set; }
+}
+
+/// <summary>
+/// Active session info for admin
+/// </summary>
+public class AdminUserSession
+{
+    public Guid Id { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime LastActivityAt { get; set; }
+    public DateTime ExpiresAt { get; set; }
+    public bool IsActive { get; set; }
+    public string IpAddress { get; set; } = string.Empty;
+    public string? UserAgent { get; set; }
+    public string? DeviceType { get; set; }
+    public string? Browser { get; set; }
+    public string? OperatingSystem { get; set; }
+    public string? Country { get; set; }
+    public string? City { get; set; }
+    public bool IsExpired { get; set; }
+}
+
+/// <summary>
+/// Login history entry for admin
+/// </summary>
+public class AdminLoginHistoryEntry
+{
+    public Guid Id { get; set; }
+    public DateTime LoginAttemptAt { get; set; }
+    public bool IsSuccessful { get; set; }
+    public string? FailureReason { get; set; }
+    public string IpAddress { get; set; } = string.Empty;
+    public string? UserAgent { get; set; }
+    public string? DeviceType { get; set; }
+    public string? Browser { get; set; }
+    public string? OperatingSystem { get; set; }
+    public string? Country { get; set; }
+    public string? City { get; set; }
+}
+
+/// <summary>
+/// Bulk action result
+/// </summary>
+public class AdminBulkActionResult
+{
+    public int TotalRequested { get; set; }
+    public int SuccessCount { get; set; }
+    public int FailedCount { get; set; }
+    public List<string> Errors { get; set; } = new();
 }
