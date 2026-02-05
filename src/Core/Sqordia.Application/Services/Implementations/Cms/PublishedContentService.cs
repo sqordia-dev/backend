@@ -27,38 +27,46 @@ public class PublishedContentService : IPublishedContentService
         string language = "fr",
         CancellationToken cancellationToken = default)
     {
-        var publishedVersion = await _context.CmsVersions
-            .Include(v => v.ContentBlocks)
-            .Where(v => v.Status == CmsVersionStatus.Published)
-            .OrderByDescending(v => v.VersionNumber)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (publishedVersion == null)
+        try
         {
-            return Result.Failure<PublishedContentResponse>(Error.NotFound("Cms.PublishedContent.NotFound", "No published CMS version exists."));
+            var publishedVersion = await _context.CmsVersions
+                .Include(v => v.ContentBlocks)
+                .Where(v => v.Status == CmsVersionStatus.Published)
+                .OrderByDescending(v => v.VersionNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (publishedVersion == null)
+            {
+                return Result.Failure<PublishedContentResponse>(Error.NotFound("Cms.PublishedContent.NotFound", "No published CMS version exists."));
+            }
+
+            var blocks = publishedVersion.ContentBlocks.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(sectionKey))
+            {
+                blocks = blocks.Where(b => b.SectionKey == sectionKey);
+            }
+
+            blocks = blocks.Where(b => b.Language == language);
+
+            var sections = blocks
+                .GroupBy(b => b.SectionKey)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderBy(b => b.SortOrder).Select(MapToBlockResponse).ToList());
+
+            var response = new PublishedContentResponse
+            {
+                Sections = sections
+            };
+
+            return Result.Success(response);
         }
-
-        var blocks = publishedVersion.ContentBlocks.AsEnumerable();
-
-        if (!string.IsNullOrWhiteSpace(sectionKey))
+        catch (Exception ex) when (IsCmsTableMissing(ex))
         {
-            blocks = blocks.Where(b => b.SectionKey == sectionKey);
+            _logger.LogWarning(ex, "CMS tables not available (migration may not be applied). Returning empty content.");
+            return Result.Success(new PublishedContentResponse { Sections = new Dictionary<string, List<CmsContentBlockResponse>>() });
         }
-
-        blocks = blocks.Where(b => b.Language == language);
-
-        var sections = blocks
-            .GroupBy(b => b.SectionKey)
-            .ToDictionary(
-                g => g.Key,
-                g => g.OrderBy(b => b.SortOrder).Select(MapToBlockResponse).ToList());
-
-        var response = new PublishedContentResponse
-        {
-            Sections = sections
-        };
-
-        return Result.Success(response);
     }
 
     public async Task<Result<PublishedContentResponse>> GetPublishedContentByPageAsync(
@@ -66,33 +74,41 @@ public class PublishedContentService : IPublishedContentService
         string language = "fr",
         CancellationToken cancellationToken = default)
     {
-        var publishedVersion = await _context.CmsVersions
-            .Include(v => v.ContentBlocks)
-            .Where(v => v.Status == CmsVersionStatus.Published)
-            .OrderByDescending(v => v.VersionNumber)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (publishedVersion == null)
+        try
         {
-            return Result.Failure<PublishedContentResponse>(Error.NotFound("Cms.PublishedContent.NotFound", "No published CMS version exists."));
+            var publishedVersion = await _context.CmsVersions
+                .Include(v => v.ContentBlocks)
+                .Where(v => v.Status == CmsVersionStatus.Published)
+                .OrderByDescending(v => v.VersionNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (publishedVersion == null)
+            {
+                return Result.Failure<PublishedContentResponse>(Error.NotFound("Cms.PublishedContent.NotFound", "No published CMS version exists."));
+            }
+
+            var pagePrefix = pageKey + ".";
+            var blocks = publishedVersion.ContentBlocks
+                .Where(b => b.Language == language && (b.SectionKey.StartsWith(pagePrefix) || b.SectionKey == pageKey));
+
+            var sections = blocks
+                .GroupBy(b => b.SectionKey)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderBy(b => b.SortOrder).Select(MapToBlockResponse).ToList());
+
+            var response = new PublishedContentResponse
+            {
+                Sections = sections
+            };
+
+            return Result.Success(response);
         }
-
-        var pagePrefix = pageKey + ".";
-        var blocks = publishedVersion.ContentBlocks
-            .Where(b => b.Language == language && (b.SectionKey.StartsWith(pagePrefix) || b.SectionKey == pageKey));
-
-        var sections = blocks
-            .GroupBy(b => b.SectionKey)
-            .ToDictionary(
-                g => g.Key,
-                g => g.OrderBy(b => b.SortOrder).Select(MapToBlockResponse).ToList());
-
-        var response = new PublishedContentResponse
+        catch (Exception ex) when (IsCmsTableMissing(ex))
         {
-            Sections = sections
-        };
-
-        return Result.Success(response);
+            _logger.LogWarning(ex, "CMS tables not available (migration may not be applied). Returning empty content for page '{PageKey}'.", pageKey);
+            return Result.Success(new PublishedContentResponse { Sections = new Dictionary<string, List<CmsContentBlockResponse>>() });
+        }
     }
 
     public async Task<Result<CmsContentBlockResponse>> GetPublishedBlockAsync(
@@ -100,26 +116,34 @@ public class PublishedContentService : IPublishedContentService
         string language = "fr",
         CancellationToken cancellationToken = default)
     {
-        var publishedVersion = await _context.CmsVersions
-            .Include(v => v.ContentBlocks)
-            .Where(v => v.Status == CmsVersionStatus.Published)
-            .OrderByDescending(v => v.VersionNumber)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (publishedVersion == null)
+        try
         {
-            return Result.Failure<CmsContentBlockResponse>(Error.NotFound("Cms.PublishedContent.NotFound", "No published CMS version exists."));
+            var publishedVersion = await _context.CmsVersions
+                .Include(v => v.ContentBlocks)
+                .Where(v => v.Status == CmsVersionStatus.Published)
+                .OrderByDescending(v => v.VersionNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (publishedVersion == null)
+            {
+                return Result.Failure<CmsContentBlockResponse>(Error.NotFound("Cms.PublishedContent.NotFound", "No published CMS version exists."));
+            }
+
+            var block = publishedVersion.ContentBlocks
+                .FirstOrDefault(b => b.BlockKey == blockKey && b.Language == language);
+
+            if (block == null)
+            {
+                return Result.Failure<CmsContentBlockResponse>(Error.NotFound("Cms.ContentBlock.NotFound", $"Published content block with key '{blockKey}' and language '{language}' was not found."));
+            }
+
+            return Result.Success(MapToBlockResponse(block));
         }
-
-        var block = publishedVersion.ContentBlocks
-            .FirstOrDefault(b => b.BlockKey == blockKey && b.Language == language);
-
-        if (block == null)
+        catch (Exception ex) when (IsCmsTableMissing(ex))
         {
-            return Result.Failure<CmsContentBlockResponse>(Error.NotFound("Cms.ContentBlock.NotFound", $"Published content block with key '{blockKey}' and language '{language}' was not found."));
+            _logger.LogWarning(ex, "CMS tables not available (migration may not be applied). Block '{BlockKey}' cannot be retrieved.", blockKey);
+            return Result.Failure<CmsContentBlockResponse>(Error.NotFound("Cms.PublishedContent.NotFound", "CMS content is not yet available."));
         }
-
-        return Result.Success(MapToBlockResponse(block));
     }
 
     private static CmsContentBlockResponse MapToBlockResponse(CmsContentBlock block)
@@ -137,5 +161,12 @@ public class PublishedContentService : IPublishedContentService
             CreatedAt = block.Created,
             UpdatedAt = block.LastModified
         };
+    }
+
+    private static bool IsCmsTableMissing(Exception ex)
+    {
+        var message = ex.InnerException?.Message ?? ex.Message;
+        return message.Contains("does not exist", StringComparison.OrdinalIgnoreCase)
+            && message.Contains("relation", StringComparison.OrdinalIgnoreCase);
     }
 }
