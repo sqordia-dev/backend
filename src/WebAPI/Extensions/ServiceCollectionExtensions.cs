@@ -224,28 +224,30 @@ public static class ServiceCollectionExtensions
                     // Production: Use FRONTEND_BASE_URL (Option 2 - recommended)
                     var frontendBaseUrl = Environment.GetEnvironmentVariable("FRONTEND_BASE_URL")
                         ?? configuration["Frontend:BaseUrl"];
-                    
-                    string[] allowedOrigins;
-                    
+
+                    var allowedOrigins = new List<string>();
+
                     if (!string.IsNullOrWhiteSpace(frontendBaseUrl))
                     {
-                        // Single frontend URL (Option 2)
-                        allowedOrigins = new[] { frontendBaseUrl };
+                        // Single frontend URL - trim trailing slashes for exact origin matching
+                        allowedOrigins.Add(frontendBaseUrl.TrimEnd('/'));
                     }
                     else
                     {
                         // Fallback: Multiple origins from CORS:AllowedOrigins or CORS__AllowedOrigins
-                        allowedOrigins = configuration.GetSection("CORS:AllowedOrigins").Get<string[]>() 
-                            ?? (configuration["CORS__AllowedOrigins"]?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) 
+                        var configOrigins = configuration.GetSection("CORS:AllowedOrigins").Get<string[]>()
+                            ?? (configuration["CORS__AllowedOrigins"]?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                             ?? Array.Empty<string>());
+                        allowedOrigins.AddRange(configOrigins.Select(o => o.TrimEnd('/')));
                     }
 
-                    if (allowedOrigins.Length > 0)
+                    if (allowedOrigins.Count > 0)
                     {
-                        policy.WithOrigins(allowedOrigins)
+                        policy.WithOrigins(allowedOrigins.ToArray())
                             .AllowAnyMethod()
                             .AllowAnyHeader()
-                            .AllowCredentials();
+                            .AllowCredentials()
+                            .SetPreflightMaxAge(TimeSpan.FromHours(1));
                     }
                     else
                     {
