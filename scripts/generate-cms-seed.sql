@@ -1,0 +1,25 @@
+-- =============================================================================
+-- Script to generate complete CMS seed file with conflict handling
+-- This script combines cms-seed-all-pages.sql, cms-seed-missing-blocks.sql, 
+-- and cms-seed-remaining-pages.sql into a single file with proper ON CONFLICT
+-- =============================================================================
+-- 
+-- Usage: Run this script to understand the structure, then manually combine
+-- all INSERT statements from the three source files, wrapping each INSERT
+-- with: ON CONFLICT ("CmsVersionId", "BlockKey", "Language") DO UPDATE SET ...
+--
+-- The complete file should:
+-- 1. Start with BEGIN;
+-- 2. Insert CmsVersion with ON CONFLICT ("Id")
+-- 3. Insert all CmsContentBlocks with ON CONFLICT ("CmsVersionId", "BlockKey", "Language")
+-- 4. End with COMMIT;
+--
+-- Note: Each INSERT statement for CmsContentBlocks should be wrapped with:
+-- ON CONFLICT ("CmsVersionId", "BlockKey", "Language") DO UPDATE SET
+--     "BlockType" = EXCLUDED."BlockType",
+--     "Content" = EXCLUDED."Content",
+--     "SortOrder" = EXCLUDED."SortOrder",
+--     "SectionKey" = EXCLUDED."SectionKey",
+--     "Metadata" = EXCLUDED."Metadata",
+--     "LastModified" = NOW(),
+--     "IsDeleted" = false;
