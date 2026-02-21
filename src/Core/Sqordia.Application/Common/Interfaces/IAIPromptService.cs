@@ -80,4 +80,28 @@ public interface IAIPromptService
         string planType,
         string language,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get version history for a prompt
+    /// </summary>
+    Task<List<AIPromptVersionDto>> GetVersionHistoryAsync(
+        string promptId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Rollback a prompt to a previous version
+    /// </summary>
+    Task<bool> RollbackToVersionAsync(
+        string promptId,
+        int targetVersion,
+        string? notes = null,
+        string? changedBy = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Test a draft prompt without saving to database
+    /// </summary>
+    Task<AIPromptTestResult> TestDraftPromptAsync(
+        TestDraftAIPromptRequest request,
+        CancellationToken cancellationToken = default);
 }

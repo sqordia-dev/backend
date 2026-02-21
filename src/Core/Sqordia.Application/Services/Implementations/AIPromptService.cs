@@ -54,6 +54,17 @@ public class AIPromptService : IAIPromptService
         if (prompt == null)
             return false;
 
+        // Save version snapshot before content changes
+        var contentChanged = !string.IsNullOrEmpty(request.SystemPrompt) || !string.IsNullOrEmpty(request.UserPromptTemplate);
+        if (contentChanged)
+        {
+            var version = AIPromptVersion.CreateFromPrompt(
+                prompt,
+                _currentUserService.UserId?.ToString(),
+                $"Version {prompt.Version} before update");
+            _context.AIPromptVersions.Add(version);
+        }
+
         if (!string.IsNullOrEmpty(request.Name) || !string.IsNullOrEmpty(request.Description))
         {
             prompt.UpdateMetadata(
@@ -62,7 +73,7 @@ public class AIPromptService : IAIPromptService
                 request.Notes);
         }
 
-        if (!string.IsNullOrEmpty(request.SystemPrompt) || !string.IsNullOrEmpty(request.UserPromptTemplate))
+        if (contentChanged)
         {
             prompt.UpdateContent(
                 request.SystemPrompt ?? prompt.SystemPrompt,
@@ -314,6 +325,135 @@ public class AIPromptService : IAIPromptService
             .ToListAsync(cancellationToken);
 
         return prompts.Select(MapToDto).ToList();
+    }
+
+    public async Task<List<AIPromptVersionDto>> GetVersionHistoryAsync(
+        string promptId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Guid.TryParse(promptId, out var guid))
+            return new List<AIPromptVersionDto>();
+
+        var versions = await _context.AIPromptVersions
+            .Where(v => v.AIPromptId == guid)
+            .OrderByDescending(v => v.Version)
+            .ToListAsync(cancellationToken);
+
+        return versions.Select(v => new AIPromptVersionDto
+        {
+            Id = v.Id.ToString(),
+            AIPromptId = v.AIPromptId.ToString(),
+            Version = v.Version,
+            SystemPrompt = v.SystemPrompt,
+            UserPromptTemplate = v.UserPromptTemplate,
+            Variables = v.Variables,
+            Notes = v.Notes,
+            ChangedBy = v.ChangedBy,
+            ChangedAt = v.ChangedAt
+        }).ToList();
+    }
+
+    public async Task<bool> RollbackToVersionAsync(
+        string promptId,
+        int targetVersion,
+        string? notes = null,
+        string? changedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Guid.TryParse(promptId, out var guid))
+            return false;
+
+        var prompt = await _context.AIPrompts
+            .FirstOrDefaultAsync(p => p.Id == guid, cancellationToken);
+
+        if (prompt == null)
+            return false;
+
+        var targetVersionEntity = await _context.AIPromptVersions
+            .FirstOrDefaultAsync(v => v.AIPromptId == guid && v.Version == targetVersion, cancellationToken);
+
+        if (targetVersionEntity == null)
+            return false;
+
+        // Save current state as a version before rollback
+        var currentVersion = AIPromptVersion.CreateFromPrompt(
+            prompt,
+            changedBy ?? _currentUserService.UserId?.ToString(),
+            $"Version {prompt.Version} before rollback to version {targetVersion}");
+        _context.AIPromptVersions.Add(currentVersion);
+
+        // Update prompt with the target version content
+        prompt.UpdateContent(
+            targetVersionEntity.SystemPrompt,
+            targetVersionEntity.UserPromptTemplate,
+            notes ?? $"Rolled back to version {targetVersion}");
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<AIPromptTestResult> TestDraftPromptAsync(
+        TestDraftAIPromptRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var startTime = DateTime.UtcNow;
+
+            // Parse sample variables
+            var variables = JsonSerializer.Deserialize<Dictionary<string, string>>(request.SampleVariables) ?? new Dictionary<string, string>();
+
+            // Build the user prompt by replacing variables in the template
+            var userPrompt = request.UserPromptTemplate;
+            foreach (var variable in variables)
+            {
+                userPrompt = userPrompt.Replace($"{{{variable.Key}}}", variable.Value);
+            }
+
+            // Add test context if provided
+            if (!string.IsNullOrEmpty(request.TestContext))
+            {
+                userPrompt = userPrompt.Replace("{questionnaireContext}", request.TestContext);
+            }
+
+            // Generate content using the AI service
+            var generatedContent = await _aiService.GenerateContentAsync(
+                request.SystemPrompt,
+                userPrompt,
+                request.MaxTokens,
+                (float)request.Temperature,
+                cancellationToken);
+
+            var endTime = DateTime.UtcNow;
+            var responseTime = endTime - startTime;
+
+            return new AIPromptTestResult
+            {
+                PromptId = "draft",
+                TestInput = userPrompt,
+                GeneratedOutput = generatedContent,
+                TokensUsed = request.MaxTokens,
+                Temperature = request.Temperature,
+                TestedAt = endTime,
+                Model = "gpt-4",
+                ResponseTime = responseTime
+            };
+        }
+        catch (Exception ex)
+        {
+            return new AIPromptTestResult
+            {
+                PromptId = "draft",
+                TestInput = request.SampleVariables,
+                GeneratedOutput = string.Empty,
+                TokensUsed = 0,
+                Temperature = request.Temperature,
+                TestedAt = DateTime.UtcNow,
+                Model = "gpt-4",
+                ResponseTime = TimeSpan.Zero,
+                Error = ex.Message
+            };
+        }
     }
 
     private static AIPromptDto MapToDto(AIPrompt prompt)

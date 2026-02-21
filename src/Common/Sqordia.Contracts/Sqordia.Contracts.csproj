@@ -10,4 +10,8 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\Sqordia.Domain\Sqordia.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

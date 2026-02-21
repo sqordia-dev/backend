@@ -50,4 +50,9 @@ public class ProviderInfo
     /// Result of the last test (true = success, false = failure, null = never tested)
     /// </summary>
     public bool? LastTestSuccess { get; set; }
+
+    /// <summary>
+    /// Source of the configuration (Database or Environment)
+    /// </summary>
+    public string Source { get; set; } = "Environment";
 }

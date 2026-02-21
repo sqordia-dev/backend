@@ -43,3 +43,17 @@ public class QuestionnaireTemplateV2Response
     public int TotalSteps { get; set; }
     public int TotalQuestions { get; set; }
 }
+
+/// <summary>
+/// Step metadata response (for step titles/descriptions without questions)
+/// </summary>
+public class QuestionnaireStepMetadataResponse
+{
+    public Guid Id { get; set; }
+    public int StepNumber { get; set; }
+    public required string Title { get; set; }
+    public string? TitleEN { get; set; }
+    public string? Description { get; set; }
+    public string? DescriptionEN { get; set; }
+    public int QuestionCount { get; set; }
+}

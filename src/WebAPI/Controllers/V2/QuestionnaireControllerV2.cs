@@ -75,6 +75,20 @@ public class QuestionnaireControllerV2 : BaseApiController
     }
 
     /// <summary>
+    /// Get all step metadata (titles, descriptions, icons)
+    /// </summary>
+    [HttpGet("steps")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStepsMetadata(
+        [FromQuery] string language = "fr",
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _questionnaireService.GetStepsMetadataAsync(language, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
     /// Get questions for a specific step
     /// </summary>
     [HttpGet("steps/{stepNumber}")]

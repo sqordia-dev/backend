@@ -43,6 +43,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<QuestionnaireTemplate> QuestionnaireTemplates { get; set; }
     public DbSet<QuestionTemplate> QuestionTemplates { get; set; }
     public DbSet<QuestionTemplateV2> QuestionTemplatesV2 { get; set; }
+    public DbSet<QuestionnaireVersion> QuestionnaireVersions { get; set; }
+    public DbSet<QuestionnaireStep> QuestionnaireSteps { get; set; }
     public DbSet<QuestionnaireResponse> QuestionnaireResponses { get; set; }
     public DbSet<Domain.Entities.BusinessPlan.FinancialProjection> BusinessPlanFinancialProjections { get; set; }
     public DbSet<BusinessPlanShare> BusinessPlanShares { get; set; }
@@ -79,6 +81,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     // AI Prompt Management
     public DbSet<AIPrompt> AIPrompts { get; set; }
+    public DbSet<AIPromptVersion> AIPromptVersions { get; set; }
     public DbSet<PromptTemplate> PromptTemplates { get; set; }
     public DbSet<PromptPerformance> PromptPerformance { get; set; }
     
@@ -99,6 +102,19 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<CmsVersion> CmsVersions { get; set; }
     public DbSet<CmsContentBlock> CmsContentBlocks { get; set; }
     public DbSet<CmsAsset> CmsAssets { get; set; }
+    public DbSet<CmsVersionHistory> CmsVersionHistory { get; set; }
+
+    // CMS Registry (Page/Section/Block definitions)
+    public DbSet<CmsPage> CmsPages { get; set; }
+    public DbSet<CmsSection> CmsSections { get; set; }
+    public DbSet<CmsBlockDefinition> CmsBlockDefinitions { get; set; }
+
+    // CMS Content Templates
+    public DbSet<CmsContentTemplate> CmsContentTemplates { get; set; }
+
+    // Bug Reports
+    public DbSet<BugReport> BugReports { get; set; }
+    public DbSet<BugReportAttachment> BugReportAttachments { get; set; }
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {

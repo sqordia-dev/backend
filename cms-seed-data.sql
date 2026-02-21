@@ -304,6 +304,162 @@ VALUES
 ON CONFLICT ("CmsVersionId", "BlockKey", "Language") DO UPDATE SET "BlockType" = EXCLUDED."BlockType", "Content" = EXCLUDED."Content", "SortOrder" = EXCLUDED."SortOrder", "SectionKey" = EXCLUDED."SectionKey", "Metadata" = EXCLUDED."Metadata", "LastModified" = NOW(), "IsDeleted" = false;
 
 -- =============================================================================
+-- LANDING - Features (EN + FR) - 3 steps with titles, subtitles, descriptions, benefits
+-- =============================================================================
+INSERT INTO "CmsContentBlocks" ("Id", "CmsVersionId", "BlockKey", "BlockType", "Content", "Language", "SortOrder", "SectionKey", "Metadata", "Created", "LastModified", "IsDeleted")
+VALUES
+-- Header content (EN)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.badge', 0, 'How It Works', 'en', 1, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.title', 0, 'Three Simple Steps to', 'en', 2, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.title.highlight', 0, 'Your Business Plan', 'en', 3, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.subtitle', 0, 'Transform your business idea into a professional, bank-ready plan with AI-powered guidance.', 'en', 4, 'landing.features', NULL, NOW(), NOW(), false),
+-- Step 1 (EN)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.title', 0, 'Answer Smart Questions', 'en', 10, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.subtitle', 0, 'Guided Questionnaire', 'en', 11, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.description', 0, 'Our intelligent questionnaire adapts to your business type and provides AI-powered suggestions as you answer. No business expertise required.', 'en', 12, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.benefit1', 0, 'Multiple-choice answers with smart suggestions', 'en', 13, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.benefit2', 0, 'AI explains why each question matters', 'en', 14, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.benefit3', 0, 'Auto-save progress as you go', 'en', 15, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.benefit4', 0, 'Complete in under 20 minutes', 'en', 16, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.imageAlt', 0, 'Sqordia questionnaire interface showing smart questions', 'en', 17, 'landing.features', NULL, NOW(), NOW(), false),
+-- Step 2 (EN)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.title', 0, 'AI Generates Your Plan', 'en', 20, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.subtitle', 0, 'Intelligent Generation', 'en', 21, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.description', 0, 'Choose from multiple AI engines (GPT-4, Claude, Gemini) to generate a comprehensive business plan with market analysis, financial projections, and strategy.', 'en', 22, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.benefit1', 0, 'Multiple AI engine options for best results', 'en', 23, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.benefit2', 0, 'Real-time market data integration', 'en', 24, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.benefit3', 0, 'Automated financial projections', 'en', 25, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.benefit4', 0, 'Bank-readiness scoring included', 'en', 26, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.imageAlt', 0, 'AI-powered plan generation with live preview', 'en', 27, 'landing.features', NULL, NOW(), NOW(), false),
+-- Step 3 (EN)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.title', 0, 'Export & Present', 'en', 30, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.subtitle', 0, 'Professional Output', 'en', 31, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.description', 0, 'Export your plan in multiple formats - PDF, Word, PowerPoint. Every section is fully editable before you present to investors or banks.', 'en', 32, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.benefit1', 0, 'Export to PDF, Word, and PowerPoint', 'en', 33, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.benefit2', 0, 'Fully editable before export', 'en', 34, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.benefit3', 0, 'Professional formatting included', 'en', 35, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.benefit4', 0, 'Investor-ready presentation mode', 'en', 36, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.imageAlt', 0, 'Dashboard showing export options and business plans', 'en', 37, 'landing.features', NULL, NOW(), NOW(), false),
+-- Header content (FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.badge', 0, 'Comment ça marche', 'fr', 1, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.title', 0, E'Trois \u00e9tapes simples vers', 'fr', 2, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.title.highlight', 0, E'votre plan d''affaires', 'fr', 3, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.subtitle', 0, E'Transformez votre id\u00e9e d''entreprise en un plan professionnel pr\u00eat pour la banque avec l''aide de l''IA.', 'fr', 4, 'landing.features', NULL, NOW(), NOW(), false),
+-- Step 1 (FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.title', 0, E'R\u00e9pondez aux questions intelligentes', 'fr', 10, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.subtitle', 0, E'Questionnaire guid\u00e9', 'fr', 11, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.description', 0, E'Notre questionnaire intelligent s''adapte \u00e0 votre type d''entreprise et fournit des suggestions propuls\u00e9es par l''IA au fur et \u00e0 mesure. Aucune expertise commerciale requise.', 'fr', 12, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.benefit1', 0, E'R\u00e9ponses \u00e0 choix multiples avec suggestions intelligentes', 'fr', 13, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.benefit2', 0, E'L''IA explique pourquoi chaque question est importante', 'fr', 14, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.benefit3', 0, E'Sauvegarde automatique au fur et \u00e0 mesure', 'fr', 15, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.benefit4', 0, E'Compl\u00e9tez en moins de 20 minutes', 'fr', 16, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step1.imageAlt', 0, 'Interface du questionnaire Sqordia avec questions intelligentes', 'fr', 17, 'landing.features', NULL, NOW(), NOW(), false),
+-- Step 2 (FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.title', 0, E'L''IA g\u00e9n\u00e8re votre plan', 'fr', 20, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.subtitle', 0, E'G\u00e9n\u00e9ration intelligente', 'fr', 21, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.description', 0, E'Choisissez parmi plusieurs moteurs IA (GPT-4, Claude, Gemini) pour g\u00e9n\u00e9rer un plan d''affaires complet avec analyse de march\u00e9, projections financi\u00e8res et strat\u00e9gie.', 'fr', 22, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.benefit1', 0, E'Plusieurs moteurs IA pour les meilleurs r\u00e9sultats', 'fr', 23, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.benefit2', 0, E'Int\u00e9gration de donn\u00e9es de march\u00e9 en temps r\u00e9el', 'fr', 24, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.benefit3', 0, E'Projections financi\u00e8res automatis\u00e9es', 'fr', 25, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.benefit4', 0, E'Score de pr\u00eat bancaire inclus', 'fr', 26, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step2.imageAlt', 0, E'G\u00e9n\u00e9ration de plan propuls\u00e9e par l''IA avec aper\u00e7u en direct', 'fr', 27, 'landing.features', NULL, NOW(), NOW(), false),
+-- Step 3 (FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.title', 0, E'Exportez et pr\u00e9sentez', 'fr', 30, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.subtitle', 0, 'Sortie professionnelle', 'fr', 31, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.description', 0, E'Exportez votre plan dans plusieurs formats - PDF, Word, PowerPoint. Chaque section est enti\u00e8rement modifiable avant de pr\u00e9senter aux investisseurs ou aux banques.', 'fr', 32, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.benefit1', 0, 'Exportez en PDF, Word et PowerPoint', 'fr', 33, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.benefit2', 0, E'Enti\u00e8rement modifiable avant l''export', 'fr', 34, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.benefit3', 0, 'Mise en forme professionnelle incluse', 'fr', 35, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.benefit4', 0, E'Mode pr\u00e9sentation pr\u00eat pour les investisseurs', 'fr', 36, 'landing.features', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.features.step3.imageAlt', 0, E'Tableau de bord montrant les options d''exportation et les plans d''affaires', 'fr', 37, 'landing.features', NULL, NOW(), NOW(), false)
+ON CONFLICT ("CmsVersionId", "BlockKey", "Language") DO UPDATE SET "BlockType" = EXCLUDED."BlockType", "Content" = EXCLUDED."Content", "SortOrder" = EXCLUDED."SortOrder", "SectionKey" = EXCLUDED."SectionKey", "Metadata" = EXCLUDED."Metadata", "LastModified" = NOW(), "IsDeleted" = false;
+
+-- =============================================================================
+-- LANDING - Value Props (EN + FR)
+-- =============================================================================
+INSERT INTO "CmsContentBlocks" ("Id", "CmsVersionId", "BlockKey", "BlockType", "Content", "Language", "SortOrder", "SectionKey", "Metadata", "Created", "LastModified", "IsDeleted")
+VALUES
+-- Header (EN)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.badge', 0, 'Why Sqordia', 'en', 1, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.title', 0, 'Everything You Need to', 'en', 2, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.title.highlight', 0, 'Succeed', 'en', 3, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.subtitle', 0, 'Powerful features designed to help entrepreneurs create professional business plans that get results.', 'en', 4, 'landing.valueProps', NULL, NOW(), NOW(), false),
+-- Props (EN)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.1.title', 0, 'AI-Powered Intelligence', 'en', 10, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.1.description', 0, 'Multiple AI engines analyze your business and generate comprehensive, data-driven plans with market insights.', 'en', 11, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.2.title', 0, 'Strategic Precision', 'en', 12, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.2.description', 0, 'Bank-readiness scoring ensures your plan meets the standards that investors and lenders expect.', 'en', 13, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.3.title', 0, 'Built for Everyone', 'en', 14, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.3.description', 0, 'Whether you''re an entrepreneur, consultant, or nonprofit, Sqordia adapts to your unique needs.', 'en', 15, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.4.title', 0, 'Multiple Plan Types', 'en', 16, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.4.description', 0, 'Create traditional business plans, strategic plans, or lean canvases—all from one platform.', 'en', 17, 'landing.valueProps', NULL, NOW(), NOW(), false),
+-- Header (FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.badge', 0, 'Pourquoi Sqordia', 'fr', 1, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.title', 0, E'Tout ce qu''il vous faut pour', 'fr', 2, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.title.highlight', 0, E'r\u00e9ussir', 'fr', 3, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.subtitle', 0, E'Des fonctionnalit\u00e9s puissantes con\u00e7ues pour aider les entrepreneurs \u00e0 cr\u00e9er des plans d''affaires professionnels qui obtiennent des r\u00e9sultats.', 'fr', 4, 'landing.valueProps', NULL, NOW(), NOW(), false),
+-- Props (FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.1.title', 0, E'Intelligence propuls\u00e9e par l''IA', 'fr', 10, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.1.description', 0, E'Plusieurs moteurs IA analysent votre entreprise et g\u00e9n\u00e8rent des plans complets bas\u00e9s sur les donn\u00e9es.', 'fr', 11, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.2.title', 0, E'Pr\u00e9cision strat\u00e9gique', 'fr', 12, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.2.description', 0, E'Le score de pr\u00eat bancaire garantit que votre plan r\u00e9pond aux normes attendues par les investisseurs et les pr\u00eateurs.', 'fr', 13, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.3.title', 0, E'Con\u00e7u pour tous', 'fr', 14, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.3.description', 0, E'Que vous soyez entrepreneur, consultant ou OBNL, Sqordia s''adapte \u00e0 vos besoins uniques.', 'fr', 15, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.4.title', 0, 'Plusieurs types de plans', 'fr', 16, 'landing.valueProps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.valueProps.4.description', 0, E'Cr\u00e9ez des plans d''affaires traditionnels, des plans strat\u00e9giques ou des lean canvas—le tout depuis une seule plateforme.', 'fr', 17, 'landing.valueProps', NULL, NOW(), NOW(), false)
+ON CONFLICT ("CmsVersionId", "BlockKey", "Language") DO UPDATE SET "BlockType" = EXCLUDED."BlockType", "Content" = EXCLUDED."Content", "SortOrder" = EXCLUDED."SortOrder", "SectionKey" = EXCLUDED."SectionKey", "Metadata" = EXCLUDED."Metadata", "LastModified" = NOW(), "IsDeleted" = false;
+
+-- =============================================================================
+-- LANDING - Stats / LogoCloud (EN + FR)
+-- =============================================================================
+INSERT INTO "CmsContentBlocks" ("Id", "CmsVersionId", "BlockKey", "BlockType", "Content", "Language", "SortOrder", "SectionKey", "Metadata", "Created", "LastModified", "IsDeleted")
+VALUES
+-- Stats (EN)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.heading', 0, 'Trusted by entrepreneurs worldwide', 'en', 1, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.plans.value', 0, '10,000+', 'en', 2, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.plans.label', 0, 'Business Plans Created', 'en', 3, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.funding.value', 0, '$50M+', 'en', 4, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.funding.label', 0, 'Funding Secured', 'en', 5, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.countries.value', 0, '50+', 'en', 6, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.countries.label', 0, 'Countries', 'en', 7, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.rating.value', 0, '4.9/5', 'en', 8, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.rating.label', 0, 'User Rating', 'en', 9, 'landing.stats', NULL, NOW(), NOW(), false),
+-- Stats (FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.heading', 0, E'La confiance des entrepreneurs du monde entier', 'fr', 1, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.plans.value', 0, '10 000+', 'fr', 2, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.plans.label', 0, E'Plans d''affaires cr\u00e9\u00e9s', 'fr', 3, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.funding.value', 0, '50M$+', 'fr', 4, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.funding.label', 0, E'Financement obtenu', 'fr', 5, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.countries.value', 0, '50+', 'fr', 6, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.countries.label', 0, 'Pays', 'fr', 7, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.rating.value', 0, '4,9/5', 'fr', 8, 'landing.stats', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.stats.rating.label', 0, E'\u00c9valuation utilisateurs', 'fr', 9, 'landing.stats', NULL, NOW(), NOW(), false)
+ON CONFLICT ("CmsVersionId", "BlockKey", "Language") DO UPDATE SET "BlockType" = EXCLUDED."BlockType", "Content" = EXCLUDED."Content", "SortOrder" = EXCLUDED."SortOrder", "SectionKey" = EXCLUDED."SectionKey", "Metadata" = EXCLUDED."Metadata", "LastModified" = NOW(), "IsDeleted" = false;
+
+-- =============================================================================
+-- LANDING - Final CTA (EN + FR)
+-- =============================================================================
+INSERT INTO "CmsContentBlocks" ("Id", "CmsVersionId", "BlockKey", "BlockType", "Content", "Language", "SortOrder", "SectionKey", "Metadata", "Created", "LastModified", "IsDeleted")
+VALUES
+-- Final CTA (EN)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.badge', 0, 'Start Free Today', 'en', 1, 'landing.finalCta', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.headline', 0, 'Ready to Build Your Business Plan?', 'en', 2, 'landing.finalCta', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.subheadline', 0, 'Join thousands of entrepreneurs who have transformed their ideas into investor-ready business plans.', 'en', 3, 'landing.finalCta', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.cta', 0, 'Get Started Free', 'en', 4, 'landing.finalCta', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.trust.noCard', 0, 'No credit card required', 'en', 5, 'landing.finalCta', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.trust.trial', 0, '14-day free trial', 'en', 6, 'landing.finalCta', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.trust.cancel', 0, 'Cancel anytime', 'en', 7, 'landing.finalCta', NULL, NOW(), NOW(), false),
+-- Final CTA (FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.badge', 0, E'Commencez gratuitement aujourd''hui', 'fr', 1, 'landing.finalCta', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.headline', 0, E'Pr\u00eat \u00e0 cr\u00e9er votre plan d''affaires?', 'fr', 2, 'landing.finalCta', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.subheadline', 0, E'Rejoignez des milliers d''entrepreneurs qui ont transform\u00e9 leurs id\u00e9es en plans d''affaires pr\u00eats pour les investisseurs.', 'fr', 3, 'landing.finalCta', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.cta', 0, 'Commencer gratuitement', 'fr', 4, 'landing.finalCta', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.trust.noCard', 0, E'Aucune carte de cr\u00e9dit requise', 'fr', 5, 'landing.finalCta', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.trust.trial', 0, 'Essai gratuit de 14 jours', 'fr', 6, 'landing.finalCta', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'landing.finalCta.trust.cancel', 0, E'Annulez \u00e0 tout moment', 'fr', 7, 'landing.finalCta', NULL, NOW(), NOW(), false)
+ON CONFLICT ("CmsVersionId", "BlockKey", "Language") DO UPDATE SET "BlockType" = EXCLUDED."BlockType", "Content" = EXCLUDED."Content", "SortOrder" = EXCLUDED."SortOrder", "SectionKey" = EXCLUDED."SectionKey", "Metadata" = EXCLUDED."Metadata", "LastModified" = NOW(), "IsDeleted" = false;
+
+-- =============================================================================
 -- LANDING - FAQ (EN + FR) + JSON items
 -- =============================================================================
 INSERT INTO "CmsContentBlocks" ("Id", "CmsVersionId", "BlockKey", "BlockType", "Content", "Language", "SortOrder", "SectionKey", "Metadata", "Created", "LastModified", "IsDeleted")
@@ -568,6 +724,90 @@ VALUES
 ON CONFLICT ("CmsVersionId", "BlockKey", "Language") DO UPDATE SET "BlockType" = EXCLUDED."BlockType", "Content" = EXCLUDED."Content", "SortOrder" = EXCLUDED."SortOrder", "SectionKey" = EXCLUDED."SectionKey", "Metadata" = EXCLUDED."Metadata", "LastModified" = NOW(), "IsDeleted" = false;
 
 -- =============================================================================
+-- QUESTIONNAIRE - Step Configuration (EN + FR)
+-- =============================================================================
+INSERT INTO "CmsContentBlocks" ("Id", "CmsVersionId", "BlockKey", "BlockType", "Content", "Language", "SortOrder", "SectionKey", "Metadata", "Created", "LastModified", "IsDeleted")
+VALUES
+-- Step Configuration (EN)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step1.title', 0, 'Vision & Mission', 'en', 1, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step1.description', 0, 'Define your business identity, vision, and core mission', 'en', 2, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step1.icon', 0, 'target', 'en', 3, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step2.title', 0, 'Market & Customers', 'en', 4, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step2.description', 0, 'Identify your target market and understand your customers', 'en', 5, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step2.icon', 0, 'users', 'en', 6, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step3.title', 0, 'Products & Services', 'en', 7, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step3.description', 0, 'Detail your offerings and value proposition', 'en', 8, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step3.icon', 0, 'package', 'en', 9, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step4.title', 0, 'Strategy & Operations', 'en', 10, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step4.description', 0, 'Plan your operational strategy and execution approach', 'en', 11, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step4.icon', 0, 'settings', 'en', 12, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step5.title', 0, 'Financials & Growth', 'en', 13, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step5.description', 0, 'Project your financials and growth trajectory', 'en', 14, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step5.icon', 0, 'trending-up', 'en', 15, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+-- Step Configuration (FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step1.title', 0, 'Vision et Mission', 'fr', 1, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step1.description', 0, E'D\u00e9finissez l''identit\u00e9, la vision et la mission de votre entreprise', 'fr', 2, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step2.title', 0, E'March\u00e9 et Clients', 'fr', 4, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step2.description', 0, 'Identifiez votre marché cible et comprenez vos clients', 'fr', 5, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step3.title', 0, 'Produits et Services', 'fr', 7, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step3.description', 0, E'D\u00e9taillez vos offres et votre proposition de valeur', 'fr', 8, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step4.title', 0, E'Strat\u00e9gie et Op\u00e9rations', 'fr', 10, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step4.description', 0, E'Planifiez votre strat\u00e9gie op\u00e9rationnelle et votre approche d''ex\u00e9cution', 'fr', 11, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step5.title', 0, 'Finances et Croissance', 'fr', 13, 'questionnaire.steps', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.steps.step5.description', 0, E'Projetez vos finances et votre trajectoire de croissance', 'fr', 14, 'questionnaire.steps', NULL, NOW(), NOW(), false)
+ON CONFLICT ("CmsVersionId", "BlockKey", "Language") DO UPDATE SET "BlockType" = EXCLUDED."BlockType", "Content" = EXCLUDED."Content", "SortOrder" = EXCLUDED."SortOrder", "SectionKey" = EXCLUDED."SectionKey", "Metadata" = EXCLUDED."Metadata", "LastModified" = NOW(), "IsDeleted" = false;
+
+-- =============================================================================
+-- QUESTIONNAIRE - Generation Tips (EN + FR)
+-- =============================================================================
+INSERT INTO "CmsContentBlocks" ("Id", "CmsVersionId", "BlockKey", "BlockType", "Content", "Language", "SortOrder", "SectionKey", "Metadata", "Created", "LastModified", "IsDeleted")
+VALUES
+-- Generation Tips (EN)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.title', 0, 'Tips for Better Results', 'en', 1, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.tip1.title', 0, 'Be Specific', 'en', 2, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.tip1.description', 0, 'The more details you provide, the better your generated plan will be tailored to your business.', 'en', 3, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.tip2.title', 0, 'Use Real Numbers', 'en', 4, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.tip2.description', 0, 'Include actual financial figures, market sizes, and growth projections for more accurate analysis.', 'en', 5, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.tip3.title', 0, 'Review & Refine', 'en', 6, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.tip3.description', 0, 'You can always come back and update your answers to regenerate sections of your plan.', 'en', 7, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.did_you_know.title', 0, 'Did You Know?', 'en', 8, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.did_you_know.content', 0, 'Business plans that include detailed market research are 2x more likely to secure funding.', 'en', 9, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+-- Generation Tips (FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.title', 0, E'Conseils pour de meilleurs r\u00e9sultats', 'fr', 1, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.tip1.title', 0, E'Soyez pr\u00e9cis', 'fr', 2, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.tip1.description', 0, E'Plus vous fournissez de d\u00e9tails, mieux votre plan g\u00e9n\u00e9r\u00e9 sera adapt\u00e9 \u00e0 votre entreprise.', 'fr', 3, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.tip2.title', 0, E'Utilisez des chiffres r\u00e9els', 'fr', 4, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.tip2.description', 0, E'Incluez des chiffres financiers r\u00e9els, des tailles de march\u00e9 et des projections de croissance pour une analyse plus pr\u00e9cise.', 'fr', 5, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.tip3.title', 0, E'R\u00e9visez et affinez', 'fr', 6, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.tip3.description', 0, E'Vous pouvez toujours revenir et mettre \u00e0 jour vos r\u00e9ponses pour r\u00e9g\u00e9n\u00e9rer des sections de votre plan.', 'fr', 7, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.did_you_know.title', 0, 'Le saviez-vous?', 'fr', 8, 'questionnaire.tips', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'questionnaire.tips.did_you_know.content', 0, E'Les plans d''affaires incluant une \u00e9tude de march\u00e9 d\u00e9taill\u00e9e ont 2x plus de chances d''obtenir un financement.', 'fr', 9, 'questionnaire.tips', NULL, NOW(), NOW(), false)
+ON CONFLICT ("CmsVersionId", "BlockKey", "Language") DO UPDATE SET "BlockType" = EXCLUDED."BlockType", "Content" = EXCLUDED."Content", "SortOrder" = EXCLUDED."SortOrder", "SectionKey" = EXCLUDED."SectionKey", "Metadata" = EXCLUDED."Metadata", "LastModified" = NOW(), "IsDeleted" = false;
+
+-- =============================================================================
+-- QUESTION TEMPLATES - Step Labels (EN + FR)
+-- These labels appear in the CMS sidebar under "Questions" section
+-- =============================================================================
+INSERT INTO "CmsContentBlocks" ("Id", "CmsVersionId", "BlockKey", "BlockType", "Content", "Language", "SortOrder", "SectionKey", "Metadata", "Created", "LastModified", "IsDeleted")
+VALUES
+-- Step 1 Labels (EN + FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'question_templates.step1.label', 0, 'Step 1: Vision & Mission', 'en', 1, 'question_templates.step1', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'question_templates.step1.label', 0, E'\u00c9tape 1: Vision et Mission', 'fr', 1, 'question_templates.step1', NULL, NOW(), NOW(), false),
+-- Step 2 Labels (EN + FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'question_templates.step2.label', 0, 'Step 2: Market & Customers', 'en', 1, 'question_templates.step2', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'question_templates.step2.label', 0, E'\u00c9tape 2: March\u00e9 et Clients', 'fr', 1, 'question_templates.step2', NULL, NOW(), NOW(), false),
+-- Step 3 Labels (EN + FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'question_templates.step3.label', 0, 'Step 3: Products & Services', 'en', 1, 'question_templates.step3', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'question_templates.step3.label', 0, E'\u00c9tape 3: Produits et Services', 'fr', 1, 'question_templates.step3', NULL, NOW(), NOW(), false),
+-- Step 4 Labels (EN + FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'question_templates.step4.label', 0, 'Step 4: Strategy & Operations', 'en', 1, 'question_templates.step4', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'question_templates.step4.label', 0, E'\u00c9tape 4: Strat\u00e9gie et Op\u00e9rations', 'fr', 1, 'question_templates.step4', NULL, NOW(), NOW(), false),
+-- Step 5 Labels (EN + FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'question_templates.step5.label', 0, 'Step 5: Financials & Growth', 'en', 1, 'question_templates.step5', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'question_templates.step5.label', 0, E'\u00c9tape 5: Finances et Croissance', 'fr', 1, 'question_templates.step5', NULL, NOW(), NOW(), false)
+ON CONFLICT ("CmsVersionId", "BlockKey", "Language") DO UPDATE SET "BlockType" = EXCLUDED."BlockType", "Content" = EXCLUDED."Content", "SortOrder" = EXCLUDED."SortOrder", "SectionKey" = EXCLUDED."SectionKey", "Metadata" = EXCLUDED."Metadata", "LastModified" = NOW(), "IsDeleted" = false;
+
+-- =============================================================================
 -- CREATE PLAN - Labels (EN + FR)
 -- =============================================================================
 INSERT INTO "CmsContentBlocks" ("Id", "CmsVersionId", "BlockKey", "BlockType", "Content", "Language", "SortOrder", "SectionKey", "Metadata", "Created", "LastModified", "IsDeleted")
@@ -646,6 +886,25 @@ VALUES
 (gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'global.branding.logo_url', 3, '', 'fr', 1, 'global.branding', NULL, NOW(), NOW(), false),
 (gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'global.footer.tagline', 0, E'Planification strat\u00e9gique am\u00e9lior\u00e9e par l''IA qui transforme vos id\u00e9es en plans d''affaires pr\u00eats pour investisseurs en moins de 60 minutes.', 'fr', 1, 'global.footer', NULL, NOW(), NOW(), false),
 (gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'global.footer.copyright', 0, 'Tous droits r\u00e9serv\u00e9s.', 'fr', 2, 'global.footer', NULL, NOW(), NOW(), false)
+ON CONFLICT ("CmsVersionId", "BlockKey", "Language") DO UPDATE SET "BlockType" = EXCLUDED."BlockType", "Content" = EXCLUDED."Content", "SortOrder" = EXCLUDED."SortOrder", "SectionKey" = EXCLUDED."SectionKey", "Metadata" = EXCLUDED."Metadata", "LastModified" = NOW(), "IsDeleted" = false;
+
+-- =============================================================================
+-- GLOBAL - Contact Information (EN + FR)
+-- =============================================================================
+INSERT INTO "CmsContentBlocks" ("Id", "CmsVersionId", "BlockKey", "BlockType", "Content", "Language", "SortOrder", "SectionKey", "Metadata", "Created", "LastModified", "IsDeleted")
+VALUES
+-- Contact info (EN)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'global.contact.email', 0, 'hello@sqordia.com', 'en', 1, 'global.contact', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'global.contact.phone', 0, '+1 (514) 555-0123', 'en', 2, 'global.contact', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'global.contact.address', 0, 'Montreal, QC, Canada', 'en', 3, 'global.contact', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'global.contact.support_email', 0, 'support@sqordia.com', 'en', 4, 'global.contact', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'global.contact.support_hours', 0, 'Monday - Friday, 9am - 5pm EST', 'en', 5, 'global.contact', NULL, NOW(), NOW(), false),
+-- Contact info (FR)
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'global.contact.email', 0, 'hello@sqordia.com', 'fr', 1, 'global.contact', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'global.contact.phone', 0, '+1 (514) 555-0123', 'fr', 2, 'global.contact', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'global.contact.address', 0, E'Montr\u00e9al, QC, Canada', 'fr', 3, 'global.contact', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'global.contact.support_email', 0, 'support@sqordia.com', 'fr', 4, 'global.contact', NULL, NOW(), NOW(), false),
+(gen_random_uuid(), '17a4a74e-4782-4ca0-9493-aebbd22dcc95', 'global.contact.support_hours', 0, 'Lundi - Vendredi, 9h - 17h HNE', 'fr', 5, 'global.contact', NULL, NOW(), NOW(), false)
 ON CONFLICT ("CmsVersionId", "BlockKey", "Language") DO UPDATE SET "BlockType" = EXCLUDED."BlockType", "Content" = EXCLUDED."Content", "SortOrder" = EXCLUDED."SortOrder", "SectionKey" = EXCLUDED."SectionKey", "Metadata" = EXCLUDED."Metadata", "LastModified" = NOW(), "IsDeleted" = false;
 
 -- =============================================================================

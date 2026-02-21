@@ -15,7 +15,7 @@ namespace Sqordia.Infrastructure.Services;
 public class GeminiSettings
 {
     public string ApiKey { get; set; } = string.Empty;
-    public string Model { get; set; } = "gemini-1.5-pro";
+    public string Model { get; set; } = "gemini-2.0-flash";
     public int MaxTokens { get; set; } = 2000;
 }
 

@@ -12,13 +12,19 @@ namespace WebAPI.Controllers;
 public class CmsVersionController : BaseApiController
 {
     private readonly ICmsVersionService _versionService;
+    private readonly ICmsApprovalService _approvalService;
+    private readonly ICmsDiffService _diffService;
     private readonly ILogger<CmsVersionController> _logger;
 
     public CmsVersionController(
         ICmsVersionService versionService,
+        ICmsApprovalService approvalService,
+        ICmsDiffService diffService,
         ILogger<CmsVersionController> logger)
     {
         _versionService = versionService;
+        _approvalService = approvalService;
+        _diffService = diffService;
         _logger = logger;
     }
 
@@ -117,6 +123,144 @@ public class CmsVersionController : BaseApiController
     public async Task<IActionResult> DeleteVersion(Guid id, CancellationToken cancellationToken = default)
     {
         var result = await _versionService.DeleteVersionAsync(id, cancellationToken);
+        return HandleResult(result);
+    }
+
+    // ========== Approval Workflow Endpoints ==========
+
+    /// <summary>
+    /// Submit a draft version for approval
+    /// </summary>
+    [HttpPost("{id:guid}/submit-for-approval")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> SubmitForApproval(Guid id, [FromBody] SubmitForApprovalRequest? request, CancellationToken cancellationToken = default)
+    {
+        var result = await _approvalService.SubmitForApprovalAsync(id, request?.Notes, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Approve a version that is pending approval
+    /// </summary>
+    [HttpPost("{id:guid}/approve")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ApproveVersion(Guid id, [FromBody] ApproveVersionRequest? request, CancellationToken cancellationToken = default)
+    {
+        var result = await _approvalService.ApproveAsync(id, request?.Notes, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Reject a version that is pending approval
+    /// </summary>
+    [HttpPost("{id:guid}/reject")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> RejectVersion(Guid id, [FromBody] RejectVersionRequest? request, CancellationToken cancellationToken = default)
+    {
+        var result = await _approvalService.RejectAsync(id, request?.Reason, cancellationToken);
+        return HandleResult(result);
+    }
+
+    // ========== Scheduling Endpoints ==========
+
+    /// <summary>
+    /// Schedule a version for future publishing
+    /// </summary>
+    [HttpPost("{id:guid}/schedule")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ScheduleVersion(Guid id, [FromBody] ScheduleVersionRequest request, CancellationToken cancellationToken = default)
+    {
+        var result = await _approvalService.ScheduleAsync(id, request.PublishAt, request.Notes, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Cancel the scheduled publishing for a version
+    /// </summary>
+    [HttpDelete("{id:guid}/schedule")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> CancelSchedule(Guid id, [FromBody] CancelScheduleRequest? request, CancellationToken cancellationToken = default)
+    {
+        var result = await _approvalService.CancelScheduleAsync(id, request?.Notes, cancellationToken);
+        return HandleResult(result);
+    }
+
+    // ========== History Endpoint ==========
+
+    /// <summary>
+    /// Get the history of actions performed on a version
+    /// </summary>
+    [HttpGet("{id:guid}/history")]
+    [ProducesResponseType(typeof(List<CmsVersionHistoryResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetVersionHistory(Guid id, CancellationToken cancellationToken = default)
+    {
+        var result = await _approvalService.GetHistoryAsync(id, cancellationToken);
+        return HandleResult(result);
+    }
+
+    // ========== Restore Endpoint ==========
+
+    /// <summary>
+    /// Restore a previous version by creating a new draft with the same content
+    /// </summary>
+    [HttpPost("{id:guid}/restore")]
+    [ProducesResponseType(typeof(CmsVersionDetailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> RestoreVersion(Guid id, [FromBody] RestoreVersionRequest? request, CancellationToken cancellationToken = default)
+    {
+        var result = await _versionService.RestoreVersionAsync(id, request?.Notes, cancellationToken);
+        return HandleResult(result);
+    }
+
+    // ========== Compare/Diff Endpoints ==========
+
+    /// <summary>
+    /// Compare two versions and get the diff
+    /// </summary>
+    [HttpGet("compare")]
+    [ProducesResponseType(typeof(CmsDiffResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> CompareVersions(
+        [FromQuery] Guid sourceId,
+        [FromQuery] Guid targetId,
+        [FromQuery] string? language = null,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _diffService.CompareVersionsAsync(sourceId, targetId, language, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get the diff between the current draft and the published version
+    /// </summary>
+    [HttpGet("diff")]
+    [ProducesResponseType(typeof(CmsDiffResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetDraftVsPublishedDiff([FromQuery] string? language = null, CancellationToken cancellationToken = default)
+    {
+        var result = await _diffService.GetDraftVsPublishedDiffAsync(language, cancellationToken);
         return HandleResult(result);
     }
 }

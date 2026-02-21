@@ -310,6 +310,13 @@ public static class ConfigureServices
         services.AddTransient<ICmsContentBlockService, CmsContentBlockService>();
         services.AddTransient<ICmsAssetService, CmsAssetService>();
         services.AddTransient<IPublishedContentService, PublishedContentService>();
+        services.AddTransient<ICmsApprovalService, CmsApprovalService>();
+        services.AddTransient<ICmsDiffService, CmsDiffService>();
+        services.AddTransient<ICmsRegistryService, CmsRegistryService>();
+        services.AddTransient<ICmsTemplateService, CmsTemplateService>();
+
+        // Bug Report service
+        services.AddScoped<IBugReportService, BugReportService>();
 
         // V2 Services - Growth Architect Intelligence Layer
         services.AddTransient<IAuditService, AuditService>();

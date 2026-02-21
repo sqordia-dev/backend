@@ -33,4 +33,11 @@ public interface IQuestionnaireServiceV2
         Guid questionId,
         string language = "fr",
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all step metadata (titles, descriptions) without questions
+    /// </summary>
+    Task<Result<List<QuestionnaireStepMetadataResponse>>> GetStepsMetadataAsync(
+        string language = "fr",
+        CancellationToken cancellationToken = default);
 }

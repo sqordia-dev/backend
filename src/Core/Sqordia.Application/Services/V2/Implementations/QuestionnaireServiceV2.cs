@@ -180,6 +180,47 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
         }
     }
 
+    public async Task<Result<List<QuestionnaireStepMetadataResponse>>> GetStepsMetadataAsync(
+        string language = "fr",
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Getting questionnaire steps metadata in language {Language}", language);
+
+            var steps = await _context.QuestionnaireSteps
+                .Where(s => s.IsActive)
+                .OrderBy(s => s.StepNumber)
+                .ToListAsync(cancellationToken);
+
+            // Get question counts per step
+            var questionCounts = await _context.QuestionTemplatesV2
+                .Where(q => q.IsActive)
+                .GroupBy(q => q.StepNumber)
+                .Select(g => new { StepNumber = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.StepNumber, x => x.Count, cancellationToken);
+
+            var response = steps.Select(s => new QuestionnaireStepMetadataResponse
+            {
+                Id = s.Id,
+                StepNumber = s.StepNumber,
+                Title = s.TitleFR,
+                TitleEN = s.TitleEN,
+                Description = s.DescriptionFR,
+                DescriptionEN = s.DescriptionEN,
+                QuestionCount = questionCounts.GetValueOrDefault(s.StepNumber, 0)
+            }).ToList();
+
+            return Result.Success(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting questionnaire steps metadata");
+            return Result.Failure<List<QuestionnaireStepMetadataResponse>>(
+                Error.InternalServerError("Steps.GetError", "An error occurred while retrieving steps."));
+        }
+    }
+
     private static PersonaQuestionResponse MapToResponse(QuestionTemplateV2 question, bool isEnglish)
     {
         var questionText = isEnglish && !string.IsNullOrWhiteSpace(question.QuestionTextEN)

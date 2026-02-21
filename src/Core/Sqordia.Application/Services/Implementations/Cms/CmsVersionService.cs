@@ -296,6 +296,89 @@ public class CmsVersionService : ICmsVersionService
         }
     }
 
+    public async Task<Result<CmsVersionDetailResponse>> RestoreVersionAsync(Guid versionId, string? notes = null, CancellationToken cancellationToken = default)
+    {
+        if (!_currentUserService.IsAuthenticated)
+        {
+            return Result.Failure<CmsVersionDetailResponse>(Error.Unauthorized("Cms.Version.Unauthorized", "You must be authenticated to restore a CMS version."));
+        }
+
+        try
+        {
+            var userId = Guid.Parse(_currentUserService.UserId!);
+
+            // Get the version to restore
+            var sourceVersion = await _context.CmsVersions
+                .Include(v => v.ContentBlocks)
+                .FirstOrDefaultAsync(v => v.Id == versionId, cancellationToken);
+
+            if (sourceVersion == null)
+            {
+                return Result.Failure<CmsVersionDetailResponse>(Error.NotFound("Cms.Version.NotFound", $"CMS version with ID '{versionId}' was not found."));
+            }
+
+            // Check if there's an existing draft and delete it
+            var existingDraft = await _context.CmsVersions
+                .FirstOrDefaultAsync(v => v.Status == CmsVersionStatus.Draft, cancellationToken);
+
+            if (existingDraft != null)
+            {
+                existingDraft.IsDeleted = true;
+                existingDraft.DeletedAt = DateTime.UtcNow;
+                _logger.LogInformation("Existing draft version {VersionId} soft-deleted before restore", existingDraft.Id);
+            }
+
+            // Get the next version number
+            var maxVersionNumber = await _context.CmsVersions
+                .MaxAsync(v => (int?)v.VersionNumber, cancellationToken) ?? 0;
+
+            var newVersionNumber = maxVersionNumber + 1;
+
+            // Create the new draft version
+            var restoredNotes = notes ?? $"Restored from version {sourceVersion.VersionNumber}";
+            var newVersion = new CmsVersion(newVersionNumber, userId, restoredNotes);
+
+            _context.CmsVersions.Add(newVersion);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Clone content blocks from source version
+            foreach (var sourceBlock in sourceVersion.ContentBlocks)
+            {
+                var clonedBlock = new CmsContentBlock(
+                    newVersion.Id,
+                    sourceBlock.BlockKey,
+                    sourceBlock.BlockType,
+                    sourceBlock.Content,
+                    sourceBlock.Language,
+                    sourceBlock.SortOrder,
+                    sourceBlock.SectionKey,
+                    sourceBlock.Metadata
+                );
+
+                _context.CmsContentBlocks.Add(clonedBlock);
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("CMS version {SourceVersionNumber} restored as new version {NewVersionNumber} by user {UserId}",
+                sourceVersion.VersionNumber, newVersionNumber, userId);
+
+            // Reload the version with its content blocks
+            var createdVersion = await _context.CmsVersions
+                .Include(v => v.ContentBlocks)
+                .FirstAsync(v => v.Id == newVersion.Id, cancellationToken);
+
+            var createdByUserName = await GetUserNameAsync(userId, cancellationToken);
+
+            return Result.Success(MapToVersionDetailResponse(createdVersion, createdByUserName));
+        }
+        catch (Exception ex) when (IsCmsTableMissing(ex))
+        {
+            _logger.LogWarning(ex, "CMS tables not available (migration may not be applied).");
+            return Result.Failure<CmsVersionDetailResponse>(CmsTablesNotAvailableError);
+        }
+    }
+
     private async Task<string?> GetUserNameAsync(Guid userId, CancellationToken cancellationToken)
     {
         var user = await _context.Users

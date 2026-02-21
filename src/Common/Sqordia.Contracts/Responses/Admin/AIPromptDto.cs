@@ -61,3 +61,19 @@ public class AIPromptStats
     public required string MostUsedLanguage { get; set; }
     public required string MostUsedPlanType { get; set; }
 }
+
+/// <summary>
+/// AI Prompt version history entry
+/// </summary>
+public class AIPromptVersionDto
+{
+    public required string Id { get; set; }
+    public required string AIPromptId { get; set; }
+    public required int Version { get; set; }
+    public required string SystemPrompt { get; set; }
+    public required string UserPromptTemplate { get; set; }
+    public string? Variables { get; set; }
+    public string? Notes { get; set; }
+    public string? ChangedBy { get; set; }
+    public required DateTime ChangedAt { get; set; }
+}

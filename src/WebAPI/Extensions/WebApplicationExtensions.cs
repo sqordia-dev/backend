@@ -28,6 +28,11 @@ public static class WebApplicationExtensions
                 return;
             }
 
+            // Clear all Npgsql connection pools to ensure fresh connections with current credentials
+            // This fixes issues where pooled connections have stale authentication state
+            logger.LogInformation("Clearing Npgsql connection pools...");
+            NpgsqlConnection.ClearAllPools();
+
             var db = services.GetRequiredService<ApplicationDbContext>();
 
             logger.LogInformation("Applying database migrations (will create database if it doesn't exist)...");

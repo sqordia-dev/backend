@@ -323,6 +323,114 @@ public class AdminAIPromptController : BaseApiController
     }
 
     /// <summary>
+    /// Get version history for a prompt (content snapshots)
+    /// </summary>
+    /// <param name="promptId">The prompt ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of version history entries</returns>
+    /// <remarks>
+    /// Returns all saved version snapshots for a prompt, ordered by version number descending.
+    /// Each entry contains the full prompt content at that point in time.
+    /// </remarks>
+    [HttpGet("{promptId}/history")]
+    [ProducesResponseType(typeof(List<AIPromptVersionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetVersionHistory(
+        string promptId,
+        CancellationToken cancellationToken = default)
+    {
+        var history = await _aiPromptService.GetVersionHistoryAsync(promptId, cancellationToken);
+        return Ok(history);
+    }
+
+    /// <summary>
+    /// Rollback a prompt to a previous version
+    /// </summary>
+    /// <param name="promptId">The prompt ID</param>
+    /// <param name="request">The rollback request</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Success status</returns>
+    /// <remarks>
+    /// Restores the prompt content to a previous version. The current content is saved
+    /// as a new version before rollback, so no data is lost.
+    ///
+    /// Sample request:
+    ///     POST /api/v1/admin/ai-prompts/{promptId}/rollback
+    ///     {
+    ///         "targetVersion": 2,
+    ///         "notes": "Rolling back due to issues with version 3"
+    ///     }
+    /// </remarks>
+    [HttpPost("{promptId}/rollback")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> RollbackToVersion(
+        string promptId,
+        [FromBody] RollbackAIPromptRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var success = await _aiPromptService.RollbackToVersionAsync(
+                promptId, request.TargetVersion, request.Notes, null, cancellationToken);
+
+            if (!success)
+                return NotFound(new { error = "Prompt or target version not found" });
+
+            return Ok(new { message = $"Successfully rolled back to version {request.TargetVersion}" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Test a draft prompt without saving to database
+    /// </summary>
+    /// <param name="request">The draft test request</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Test result</returns>
+    /// <remarks>
+    /// Tests a prompt before saving it. This allows admins to iterate on prompt design
+    /// without cluttering the database with test versions.
+    ///
+    /// Sample request:
+    ///     POST /api/v1/admin/ai-prompts/test-draft
+    ///     {
+    ///         "systemPrompt": "You are an expert business consultant...",
+    ///         "userPromptTemplate": "Generate a {sectionName} for the following context:\n\n{questionnaireContext}",
+    ///         "sampleVariables": "{\"sectionName\": \"executive summary\"}",
+    ///         "testContext": "A tech startup building AI tools...",
+    ///         "maxTokens": 1000,
+    ///         "temperature": 0.7
+    ///     }
+    /// </remarks>
+    [HttpPost("test-draft")]
+    [ProducesResponseType(typeof(AIPromptTestResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> TestDraftPrompt(
+        [FromBody] TestDraftAIPromptRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var result = await _aiPromptService.TestDraftPromptAsync(request, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Migrate default hardcoded prompts to the database
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>

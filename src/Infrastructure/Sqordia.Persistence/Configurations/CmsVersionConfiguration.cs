@@ -29,11 +29,40 @@ public class CmsVersionConfiguration : IEntityTypeConfiguration<CmsVersion>
         builder.Property(v => v.Notes)
             .HasMaxLength(500);
 
-        builder.HasIndex(v => v.Status);
+        // Scheduling
+        builder.Property(v => v.ScheduledPublishAt);
 
+        // Approval workflow
+        builder.Property(v => v.ApprovalStatus)
+            .IsRequired()
+            .HasConversion<int>()
+            .HasDefaultValue(Domain.Enums.CmsApprovalStatus.None);
+
+        builder.Property(v => v.ApprovedAt);
+
+        builder.Property(v => v.ApprovedByUserId);
+
+        builder.Property(v => v.RejectedAt);
+
+        builder.Property(v => v.RejectedByUserId);
+
+        builder.Property(v => v.RejectionReason)
+            .HasMaxLength(500);
+
+        // Indexes
+        builder.HasIndex(v => v.Status);
+        builder.HasIndex(v => v.ApprovalStatus);
+        builder.HasIndex(v => v.ScheduledPublishAt);
+
+        // Relationships
         builder.HasMany(v => v.ContentBlocks)
             .WithOne(b => b.Version)
             .HasForeignKey(b => b.CmsVersionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(v => v.History)
+            .WithOne(h => h.Version)
+            .HasForeignKey(h => h.CmsVersionId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

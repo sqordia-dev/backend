@@ -47,6 +47,8 @@ public interface IApplicationDbContext
     DbSet<SmartObjective> SmartObjectives { get; }
     DbSet<PlanSectionComment> PlanSectionComments { get; }
     DbSet<QuestionTemplateV2> QuestionTemplatesV2 { get; }
+    DbSet<QuestionnaireVersion> QuestionnaireVersions { get; }
+    DbSet<QuestionnaireStep> QuestionnaireSteps { get; }
     DbSet<CoverPageSettings> CoverPageSettings { get; }
     DbSet<TableOfContentsSettings> TableOfContentsSettings { get; }
 
@@ -77,6 +79,7 @@ public interface IApplicationDbContext
 
     // AI Prompt Management
     DbSet<AIPrompt> AIPrompts { get; }
+    DbSet<AIPromptVersion> AIPromptVersions { get; }
     DbSet<PromptTemplate> PromptTemplates { get; }
     DbSet<PromptPerformance> PromptPerformance { get; }
     
@@ -97,6 +100,19 @@ public interface IApplicationDbContext
     DbSet<CmsVersion> CmsVersions { get; }
     DbSet<CmsContentBlock> CmsContentBlocks { get; }
     DbSet<CmsAsset> CmsAssets { get; }
+    DbSet<CmsVersionHistory> CmsVersionHistory { get; }
+
+    // CMS Registry (Page/Section/Block definitions)
+    DbSet<CmsPage> CmsPages { get; }
+    DbSet<CmsSection> CmsSections { get; }
+    DbSet<CmsBlockDefinition> CmsBlockDefinitions { get; }
+
+    // CMS Content Templates
+    DbSet<CmsContentTemplate> CmsContentTemplates { get; }
+
+    // Bug Reports
+    DbSet<BugReport> BugReports { get; }
+    DbSet<BugReportAttachment> BugReportAttachments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default);

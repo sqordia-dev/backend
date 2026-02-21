@@ -4,6 +4,9 @@ using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Services;
 using Sqordia.Application.Services.Implementations;
 using Sqordia.Application.OBNL.Services;
+using Sqordia.Application.Services.Cms;
+using Sqordia.Application.Services.Implementations.Cms;
+using Sqordia.Application.Services.Questionnaire;
 using System.Reflection;
 
 namespace Sqordia.Application;
@@ -48,8 +51,14 @@ public static class ConfigureServices
             services.AddScoped<IPromptMigrationService, PromptMigrationService>();
             services.AddScoped<IPromptSelectorService, PromptSelectorService>();
 
+            // Prompt Registry service (admin management)
+            services.AddScoped<IPromptRegistryService, PromptRegistryService>();
+
             // Admin Question Template management service
             services.AddScoped<IAdminQuestionTemplateService, AdminQuestionTemplateService>();
+
+            // Questionnaire versioning service
+            services.AddScoped<IQuestionnaireVersionService, QuestionnaireVersionService>();
 
             // Enhanced content generation service (with visual elements)
             services.AddScoped<IEnhancedContentGenerationService, EnhancedContentGenerationService>();
@@ -65,6 +74,11 @@ public static class ConfigureServices
 
             // Onboarding service
             services.AddScoped<IOnboardingService, OnboardingService>();
+
+            // CMS services
+            services.AddScoped<ICmsRegistryService, CmsRegistryService>();
+            services.AddScoped<ICmsApprovalService, CmsApprovalService>();
+            services.AddScoped<ICmsTemplateService, CmsTemplateService>();
 
             return services;
     }

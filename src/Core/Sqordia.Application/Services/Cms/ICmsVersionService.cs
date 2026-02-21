@@ -13,4 +13,10 @@ public interface ICmsVersionService
     Task<Result<CmsVersionResponse>> UpdateVersionAsync(Guid versionId, UpdateCmsVersionRequest request, CancellationToken cancellationToken = default);
     Task<Result<CmsVersionResponse>> PublishVersionAsync(Guid versionId, CancellationToken cancellationToken = default);
     Task<Result> DeleteVersionAsync(Guid versionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Restores a previous version by creating a new draft with the same content blocks.
+    /// If a draft already exists, it will be deleted first.
+    /// </summary>
+    Task<Result<CmsVersionDetailResponse>> RestoreVersionAsync(Guid versionId, string? notes = null, CancellationToken cancellationToken = default);
 }
