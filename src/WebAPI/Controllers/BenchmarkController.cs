@@ -2,13 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sqordia.Application.Services.V2;
 
-namespace WebAPI.Controllers.V2;
+namespace WebAPI.Controllers;
 
 /// <summary>
 /// Financial benchmark comparison endpoints
 /// Compares business plan metrics against industry standards
 /// </summary>
-[ApiVersion("2.0")]
+[ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/benchmarks")]
 [Authorize]
 public class BenchmarkController : BaseApiController

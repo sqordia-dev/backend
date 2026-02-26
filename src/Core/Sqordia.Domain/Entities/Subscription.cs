@@ -108,14 +108,11 @@ public class Subscription : BaseAuditableEntity
         }
     }
     
-    public void SetStripeIds(string customerId, string subscriptionId, string? priceId = null)
+    public void SetStripeIds(string? customerId, string? subscriptionId, string? priceId = null)
     {
         StripeCustomerId = customerId;
         StripeSubscriptionId = subscriptionId;
-        if (!string.IsNullOrEmpty(priceId))
-        {
-            StripePriceId = priceId;
-        }
+        StripePriceId = priceId;
     }
     
     public bool IsActive()

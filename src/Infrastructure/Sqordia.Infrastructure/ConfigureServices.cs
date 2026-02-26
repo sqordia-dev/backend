@@ -19,6 +19,7 @@ using Sqordia.Application.Financial.Services;
 using Sqordia.Infrastructure.Services;
 using Sqordia.Infrastructure.Identity;
 using Sqordia.Infrastructure.Localization;
+using Sqordia.Infrastructure.Settings;
 using IIdentityService = Sqordia.Application.Common.Interfaces.IIdentityService;
 using IJwtTokenService = Sqordia.Application.Common.Interfaces.IJwtTokenService;
 
@@ -318,6 +319,43 @@ public static class ConfigureServices
         // Bug Report service
         services.AddScoped<IBugReportService, BugReportService>();
 
+        // GitHub Issue service - for creating GitHub issues from admin panel
+        services.Configure<GitHubSettings>(configuration.GetSection("GitHub"));
+        services.PostConfigure<GitHubSettings>(options =>
+        {
+            var envToken = Environment.GetEnvironmentVariable("GitHub__PersonalAccessToken")
+                        ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+            if (!string.IsNullOrEmpty(envToken) && !IsPlaceholder(envToken))
+            {
+                options.PersonalAccessToken = envToken;
+            }
+
+            var envFrontendOwner = Environment.GetEnvironmentVariable("GitHub__FrontendRepoOwner");
+            if (!string.IsNullOrEmpty(envFrontendOwner))
+            {
+                options.FrontendRepoOwner = envFrontendOwner;
+            }
+
+            var envFrontendRepo = Environment.GetEnvironmentVariable("GitHub__FrontendRepoName");
+            if (!string.IsNullOrEmpty(envFrontendRepo))
+            {
+                options.FrontendRepoName = envFrontendRepo;
+            }
+
+            var envBackendOwner = Environment.GetEnvironmentVariable("GitHub__BackendRepoOwner");
+            if (!string.IsNullOrEmpty(envBackendOwner))
+            {
+                options.BackendRepoOwner = envBackendOwner;
+            }
+
+            var envBackendRepo = Environment.GetEnvironmentVariable("GitHub__BackendRepoName");
+            if (!string.IsNullOrEmpty(envBackendRepo))
+            {
+                options.BackendRepoName = envBackendRepo;
+            }
+        });
+        services.AddHttpClient<IGitHubIssueService, GitHubIssueService>();
+
         // V2 Services - Growth Architect Intelligence Layer
         services.AddTransient<IAuditService, AuditService>();
         services.AddTransient<IReadinessScoreService, ReadinessScoreService>();
@@ -332,6 +370,9 @@ public static class ConfigureServices
         
         // Stripe service
         services.AddScoped<Sqordia.Application.Services.IStripeService, StripeService>();
+
+        // Invoice PDF service
+        services.AddScoped<Sqordia.Application.Services.IInvoicePdfService, InvoicePdfService>();
 
         // Storage service configuration - Azure Blob Storage
         var storageConnectionString = Environment.GetEnvironmentVariable("AzureStorage__ConnectionString")
@@ -362,11 +403,12 @@ public static class ConfigureServices
                 
                 services.AddScoped<IStorageService, AzureBlobStorageService>();
             }
-            catch (Exception ex) when (ex.Message.Contains("connection", StringComparison.OrdinalIgnoreCase) 
+            catch (Exception ex) when (ex.Message.Contains("connection", StringComparison.OrdinalIgnoreCase)
                                    || ex.Message.Contains("authentication", StringComparison.OrdinalIgnoreCase)
-                                   || ex is InvalidOperationException)
+                                   || ex is InvalidOperationException
+                                   || ex is FormatException)
             {
-                // If connection is not available, use in-memory storage service
+                // If connection is not available or invalid, use in-memory storage service
                 services.AddScoped<IStorageService, InMemoryStorageService>();
             }
         }

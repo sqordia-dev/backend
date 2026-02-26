@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
@@ -7,47 +6,36 @@ using Sqordia.Contracts.Requests.BusinessPlan;
 using Sqordia.Contracts.Responses.BusinessPlan;
 using Sqordia.Domain.Entities.BusinessPlan;
 using Sqordia.Domain.Enums;
-using System.Security.Claims;
 
 namespace Sqordia.Application.Services.Implementations;
 
 public class BusinessPlanVersionService : IBusinessPlanVersionService
 {
     private readonly IApplicationDbContext _context;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<BusinessPlanVersionService> _logger;
     private readonly ILocalizationService _localizationService;
 
     public BusinessPlanVersionService(
         IApplicationDbContext context,
-        IHttpContextAccessor httpContextAccessor,
+        ICurrentUserService currentUserService,
         ILogger<BusinessPlanVersionService> logger,
         ILocalizationService localizationService)
     {
         _context = context;
-        _httpContextAccessor = httpContextAccessor;
+        _currentUserService = currentUserService;
         _logger = logger;
         _localizationService = localizationService;
     }
 
-    private Guid? GetCurrentUserId()
-    {
-        var userIdString = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdString))
-        {
-            return null;
-        }
-        return Guid.TryParse(userIdString, out var userId) ? userId : null;
-    }
-
     public async Task<Result<BusinessPlanVersionResponse>> CreateVersionAsync(
-        Guid businessPlanId, 
-        string? comment = null, 
+        Guid businessPlanId,
+        string? comment = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetUserIdAsGuid();
             if (!currentUserId.HasValue)
             {
                 return Result.Failure<BusinessPlanVersionResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -122,7 +110,7 @@ public class BusinessPlanVersionService : IBusinessPlanVersionService
     {
         try
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetUserIdAsGuid();
             if (!currentUserId.HasValue)
             {
                 return Result.Failure<IEnumerable<BusinessPlanVersionResponse>>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -185,7 +173,7 @@ public class BusinessPlanVersionService : IBusinessPlanVersionService
     {
         try
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetUserIdAsGuid();
             if (!currentUserId.HasValue)
             {
                 return Result.Failure<BusinessPlanVersionResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -251,7 +239,7 @@ public class BusinessPlanVersionService : IBusinessPlanVersionService
     {
         try
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetUserIdAsGuid();
             if (!currentUserId.HasValue)
             {
                 return Result.Failure<BusinessPlanResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));

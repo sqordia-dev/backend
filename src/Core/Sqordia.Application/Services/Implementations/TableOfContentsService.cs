@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
@@ -7,7 +6,6 @@ using Sqordia.Contracts.Requests.TableOfContents;
 using Sqordia.Contracts.Responses.TableOfContents;
 using Sqordia.Domain.Entities.BusinessPlan;
 using Sqordia.Domain.Enums;
-using System.Security.Claims;
 
 namespace Sqordia.Application.Services.Implementations;
 
@@ -17,37 +15,27 @@ namespace Sqordia.Application.Services.Implementations;
 public class TableOfContentsService : ITableOfContentsService
 {
     private readonly IApplicationDbContext _context;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<TableOfContentsService> _logger;
     private readonly ILocalizationService _localizationService;
 
     public TableOfContentsService(
         IApplicationDbContext context,
-        IHttpContextAccessor httpContextAccessor,
+        ICurrentUserService currentUserService,
         ILogger<TableOfContentsService> logger,
         ILocalizationService localizationService)
     {
         _context = context;
-        _httpContextAccessor = httpContextAccessor;
+        _currentUserService = currentUserService;
         _logger = logger;
         _localizationService = localizationService;
-    }
-
-    private Guid? GetCurrentUserId()
-    {
-        var userIdString = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdString))
-        {
-            return null;
-        }
-        return Guid.TryParse(userIdString, out var userId) ? userId : null;
     }
 
     public async Task<Result<TOCSettingsResponse>> GetSettingsAsync(Guid businessPlanId, CancellationToken cancellationToken = default)
     {
         try
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetUserIdAsGuid();
             if (!currentUserId.HasValue)
             {
                 return Result.Failure<TOCSettingsResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -101,7 +89,7 @@ public class TableOfContentsService : ITableOfContentsService
     {
         try
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetUserIdAsGuid();
             if (!currentUserId.HasValue)
             {
                 return Result.Failure<TOCSettingsResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));

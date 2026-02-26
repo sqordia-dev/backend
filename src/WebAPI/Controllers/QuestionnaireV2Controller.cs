@@ -4,24 +4,24 @@ using Sqordia.Application.Services.V2;
 using Sqordia.Contracts.Requests.V2.Questionnaire;
 using Sqordia.Domain.Enums;
 
-namespace WebAPI.Controllers.V2;
+namespace WebAPI.Controllers;
 
 /// <summary>
-/// V2 Questionnaire endpoints with persona support
+/// Enhanced Questionnaire endpoints with persona support
 /// </summary>
-[ApiVersion("2.0")]
-[Route("api/v{version:apiVersion}/questionnaire")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/questionnaire-v2")]
 [Authorize]
-public class QuestionnaireControllerV2 : BaseApiController
+public class QuestionnaireV2Controller : BaseApiController
 {
     private readonly IQuestionnaireServiceV2 _questionnaireService;
     private readonly IQuestionPolishService _polishService;
-    private readonly ILogger<QuestionnaireControllerV2> _logger;
+    private readonly ILogger<QuestionnaireV2Controller> _logger;
 
-    public QuestionnaireControllerV2(
+    public QuestionnaireV2Controller(
         IQuestionnaireServiceV2 questionnaireService,
         IQuestionPolishService polishService,
-        ILogger<QuestionnaireControllerV2> logger)
+        ILogger<QuestionnaireV2Controller> logger)
     {
         _questionnaireService = questionnaireService;
         _polishService = polishService;

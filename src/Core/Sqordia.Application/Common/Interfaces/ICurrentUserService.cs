@@ -6,6 +6,7 @@ public interface ICurrentUserService
     string? UserEmail { get; }
     bool IsAuthenticated { get; }
     string? GetUserId();
+    Guid? GetUserIdAsGuid();
     string? GetUserEmail();
     bool IsInRole(string role);
     bool HasPermission(string permission);

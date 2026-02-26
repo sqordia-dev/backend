@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -13,20 +12,20 @@ namespace Sqordia.Application.Services.Implementations;
 public class TwoFactorService : ITwoFactorService
 {
     private readonly IApplicationDbContext _context;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ITotpService _totpService;
     private readonly ILogger<TwoFactorService> _logger;
     private readonly ILocalizationService _localizationService;
 
     public TwoFactorService(
         IApplicationDbContext context,
-        IHttpContextAccessor httpContextAccessor,
+        ICurrentUserService currentUserService,
         ITotpService totpService,
         ILogger<TwoFactorService> logger,
         ILocalizationService localizationService)
     {
         _context = context;
-        _httpContextAccessor = httpContextAccessor;
+        _currentUserService = currentUserService;
         _totpService = totpService;
         _logger = logger;
         _localizationService = localizationService;
@@ -36,7 +35,7 @@ public class TwoFactorService : ITwoFactorService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<TwoFactorSetupResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -101,7 +100,7 @@ public class TwoFactorService : ITwoFactorService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<BackupCodesResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -154,7 +153,7 @@ public class TwoFactorService : ITwoFactorService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -191,7 +190,7 @@ public class TwoFactorService : ITwoFactorService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<TwoFactorStatusResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -242,7 +241,7 @@ public class TwoFactorService : ITwoFactorService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<BackupCodesResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -278,7 +277,7 @@ public class TwoFactorService : ITwoFactorService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -353,15 +352,5 @@ public class TwoFactorService : ITwoFactorService
         }
     }
 
-    private Guid? GetCurrentUserId()
-    {
-        var userIdString = _httpContextAccessor.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdString))
-        {
-            return null;
-        }
-
-        return Guid.TryParse(userIdString, out var userId) ? userId : null;
-    }
 }
 

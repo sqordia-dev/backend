@@ -20,6 +20,7 @@ public class SubscriptionController : BaseApiController
 {
     private readonly ISubscriptionService _subscriptionService;
     private readonly IStripeService _stripeService;
+    private readonly IInvoicePdfService _invoicePdfService;
     private readonly IApplicationDbContext _context;
     private readonly ILogger<SubscriptionController> _logger;
     private readonly IConfiguration _configuration;
@@ -27,12 +28,14 @@ public class SubscriptionController : BaseApiController
     public SubscriptionController(
         ISubscriptionService subscriptionService,
         IStripeService stripeService,
+        IInvoicePdfService invoicePdfService,
         IApplicationDbContext context,
         ILogger<SubscriptionController> logger,
         IConfiguration configuration)
     {
         _subscriptionService = subscriptionService;
         _stripeService = stripeService;
+        _invoicePdfService = invoicePdfService;
         _context = context;
         _logger = logger;
         _configuration = configuration;
@@ -62,14 +65,13 @@ public class SubscriptionController : BaseApiController
         }
 
         var result = await _subscriptionService.GetCurrentSubscriptionAsync(userId.Value, cancellationToken);
-        
-        // Return 404 if no subscription found (instead of error)
-        // Check BEFORE HandleResult to avoid 400 BadRequest
-        if (!result.IsSuccess && result.Error != null && 
+
+        // Return 200 with null if no subscription found (avoids browser 404 noise)
+        if (!result.IsSuccess && result.Error != null &&
             (result.Error.Message?.Contains("No subscription found", StringComparison.OrdinalIgnoreCase) == true ||
              result.Error.Code?.Contains("NotFound", StringComparison.OrdinalIgnoreCase) == true))
         {
-            return NotFound(new { message = result.Error.Message ?? "No subscription found" });
+            return Ok(new { subscription = (object?)null, message = "No subscription found" });
         }
 
         return HandleResult(result);
@@ -163,6 +165,62 @@ public class SubscriptionController : BaseApiController
 
         var result = await _subscriptionService.GetInvoicesAsync(userId.Value, cancellationToken);
         return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Download invoice as PDF
+    /// </summary>
+    [HttpGet("invoices/{invoiceId}/download")]
+    public async Task<IActionResult> DownloadInvoicePdf(Guid invoiceId, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            // Get user's invoices to verify access
+            var invoicesResult = await _subscriptionService.GetInvoicesAsync(userId.Value, cancellationToken);
+            if (!invoicesResult.IsSuccess || invoicesResult.Value == null)
+            {
+                return NotFound("Invoice not found");
+            }
+
+            var invoice = invoicesResult.Value.FirstOrDefault(i => i.Id == invoiceId);
+            if (invoice == null)
+            {
+                return NotFound("Invoice not found or you don't have access to it");
+            }
+
+            // Get user and organization info for the invoice
+            var user = await _context.Users.FindAsync(new object[] { userId.Value }, cancellationToken);
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
+
+            // Get subscription to find organization
+            var subscription = await _context.Subscriptions
+                .Include(s => s.Organization)
+                .FirstOrDefaultAsync(s => s.Id == invoice.SubscriptionId, cancellationToken);
+
+            var organizationName = subscription?.Organization?.Name ?? "";
+            var customerName = $"{user.FirstName} {user.LastName}".Trim();
+            var customerEmail = user.Email?.ToString() ?? "";
+
+            // Generate PDF
+            var pdfBytes = _invoicePdfService.GenerateInvoicePdf(invoice, organizationName, customerName, customerEmail);
+
+            // Return PDF file
+            return File(pdfBytes, "application/pdf", $"Invoice-{invoice.InvoiceNumber}.pdf");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating invoice PDF for invoice {InvoiceId}", invoiceId);
+            return StatusCode(500, "Failed to generate invoice PDF");
+        }
     }
 
     /// <summary>

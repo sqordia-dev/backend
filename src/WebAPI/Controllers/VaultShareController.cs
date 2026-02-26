@@ -3,13 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using Sqordia.Application.Services.V2;
 using Sqordia.Contracts.Requests.V2.Share;
 
-namespace WebAPI.Controllers.V2;
+namespace WebAPI.Controllers;
 
 /// <summary>
 /// Secure vault share endpoints
 /// Provides enhanced sharing with watermarking, view tracking, and password protection
 /// </summary>
-[ApiVersion("2.0")]
+[ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/business-plans/{businessPlanId}/vault")]
 [Authorize]
 public class VaultShareController : BaseApiController
@@ -133,7 +133,7 @@ public class VaultShareController : BaseApiController
 /// <summary>
 /// Public vault access endpoints (no authentication required)
 /// </summary>
-[ApiVersion("2.0")]
+[ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/vault")]
 public class VaultAccessController : BaseApiController
 {
@@ -176,7 +176,7 @@ public class VaultAccessController : BaseApiController
     /// Validate password for a password-protected vault share
     /// </summary>
     /// <param name="token">The share token</param>
-    /// <param name="password">The password to validate</param>
+    /// <param name="request">The password to validate</param>
     /// <param name="cancellationToken">Cancellation token</param>
     [HttpPost("{token}/validate-password")]
     [AllowAnonymous]

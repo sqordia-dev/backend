@@ -2,13 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sqordia.Application.Services.V2;
 
-namespace WebAPI.Controllers.V2;
+namespace WebAPI.Controllers;
 
 /// <summary>
 /// Bank-readiness score endpoints
 /// Calculates weighted readiness: 50% Consistency, 30% Risk Mitigation, 20% Completeness
 /// </summary>
-[ApiVersion("2.0")]
+[ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/business-plans/{businessPlanId}/readiness")]
 [Authorize]
 public class ReadinessController : BaseApiController

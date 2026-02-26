@@ -27,6 +27,12 @@ public class CurrentUserService : ICurrentUserService
                ?? _httpContextAccessor.HttpContext?.User?.FindFirst("id")?.Value;
     }
 
+    public Guid? GetUserIdAsGuid()
+    {
+        var userIdString = GetUserId();
+        return Guid.TryParse(userIdString, out var userId) ? userId : null;
+    }
+
     public string? GetUserEmail()
     {
         return _httpContextAccessor.HttpContext?.User?.FindFirst("email")?.Value

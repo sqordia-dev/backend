@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -8,44 +7,33 @@ using Sqordia.Contracts.Requests.BusinessPlan;
 using Sqordia.Contracts.Responses.BusinessPlan;
 using Sqordia.Domain.Entities.BusinessPlan;
 using Sqordia.Domain.Enums;
-using System.Security.Claims;
 
 namespace Sqordia.Application.Services.Implementations;
 
 public class QuestionnaireService : IQuestionnaireService
 {
     private readonly IApplicationDbContext _context;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<QuestionnaireService> _logger;
     private readonly ILocalizationService _localizationService;
 
     public QuestionnaireService(
         IApplicationDbContext context,
-        IHttpContextAccessor httpContextAccessor,
+        ICurrentUserService currentUserService,
         ILogger<QuestionnaireService> logger,
         ILocalizationService localizationService)
     {
         _context = context;
-        _httpContextAccessor = httpContextAccessor;
+        _currentUserService = currentUserService;
         _logger = logger;
         _localizationService = localizationService;
-    }
-
-    private Guid? GetCurrentUserId()
-    {
-        var userIdString = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdString))
-        {
-            return null;
-        }
-        return Guid.TryParse(userIdString, out var userId) ? userId : null;
     }
 
     public async Task<Result<IEnumerable<QuestionnaireQuestionResponse>>> GetQuestionnaireAsync(Guid businessPlanId, CancellationToken cancellationToken = default)
     {
         try
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetUserIdAsGuid();
             if (!currentUserId.HasValue)
             {
                 return Result.Failure<IEnumerable<QuestionnaireQuestionResponse>>(Error.Unauthorized("User.Unauthorized", "User is not authenticated."));
@@ -188,7 +176,7 @@ public class QuestionnaireService : IQuestionnaireService
     {
         try
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetUserIdAsGuid();
             if (!currentUserId.HasValue)
             {
                 return Result.Failure<QuestionnaireQuestionResponse>(Error.Unauthorized("User.Unauthorized", "User is not authenticated."));
@@ -341,7 +329,7 @@ public class QuestionnaireService : IQuestionnaireService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error submitting response for business plan {PlanId}", businessPlanId);
-            return Result.Failure<QuestionnaireQuestionResponse>(Error.InternalServerError("Questionnaire.SubmitError", "An error occurred while submitting the response."));
+            return Result.Failure<QuestionnaireQuestionResponse>(Error.InternalServerError("Questionnaire.SubmitError", $"An error occurred while submitting the response: {ex.Message}"));
         }
     }
 
@@ -349,7 +337,7 @@ public class QuestionnaireService : IQuestionnaireService
     {
         try
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _currentUserService.GetUserIdAsGuid();
             if (!currentUserId.HasValue)
             {
                 return Result.Failure<IEnumerable<QuestionnaireQuestionResponse>>(Error.Unauthorized("User.Unauthorized", "User is not authenticated."));

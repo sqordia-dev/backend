@@ -52,7 +52,8 @@ public class StripeWebhookController : ControllerBase
             var stripeEvent = EventUtility.ConstructEvent(
                 json,
                 Request.Headers["Stripe-Signature"],
-                webhookSecret);
+                webhookSecret,
+                throwOnApiVersionMismatch: false);
 
             _logger.LogInformation("Received Stripe webhook event: {EventType} (ID: {EventId})", 
                 stripeEvent.Type, stripeEvent.Id);
@@ -166,61 +167,44 @@ public class StripeWebhookController : ControllerBase
             return;
         }
 
-        // Find existing subscription (check by Stripe subscription ID first, then by organization)
+        // Find existing subscription by Stripe subscription ID first (most reliable)
         var subscription = await _context.Subscriptions
-            .FirstOrDefaultAsync(s => s.StripeSubscriptionId == stripeSubscription.Id, cancellationToken);
-
-        if (subscription == null)
-        {
-            // Check for existing active subscription for this organization
-            subscription = await _context.Subscriptions
-                .FirstOrDefaultAsync(s => s.OrganizationId == organizationId && 
-                                         s.Status == SubscriptionStatus.Active && 
-                                         !s.IsDeleted, 
-                                     cancellationToken);
-        }
+            .FirstOrDefaultAsync(s => s.StripeSubscriptionId == stripeSubscription.Id && !s.IsDeleted, cancellationToken);
 
         if (subscription != null)
         {
-            // Update existing subscription with Stripe IDs and new plan
-            subscription.SetStripeIds(
-                stripeSubscription.CustomerId,
-                stripeSubscription.Id,
-                stripeSubscription.Items.Data[0].Price.Id);
-            
-            // Update plan if changed
-            if (subscription.SubscriptionPlanId != subscriptionPlanId)
+            // Already have a subscription with this Stripe ID - just update it
+            _logger.LogInformation("Found existing subscription {SubscriptionId} with Stripe ID {StripeId}",
+                subscription.Id, stripeSubscription.Id);
+
+            subscription.Renew(stripeSubscription.CurrentPeriodEnd);
+
+            // Reactivate if needed
+            if (subscription.Status != SubscriptionStatus.Active)
             {
-                // Cancel old subscription
-                subscription.Cancel(subscription.EndDate);
-                
-                // Create new subscription with new plan
-                var newSubscription = new Sqordia.Domain.Entities.Subscription(
-                    userId,
-                    organizationId,
-                    subscriptionPlanId,
-                    isYearly,
-                    CalculatePrice(plan, isYearly),
-                    stripeSubscription.CurrentPeriodStart,
-                    stripeSubscription.CurrentPeriodEnd,
-                    isTrial: plan.PlanType == SubscriptionPlanType.Free,
-                    currency: plan.Currency);
-                
-                newSubscription.SetStripeIds(
-                    stripeSubscription.CustomerId,
-                    stripeSubscription.Id,
-                    stripeSubscription.Items.Data[0].Price.Id);
-                
-                _context.Subscriptions.Add(newSubscription);
-            }
-            else
-            {
-                subscription.Renew(stripeSubscription.CurrentPeriodEnd);
+                subscription.Reactivate();
             }
         }
         else
         {
-            // Create new subscription
+            // No subscription with this Stripe ID - check for existing active subscription for this organization
+            var existingSubscription = await _context.Subscriptions
+                .FirstOrDefaultAsync(s => s.OrganizationId == organizationId &&
+                                         s.Status == SubscriptionStatus.Active &&
+                                         !s.IsDeleted,
+                                     cancellationToken);
+
+            if (existingSubscription != null)
+            {
+                // Cancel the old subscription (e.g., Free Plan) and clear its Stripe IDs
+                _logger.LogInformation("Cancelling existing subscription {SubscriptionId} (plan change)", existingSubscription.Id);
+                existingSubscription.Cancel(DateTime.UtcNow);
+
+                // Clear Stripe IDs from old subscription to avoid conflicts
+                existingSubscription.SetStripeIds(null, null, null);
+            }
+
+            // Create new subscription with the new plan
             subscription = new Sqordia.Domain.Entities.Subscription(
                 userId,
                 organizationId,
@@ -231,18 +215,28 @@ public class StripeWebhookController : ControllerBase
                 stripeSubscription.CurrentPeriodEnd,
                 isTrial: plan.PlanType == SubscriptionPlanType.Free,
                 currency: plan.Currency);
-            
+
             subscription.SetStripeIds(
                 stripeSubscription.CustomerId,
                 stripeSubscription.Id,
                 stripeSubscription.Items.Data[0].Price.Id);
-            
+
             _context.Subscriptions.Add(subscription);
-            _logger.LogInformation("Created new subscription {SubscriptionId} for organization {OrganizationId}", 
-                subscription.Id, organizationId);
+            _logger.LogInformation("Created new subscription {SubscriptionId} for organization {OrganizationId} with Stripe ID {StripeId}",
+                subscription.Id, organizationId, stripeSubscription.Id);
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message?.Contains("IX_Subscriptions_StripeSubscriptionId_Unique") == true)
+        {
+            // Race condition: another webhook already created this subscription
+            // This is fine - the subscription exists, so we can safely ignore this
+            _logger.LogWarning("Duplicate subscription creation attempted for Stripe ID {StripeId} - ignoring (race condition handled)",
+                stripeSubscription.Id);
+        }
     }
 
     private decimal CalculatePrice(Sqordia.Domain.Entities.SubscriptionPlan plan, bool isYearly)

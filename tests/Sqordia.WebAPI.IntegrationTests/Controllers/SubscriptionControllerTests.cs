@@ -21,6 +21,7 @@ public class SubscriptionControllerTests
     private readonly IFixture _fixture;
     private readonly Mock<ISubscriptionService> _subscriptionServiceMock;
     private readonly Mock<IStripeService> _stripeServiceMock;
+    private readonly Mock<IInvoicePdfService> _invoicePdfServiceMock;
     private readonly Mock<IApplicationDbContext> _contextMock;
     private readonly Mock<ILogger<SubscriptionController>> _loggerMock;
     private readonly Mock<IConfiguration> _configurationMock;
@@ -35,6 +36,7 @@ public class SubscriptionControllerTests
 
         _subscriptionServiceMock = new Mock<ISubscriptionService>();
         _stripeServiceMock = new Mock<IStripeService>();
+        _invoicePdfServiceMock = new Mock<IInvoicePdfService>();
         _contextMock = new Mock<IApplicationDbContext>();
         _loggerMock = new Mock<ILogger<SubscriptionController>>();
         _configurationMock = new Mock<IConfiguration>();
@@ -42,6 +44,7 @@ public class SubscriptionControllerTests
         _sut = new SubscriptionController(
             _subscriptionServiceMock.Object,
             _stripeServiceMock.Object,
+            _invoicePdfServiceMock.Object,
             _contextMock.Object,
             _loggerMock.Object,
             _configurationMock.Object);

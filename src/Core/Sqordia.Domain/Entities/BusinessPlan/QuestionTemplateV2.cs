@@ -5,7 +5,7 @@ namespace Sqordia.Domain.Entities.BusinessPlan;
 
 /// <summary>
 /// V2 Question template with persona support for the Growth Architect wizard
-/// Supports the 5-step questionnaire flow with 20 questions
+/// Supports the 7-section questionnaire flow
 /// </summary>
 public class QuestionTemplateV2 : BaseAuditableEntity
 {
@@ -15,7 +15,7 @@ public class QuestionTemplateV2 : BaseAuditableEntity
     public PersonaType? PersonaType { get; private set; }
 
     /// <summary>
-    /// The step number in the wizard (1-5)
+    /// The step/section number in the wizard (1-7)
     /// </summary>
     public int StepNumber { get; private set; }
 
@@ -100,8 +100,8 @@ public class QuestionTemplateV2 : BaseAuditableEntity
         string? section = null,
         PersonaType? personaType = null)
     {
-        if (stepNumber < 1 || stepNumber > 5)
-            throw new ArgumentException("Step number must be between 1 and 5");
+        if (stepNumber < 1 || stepNumber > 7)
+            throw new ArgumentException("Step number must be between 1 and 7");
 
         PersonaType = personaType;
         StepNumber = stepNumber;
@@ -162,8 +162,8 @@ public class QuestionTemplateV2 : BaseAuditableEntity
         PersonaType? personaType,
         bool isRequired)
     {
-        if (stepNumber < 1 || stepNumber > 5)
-            throw new ArgumentException("Step number must be between 1 and 5");
+        if (stepNumber < 1 || stepNumber > 7)
+            throw new ArgumentException("Step number must be between 1 and 7");
 
         QuestionText = questionText ?? throw new ArgumentNullException(nameof(questionText));
         QuestionType = questionType;

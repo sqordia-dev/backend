@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
@@ -13,18 +12,18 @@ namespace Sqordia.Application.Services.Implementations;
 public class OrganizationService : IOrganizationService
 {
     private readonly IApplicationDbContext _context;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<OrganizationService> _logger;
     private readonly ILocalizationService _localizationService;
 
     public OrganizationService(
         IApplicationDbContext context,
-        IHttpContextAccessor httpContextAccessor,
+        ICurrentUserService currentUserService,
         ILogger<OrganizationService> logger,
         ILocalizationService localizationService)
     {
         _context = context;
-        _httpContextAccessor = httpContextAccessor;
+        _currentUserService = currentUserService;
         _logger = logger;
         _localizationService = localizationService;
     }
@@ -33,7 +32,7 @@ public class OrganizationService : IOrganizationService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<OrganizationResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -77,7 +76,7 @@ public class OrganizationService : IOrganizationService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<OrganizationResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -111,7 +110,7 @@ public class OrganizationService : IOrganizationService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<IEnumerable<OrganizationResponse>>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -149,7 +148,7 @@ public class OrganizationService : IOrganizationService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<OrganizationDetailResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -215,7 +214,7 @@ public class OrganizationService : IOrganizationService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<OrganizationResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -254,7 +253,7 @@ public class OrganizationService : IOrganizationService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -293,7 +292,7 @@ public class OrganizationService : IOrganizationService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -331,7 +330,7 @@ public class OrganizationService : IOrganizationService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -369,7 +368,7 @@ public class OrganizationService : IOrganizationService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<OrganizationResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -408,7 +407,7 @@ public class OrganizationService : IOrganizationService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<OrganizationMemberResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -489,7 +488,7 @@ public class OrganizationService : IOrganizationService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<IEnumerable<OrganizationMemberResponse>>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -534,7 +533,7 @@ public class OrganizationService : IOrganizationService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<OrganizationMemberResponse>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -593,7 +592,7 @@ public class OrganizationService : IOrganizationService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
@@ -643,17 +642,6 @@ public class OrganizationService : IOrganizationService
     }
 
     // Helper methods
-    private Guid? GetCurrentUserId()
-    {
-        var userIdString = _httpContextAccessor.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdString))
-        {
-            return null;
-        }
-
-        return Guid.TryParse(userIdString, out var userId) ? userId : null;
-    }
-
     private async Task<bool> IsUserMemberAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken)
     {
         return await _context.OrganizationMembers

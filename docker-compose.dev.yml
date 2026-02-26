@@ -39,7 +39,8 @@ services:
       - AI__OpenAI__Model=${OPENAI_MODEL:-gpt-4o}
       
       # Alternative AI Providers (optional)
-      - AI__Claude__ApiKey=${CLAUDE_API_KEY:-}
+      - AI__Claude__ApiKey=${CLAUDE_API_KEY:-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}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-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}
       - AI__Gemini__ApiKey=${GEMINI_API_KEY:-}
       
       # Azure Communication Services Email Configuration (preferred)
@@ -61,6 +62,23 @@ services:
       - AwsStorage__BucketName=${S3_BUCKET_NAME:-sqordia-documents}
       - AwsStorage__Region=${AWS_REGION:-ca-central-1}
       
+      # GitHub Integration (for bug reporting)
+      - GitHub__PersonalAccessToken=${GITHUB_PAT:-}
+      - GitHub__FrontendRepoOwner=${GITHUB_FRONTEND_REPO_OWNER:-sqordia-dev}
+      - GitHub__FrontendRepoName=${GITHUB_FRONTEND_REPO_NAME:-frontend}
+      - GitHub__BackendRepoOwner=${GITHUB_BACKEND_REPO_OWNER:-sqordia-dev}
+      - GitHub__BackendRepoName=${GITHUB_BACKEND_REPO_NAME:-backend}
+
+      # Stripe Configuration (for subscription payments)
+      - Stripe__SecretKey=${STRIPE_SECRET_KEY:-sk_test_51SmnFeFF8GcMsSWeMsy0e7o9Q5u3BLivM43pLp8nWWy4SGuYwfMtXsArG5DZijvD76rXwvsZThofxKI4uDcCQpN7007BDYEuPz}
+      - Stripe__PublishableKey=${STRIPE_PUBLISHABLE_KEY:-pk_test_51SmnFeFF8GcMsSWeVdGWiKnzV4hZ7nHFIZ8z5l6Ik3PLumKaW5gWO3AXi4BlM49Bx1C6lsq6YDKz4ngMW3C0wAkn00ABejjeqZ}
+      - Stripe__WebhookSecret=${STRIPE_WEBHOOK_SECRET:-whsec_f12c3935ca15a51567dc7ffc0bdfc1c0262bfbc5102d637e655076d33aea4826}
+      # Stripe Price IDs
+      - Stripe__PriceIds__Pro__Monthly=${STRIPE_PRICE_PRO_MONTHLY:-price_1SmnRvFF8GcMsSWeB9AqkLzK}
+      - Stripe__PriceIds__Pro__Yearly=${STRIPE_PRICE_PRO_YEARLY:-price_1T56ocFF8GcMsSWe6yN8i28I}
+      - Stripe__PriceIds__Enterprise__Monthly=${STRIPE_PRICE_ENTERPRISE_MONTHLY:-price_1SmnSNFF8GcMsSWeXH1gmoEz}
+      - Stripe__PriceIds__Enterprise__Yearly=${STRIPE_PRICE_ENTERPRISE_YEARLY:-price_1T56ojFF8GcMsSWelTiMZNnb}
+
       # Disable HTTPS redirect for Docker development
       - DISABLE_HTTPS_REDIRECT=true
       
@@ -95,9 +113,8 @@ services:
       - POSTGRES_USER=sqordia
       - POSTGRES_PASSWORD=SqordiaDevPass2025
       - POSTGRES_DB=SqordiaDb
-      - POSTGRES_HOST_AUTH_METHOD=trust
     ports:
-      - "5433:5432"  # Expose PostgreSQL port for external tools (pgAdmin, DBeaver, etc.)
+      - "15432:5432"  # Expose PostgreSQL port for external tools (pgAdmin, DBeaver, etc.)
     volumes:
       - sqordia-db-data:/var/lib/postgresql/data
     networks:

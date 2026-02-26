@@ -2,12 +2,9 @@ using AspNetCoreRateLimit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using WebAPI.Configuration;
 using System.Text;
 using System.Text.Json;
 
@@ -53,14 +50,7 @@ public static class ServiceCollectionExtensions
             {
                 Title = "Sqordia API",
                 Version = "v1",
-                Description = "API for Sqordia Business Plan Management System"
-            });
-
-            options.SwaggerDoc("v2", new Microsoft.OpenApi.Models.OpenApiInfo
-            {
-                Title = "Sqordia API V2",
-                Version = "v2",
-                Description = "Growth Architect Intelligence Layer - Persona-based questionnaires, Socratic Coach auditing, strategy mapping, and bank-readiness scoring"
+                Description = "API for Sqordia Business Plan Management System - Growth Architect Intelligence Layer with persona-based questionnaires, Socratic Coach auditing, strategy mapping, and bank-readiness scoring"
             });
 
             options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme

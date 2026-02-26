@@ -165,7 +165,7 @@ public class SettingsService : ISettingsService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure<Dictionary<string, object>>(Error.Unauthorized("General.Unauthorized", "Unauthorized"));
@@ -224,7 +224,7 @@ public class SettingsService : ISettingsService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure(Error.Unauthorized("General.Unauthorized", "Unauthorized"));
@@ -314,7 +314,7 @@ public class SettingsService : ISettingsService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure(Error.Unauthorized("General.Unauthorized", "Unauthorized"));
@@ -354,7 +354,7 @@ public class SettingsService : ISettingsService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserService.GetUserIdAsGuid();
             if (userId == null)
             {
                 return Result.Failure(Error.Unauthorized("General.Unauthorized", "Unauthorized"));
@@ -441,16 +441,6 @@ public class SettingsService : ISettingsService
             _logger.LogError(ex, "Error refreshing cache for key '{Key}'", key ?? "all");
             return Result.Failure(Error.Failure("Settings.Error", "An error occurred while refreshing cache"));
         }
-    }
-
-    private Guid? GetCurrentUserId()
-    {
-        var userIdString = _currentUserService.GetUserId();
-        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
-        {
-            return null;
-        }
-        return userId;
     }
 
     private async Task<bool> IsAdminAsync(Guid userId, CancellationToken cancellationToken)

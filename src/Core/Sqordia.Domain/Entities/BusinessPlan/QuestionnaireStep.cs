@@ -3,13 +3,13 @@ using Sqordia.Domain.Common;
 namespace Sqordia.Domain.Entities.BusinessPlan;
 
 /// <summary>
-/// Represents a step in the questionnaire wizard.
-/// Stores editable step titles and descriptions for the 5-step questionnaire flow.
+/// Represents a step/section in the questionnaire wizard.
+/// Stores editable step titles and descriptions for the 7-section questionnaire flow.
 /// </summary>
 public class QuestionnaireStep : BaseAuditableEntity
 {
     /// <summary>
-    /// The step number (1-5)
+    /// The step/section number (1-7)
     /// </summary>
     public int StepNumber { get; private set; }
 
@@ -53,8 +53,8 @@ public class QuestionnaireStep : BaseAuditableEntity
         string? descriptionEN = null,
         string? icon = null)
     {
-        if (stepNumber < 1 || stepNumber > 5)
-            throw new ArgumentException("Step number must be between 1 and 5", nameof(stepNumber));
+        if (stepNumber < 1 || stepNumber > 7)
+            throw new ArgumentException("Step number must be between 1 and 7", nameof(stepNumber));
 
         StepNumber = stepNumber;
         TitleFR = titleFR ?? throw new ArgumentNullException(nameof(titleFR));

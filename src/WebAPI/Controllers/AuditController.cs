@@ -2,13 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sqordia.Application.Services.V2;
 
-namespace WebAPI.Controllers.V2;
+namespace WebAPI.Controllers;
 
 /// <summary>
 /// Socratic Coach audit endpoints
 /// Provides AI-powered business plan auditing with Nudge + Triad responses
 /// </summary>
-[ApiVersion("2.0")]
+[ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/business-plans/{businessPlanId}/audit")]
 [Authorize]
 public class AuditController : BaseApiController

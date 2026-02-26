@@ -368,7 +368,7 @@ public class SubscriptionService : ISubscriptionService
         
         return new InvoiceDto
         {
-            Id = Guid.NewGuid(), // Generate a unique ID for the invoice view
+            Id = subscription.Id, // Use subscription ID as invoice ID for consistency
             SubscriptionId = subscription.Id,
             InvoiceNumber = invoiceNumber,
             IssueDate = subscription.StartDate,

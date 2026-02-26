@@ -3,13 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using Sqordia.Application.Services.V2;
 using Sqordia.Contracts.Requests.V2.StrategyMap;
 
-namespace WebAPI.Controllers.V2;
+namespace WebAPI.Controllers;
 
 /// <summary>
 /// Strategy map management endpoints
 /// Handles saving/retrieving strategy maps and financial health metrics
 /// </summary>
-[ApiVersion("2.0")]
+[ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/business-plans/{businessPlanId}/strategy-map")]
 [Authorize]
 public class StrategyMapController : BaseApiController

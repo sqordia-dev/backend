@@ -28,6 +28,15 @@ RUN dotnet publish "WebAPI.csproj" -c Release -o /app/publish /p:UseAppHost=fals
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
+# Install fonts for PDF generation (QuestPDF requires system fonts)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libfontconfig1 \
+    fontconfig \
+    fonts-dejavu-core \
+    fonts-liberation \
+    && rm -rf /var/lib/apt/lists/* \
+    && fc-cache -f -v
+
 # Copy published application
 COPY --from=publish /app/publish .
 

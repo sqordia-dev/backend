@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Sqordia.Application.Common.Models;
-using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using System.Security.Claims;
 using WebAPI.Constants;
 
