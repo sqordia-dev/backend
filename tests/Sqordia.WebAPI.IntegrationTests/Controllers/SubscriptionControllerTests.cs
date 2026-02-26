@@ -142,9 +142,10 @@ public class SubscriptionControllerTests
     }
 
     [Fact]
-    public async Task GetCurrentSubscription_WhenNotFound_ShouldReturnNotFound()
+    public async Task GetCurrentSubscription_WhenNotFound_ShouldReturnOkWithNullSubscription()
     {
         // Arrange
+        // Note: Controller intentionally returns 200 OK with null subscription to avoid browser 404 noise
         var userId = Guid.NewGuid();
         var error = Error.NotFound("Subscription.NotFound", "No subscription found");
         var result = Result.Failure<SubscriptionDto>(error);
@@ -158,7 +159,7 @@ public class SubscriptionControllerTests
         var response = await _sut.GetCurrentSubscription(CancellationToken.None);
 
         // Assert
-        response.Should().BeOfType<NotFoundObjectResult>();
+        response.Should().BeOfType<OkObjectResult>();
     }
 
     [Fact]

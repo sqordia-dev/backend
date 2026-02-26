@@ -246,7 +246,12 @@ public class AuthenticationServiceTests : IDisposable
         var hashedPassword = _fixture.Create<string>();
 
         user.SetPasswordHash(hashedPassword);
-        user.Deactivate(); // Make user inactive
+
+        // Use reflection to set IsActive = false without calling Deactivate()
+        // (Deactivate() also calls SoftDelete() which would exclude the user from queries)
+        var isActiveProperty = typeof(User).GetProperty("IsActive");
+        isActiveProperty!.SetValue(user, false);
+
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
