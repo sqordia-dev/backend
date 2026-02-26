@@ -39,6 +39,7 @@ public class User : BaseAuditableEntity
     // Navigation properties
     public ICollection<UserRole> UserRoles { get; private set; } = new List<UserRole>();
     public ICollection<RefreshToken> RefreshTokens { get; private set; } = new List<RefreshToken>();
+    public ICollection<UserConsent> Consents { get; private set; } = new List<UserConsent>();
 
     private User() { } // EF Core constructor
 
@@ -68,11 +69,21 @@ public class User : BaseAuditableEntity
     public void Deactivate()
     {
         IsActive = false;
+        SoftDelete();
     }
 
     public void Activate()
     {
         IsActive = true;
+    }
+
+    /// <summary>
+    /// Reactivate a deactivated account (within recovery window)
+    /// </summary>
+    public void Reactivate()
+    {
+        IsActive = true;
+        Restore();
     }
 
     public void UpdateLastLogin()

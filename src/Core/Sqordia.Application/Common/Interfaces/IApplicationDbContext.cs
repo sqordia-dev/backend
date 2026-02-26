@@ -31,7 +31,10 @@ public interface IApplicationDbContext
     // Security and Session Management
     DbSet<LoginHistory> LoginHistories { get; }
     DbSet<ActiveSession> ActiveSessions { get; }
-    
+
+    // Privacy and Consent Management (Quebec Bill 25)
+    DbSet<UserConsent> UserConsents { get; }
+
     // Organization Management
     DbSet<Organization> Organizations { get; }
     DbSet<OrganizationMember> OrganizationMembers { get; }

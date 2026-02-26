@@ -24,6 +24,7 @@ public static class ConfigureServices
         // Register Application Services
             services.AddScoped<IAuthenticationService, AuthenticationService>();
             services.AddScoped<IUserProfileService, UserProfileService>();
+            services.AddScoped<IPrivacyService, PrivacyService>();
             services.AddScoped<IRoleManagementService, RoleManagementService>();
             services.AddScoped<ITwoFactorService, TwoFactorService>();
             services.AddScoped<ISecurityManagementService, SecurityManagementService>();

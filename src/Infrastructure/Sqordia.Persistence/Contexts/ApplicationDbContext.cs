@@ -33,7 +33,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     // Security and Session Management
     public DbSet<LoginHistory> LoginHistories { get; set; }
     public DbSet<ActiveSession> ActiveSessions { get; set; }
-    
+
+    // Privacy and Consent Management (Quebec Bill 25)
+    public DbSet<UserConsent> UserConsents { get; set; }
+
     // Organization Management
     public DbSet<Organization> Organizations { get; set; }
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }

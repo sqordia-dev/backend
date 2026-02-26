@@ -587,6 +587,14 @@ public class AuthenticationService : IAuthenticationService
         try
         {
             var activeSession = new ActiveSession(userId, sessionToken, expiresAt, ipAddress, userAgent);
+
+            // Parse User-Agent to extract device info
+            if (!string.IsNullOrEmpty(userAgent))
+            {
+                var (deviceType, browser, os) = ParseUserAgent(userAgent);
+                activeSession.SetDeviceInfo(deviceType, browser, os);
+            }
+
             _context.ActiveSessions.Add(activeSession);
             await _context.SaveChangesAsync(cancellationToken);
         }
@@ -594,6 +602,50 @@ public class AuthenticationService : IAuthenticationService
         {
             _logger.LogError(ex, "Failed to create active session for user {UserId}", userId);
         }
+    }
+
+    private static (string? deviceType, string? browser, string? os) ParseUserAgent(string userAgent)
+    {
+        var ua = userAgent.ToLowerInvariant();
+
+        // Detect device type
+        string deviceType;
+        if (ua.Contains("mobile") || ua.Contains("android") || ua.Contains("iphone") || ua.Contains("ipad"))
+        {
+            deviceType = ua.Contains("ipad") || ua.Contains("tablet") ? "Tablet" : "Mobile";
+        }
+        else
+        {
+            deviceType = "Desktop";
+        }
+
+        // Detect browser
+        string? browser = null;
+        if (ua.Contains("edg/") || ua.Contains("edge/"))
+            browser = "Microsoft Edge";
+        else if (ua.Contains("chrome/") && !ua.Contains("chromium/"))
+            browser = "Google Chrome";
+        else if (ua.Contains("firefox/"))
+            browser = "Mozilla Firefox";
+        else if (ua.Contains("safari/") && !ua.Contains("chrome/"))
+            browser = "Safari";
+        else if (ua.Contains("opera/") || ua.Contains("opr/"))
+            browser = "Opera";
+
+        // Detect OS
+        string? os = null;
+        if (ua.Contains("windows"))
+            os = "Windows";
+        else if (ua.Contains("mac os") || ua.Contains("macos"))
+            os = "macOS";
+        else if (ua.Contains("linux") && !ua.Contains("android"))
+            os = "Linux";
+        else if (ua.Contains("android"))
+            os = "Android";
+        else if (ua.Contains("iphone") || ua.Contains("ipad") || ua.Contains("ios"))
+            os = "iOS";
+
+        return (deviceType, browser, os);
     }
 
     // Google OAuth methods

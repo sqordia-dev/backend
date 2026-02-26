@@ -3351,6 +3351,69 @@ namespace Sqordia.Persistence.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("Sqordia.Domain.Entities.Identity.UserConsent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)");
+
+                    b.Property<bool>("IsAccepted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "Type");
+
+                    b.ToTable("UserConsents", (string)null);
+                });
+
             modelBuilder.Entity("Sqordia.Domain.Entities.Identity.UserRole", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5808,6 +5871,17 @@ namespace Sqordia.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Sqordia.Domain.Entities.Identity.UserConsent", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.Identity.User", "User")
+                        .WithMany("Consents")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Sqordia.Domain.Entities.Identity.UserRole", b =>
                 {
                     b.HasOne("Sqordia.Domain.Entities.Identity.Role", "Role")
@@ -6170,6 +6244,8 @@ namespace Sqordia.Persistence.Migrations
 
             modelBuilder.Entity("Sqordia.Domain.Entities.Identity.User", b =>
                 {
+                    b.Navigation("Consents");
+
                     b.Navigation("RefreshTokens");
 
                     b.Navigation("UserRoles");
