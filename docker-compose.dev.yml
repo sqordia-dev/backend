@@ -43,12 +43,19 @@ services:
       - CLAUDE_API_KEY=${CLAUDE_API_KEY:-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}
       - AI__Gemini__ApiKey=${GEMINI_API_KEY:-}
       
-      # Azure Communication Services Email Configuration (preferred)
+      # Resend Email Configuration (preferred - set RESEND_API_KEY in .env file)
+      # Priority: Resend > Azure Communication Services > Azure Service Bus > MockEmailService
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - Resend__ApiKey=${RESEND_API_KEY:-}
+      - Resend__FromEmail=${RESEND_FROM_EMAIL:-noreply@sqordia.app}
+      - Resend__FromName=${RESEND_FROM_NAME:-Sqordia}
+
+      # Azure Communication Services Email Configuration (fallback)
       # Set AzureCommunicationServices__ConnectionString to use Azure Communication Services Email
       - AzureCommunicationServices__ConnectionString=${AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING:-}
       - AzureCommunicationServices__FromEmail=${AZURE_COMMUNICATION_SERVICES_FROM_EMAIL:-sqordia.dev@gmail.com}
       - AzureCommunicationServices__FromName=${AZURE_COMMUNICATION_SERVICES_FROM_NAME:-Sqordia}
-      
+
       # Alternative: SendGrid Configuration (using appsettings.Development.json via mounted volume)
       # Only set if environment variable is provided, otherwise use appsettings file
       - SendGrid__FromEmail=${SENDGRID_FROM_EMAIL:-sqordia.dev@gmail.com}

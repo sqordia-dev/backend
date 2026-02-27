@@ -12,10 +12,14 @@ namespace Sqordia.Infrastructure.Services;
 /// </summary>
 public class InvoicePdfService : IInvoicePdfService
 {
-    // Brand colors
-    private static readonly string StrategyBlue = "#1A2B47";
-    private static readonly string MomentumOrange = "#FF6B00";
-    private static readonly string LightGrey = "#F4F7FA";
+    // Brand colors as Color objects for proper QuestPDF rendering
+    private static readonly Color StrategyBlue = Color.FromHex("#1A2B47");
+    private static readonly Color MomentumOrange = Color.FromHex("#FF6B00");
+    private static readonly Color LightGrey = Color.FromHex("#F4F7FA");
+    private static readonly Color PaidGreen = Color.FromHex("#059669");
+    private static readonly Color PaidGreenBg = Color.FromHex("#ECFDF5");
+    private static readonly Color PendingAmber = Color.FromHex("#D97706");
+    private static readonly Color PendingAmberBg = Color.FromHex("#FFFBEB");
 
     static InvoicePdfService()
     {
@@ -39,7 +43,12 @@ public class InvoicePdfService : IInvoicePdfService
                 page.Size(PageSizes.Letter);
                 page.MarginVertical(40);
                 page.MarginHorizontal(50);
-                page.DefaultTextStyle(x => x.FontSize(10).FontColor(StrategyBlue));
+                page.PageColor(Colors.White);
+
+                // Explicitly set font to ensure text renders
+                page.DefaultTextStyle(x => x
+                    .FontSize(10)
+                    .FontColor(Colors.Black));
 
                 page.Header().Element(c => ComposeHeader(c, invoice));
                 page.Content().Element(c => ComposeContent(c, invoice, organizationName, customerName, customerEmail));
@@ -62,7 +71,7 @@ public class InvoicePdfService : IInvoicePdfService
                     col.Item().Text("SQORDIA")
                         .FontSize(28)
                         .Bold()
-                        .FontColor(StrategyBlue);
+                        .FontColor(Colors.Blue.Darken3);
                     col.Item().Text("Business Plan Platform")
                         .FontSize(10)
                         .FontColor(Colors.Grey.Medium);
@@ -72,7 +81,7 @@ public class InvoicePdfService : IInvoicePdfService
                 row.ConstantItem(150).AlignRight().Column(col =>
                 {
                     col.Item()
-                        .Background(MomentumOrange)
+                        .Background(Colors.Orange.Medium)
                         .Padding(10)
                         .AlignCenter()
                         .Text("INVOICE")
@@ -82,7 +91,7 @@ public class InvoicePdfService : IInvoicePdfService
                 });
             });
 
-            column.Item().PaddingTop(10).LineHorizontal(2).LineColor(LightGrey);
+            column.Item().PaddingTop(10).LineHorizontal(2).LineColor(Colors.Grey.Lighten2);
         });
     }
 
@@ -138,7 +147,7 @@ public class InvoicePdfService : IInvoicePdfService
 
             // Service Period Banner
             column.Item()
-                .Background(LightGrey)
+                .Background(Colors.Grey.Lighten4)
                 .Padding(15)
                 .Row(row =>
                 {
@@ -148,7 +157,7 @@ public class InvoicePdfService : IInvoicePdfService
                         col.Item().PaddingTop(3).Text($"{invoice.PeriodStart:MMM dd, yyyy} - {invoice.PeriodEnd:MMM dd, yyyy}")
                             .FontSize(12)
                             .Bold()
-                            .FontColor(StrategyBlue);
+                            .FontColor(Colors.Blue.Darken3);
                     });
                 });
 
@@ -168,10 +177,10 @@ public class InvoicePdfService : IInvoicePdfService
                 // Header
                 table.Header(header =>
                 {
-                    header.Cell().Element(CellStyle).Background(StrategyBlue).Text("Description").FontColor(Colors.White).Bold();
-                    header.Cell().Element(CellStyle).Background(StrategyBlue).AlignCenter().Text("Qty").FontColor(Colors.White).Bold();
-                    header.Cell().Element(CellStyle).Background(StrategyBlue).AlignRight().Text("Unit Price").FontColor(Colors.White).Bold();
-                    header.Cell().Element(CellStyle).Background(StrategyBlue).AlignRight().Text("Amount").FontColor(Colors.White).Bold();
+                    header.Cell().Element(CellStyle).Background(Colors.Blue.Darken3).Text("Description").FontColor(Colors.White).Bold();
+                    header.Cell().Element(CellStyle).Background(Colors.Blue.Darken3).AlignCenter().Text("Qty").FontColor(Colors.White).Bold();
+                    header.Cell().Element(CellStyle).Background(Colors.Blue.Darken3).AlignRight().Text("Unit Price").FontColor(Colors.White).Bold();
+                    header.Cell().Element(CellStyle).Background(Colors.Blue.Darken3).AlignRight().Text("Amount").FontColor(Colors.White).Bold();
 
                     static IContainer CellStyle(IContainer container) =>
                         container.DefaultTextStyle(x => x.FontSize(10)).Padding(10);
@@ -211,18 +220,18 @@ public class InvoicePdfService : IInvoicePdfService
 
                 totalsColumn.Item().PaddingTop(10).Row(row =>
                 {
-                    row.RelativeItem().Text("Total:").Bold().FontSize(14).FontColor(StrategyBlue);
+                    row.RelativeItem().Text("Total:").Bold().FontSize(14).FontColor(Colors.Blue.Darken3);
                     row.ConstantItem(100).AlignRight().Text(FormatCurrency(invoice.Total, invoice.Currency))
                         .Bold()
                         .FontSize(14)
-                        .FontColor(MomentumOrange);
+                        .FontColor(Colors.Orange.Darken1);
                 });
 
                 // Payment Status Badge
                 totalsColumn.Item().PaddingTop(15).AlignRight().Element(c =>
                 {
-                    var statusColor = invoice.Status.ToLower() == "paid" ? "#059669" : "#D97706";
-                    var statusBg = invoice.Status.ToLower() == "paid" ? "#ECFDF5" : "#FFFBEB";
+                    var statusColor = invoice.Status.ToLower() == "paid" ? PaidGreen : PendingAmber;
+                    var statusBg = invoice.Status.ToLower() == "paid" ? PaidGreenBg : PendingAmberBg;
 
                     c.Background(statusBg)
                         .Border(1)
@@ -239,9 +248,9 @@ public class InvoicePdfService : IInvoicePdfService
             column.Item().PaddingTop(40);
 
             // Payment Information
-            column.Item().Background(LightGrey).Padding(20).Column(paymentCol =>
+            column.Item().Background(Colors.Grey.Lighten4).Padding(20).Column(paymentCol =>
             {
-                paymentCol.Item().Text("PAYMENT INFORMATION").FontSize(10).Bold().FontColor(StrategyBlue);
+                paymentCol.Item().Text("PAYMENT INFORMATION").FontSize(10).Bold().FontColor(Colors.Blue.Darken3);
                 paymentCol.Item().PaddingTop(10).Text("Payment processed securely via Stripe.")
                     .FontSize(9)
                     .FontColor(Colors.Grey.Darken1);
@@ -256,7 +265,7 @@ public class InvoicePdfService : IInvoicePdfService
     {
         container.Column(column =>
         {
-            column.Item().LineHorizontal(1).LineColor(LightGrey);
+            column.Item().LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
             column.Item().PaddingTop(10).Row(row =>
             {
                 row.RelativeItem().Column(col =>
@@ -281,7 +290,7 @@ public class InvoicePdfService : IInvoicePdfService
                 {
                     col.Item().Text("www.sqordia.com")
                         .FontSize(9)
-                        .FontColor(MomentumOrange);
+                        .FontColor(Colors.Orange.Medium);
                     col.Item().Text($"Invoice #{invoice.InvoiceNumber}")
                         .FontSize(9)
                         .FontColor(Colors.Grey.Medium);

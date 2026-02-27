@@ -298,7 +298,10 @@
   <data name="Email.Subject.OrganizationInvitation" xml:space="preserve">
     <value>Invitation to Join an Organization</value>
   </data>
-  
+  <data name="Email.Subject.WelcomeVerification" xml:space="preserve">
+    <value>Welcome to Sqordia - Verify Your Email</value>
+  </data>
+
   <!-- Email Content - Welcome -->
   <data name="Email.Welcome.Greeting" xml:space="preserve">
     <value>Welcome, {0}!</value>

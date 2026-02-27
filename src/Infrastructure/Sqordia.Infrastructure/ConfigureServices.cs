@@ -7,6 +7,7 @@ using Microsoft.Extensions.Localization;
 using Azure.Storage.Blobs;
 using Azure.Messaging.ServiceBus;
 using Azure.Communication.Email;
+using Resend;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Security;
 using Sqordia.Application.Services;
@@ -33,7 +34,7 @@ public static class ConfigureServices
         services.AddHttpContextAccessor();
 
         // Email service configuration
-        // Priority: Azure Communication Services Email > Azure Service Bus > MockEmailService
+        // Priority: Resend > Azure Communication Services Email > Azure Service Bus > MockEmailService
         // Check if we're in a test environment
         var isTestEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Testing"
                              || Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Test"
@@ -41,8 +42,77 @@ public static class ConfigureServices
                              || configuration["ASPNETCORE_ENVIRONMENT"] == "Test"
                              || Environment.GetEnvironmentVariable("SKIP_AZURE_SERVICES") == "true"
                              || configuration["SkipAzureServices"] == "true";
-        
-        // Try Azure Communication Services Email first (preferred)
+
+        bool emailServiceRegistered = false;
+
+        // Try Resend first (preferred)
+        var resendApiKey = Environment.GetEnvironmentVariable("RESEND_API_KEY")
+                        ?? Environment.GetEnvironmentVariable("Resend__ApiKey")
+                        ?? configuration["Resend:ApiKey"];
+
+        var resendFromEmail = Environment.GetEnvironmentVariable("RESEND_FROM_EMAIL")
+                           ?? Environment.GetEnvironmentVariable("Resend__FromEmail")
+                           ?? configuration["Resend:FromEmail"]
+                           ?? Environment.GetEnvironmentVariable("Email__FromAddress")
+                           ?? configuration["Email:FromAddress"];
+
+        var resendFromName = Environment.GetEnvironmentVariable("RESEND_FROM_NAME")
+                          ?? Environment.GetEnvironmentVariable("Resend__FromName")
+                          ?? configuration["Resend:FromName"]
+                          ?? "Sqordia";
+
+        // Only initialize Resend if not in test environment and API key is available
+        if (!isTestEnvironment && !string.IsNullOrEmpty(resendApiKey) && !string.IsNullOrEmpty(resendFromEmail))
+        {
+            try
+            {
+                var frontendBaseUrl = Environment.GetEnvironmentVariable("FRONTEND_BASE_URL")
+                                   ?? configuration["Frontend:BaseUrl"]
+                                   ?? "https://sqordia.app";
+
+                var resendSettings = new ResendEmailSettings
+                {
+                    ApiKey = resendApiKey,
+                    FromEmail = resendFromEmail,
+                    FromName = resendFromName,
+                    FrontendBaseUrl = frontendBaseUrl
+                };
+
+                services.Configure<ResendEmailSettings>(options =>
+                {
+                    options.ApiKey = resendSettings.ApiKey;
+                    options.FromEmail = resendSettings.FromEmail;
+                    options.FromName = resendSettings.FromName;
+                    options.FrontendBaseUrl = resendSettings.FrontendBaseUrl;
+                });
+
+                // Register Resend client
+                services.AddOptions();
+                services.AddHttpClient<IResend, ResendClient>();
+                services.Configure<ResendClientOptions>(o =>
+                {
+                    o.ApiToken = resendApiKey;
+                });
+
+                services.AddTransient<IEmailService>(sp =>
+                    new ResendEmailService(
+                        sp.GetRequiredService<IResend>(),
+                        sp.GetRequiredService<IOptions<ResendEmailSettings>>(),
+                        sp.GetRequiredService<ILogger<ResendEmailService>>(),
+                        sp.GetRequiredService<ILocalizationService>(),
+                        sp.GetRequiredService<IStringLocalizerFactory>()));
+
+                emailServiceRegistered = true;
+            }
+            catch (Exception ex) when (ex.Message.Contains("connection", StringComparison.OrdinalIgnoreCase)
+                                   || ex.Message.Contains("authentication", StringComparison.OrdinalIgnoreCase)
+                                   || ex is InvalidOperationException)
+            {
+                // If Resend is not available, fall back to Azure Communication Services
+            }
+        }
+
+        // Fall back to Azure Communication Services Email if Resend is not configured
         var azureCommConnectionString = Environment.GetEnvironmentVariable("AzureCommunicationServices__ConnectionString")
                                      ?? configuration["AzureCommunicationServices:ConnectionString"];
         
@@ -57,10 +127,8 @@ public static class ConfigureServices
                     ?? configuration["Email:FromName"]
                     ?? "Sqordia";
 
-        bool emailServiceRegistered = false;
-
-        // Only initialize Azure Communication Services Email if not in test environment and configuration is available
-        if (!isTestEnvironment && !string.IsNullOrEmpty(azureCommConnectionString) && !string.IsNullOrEmpty(fromEmail))
+        // Only initialize Azure Communication Services Email if Resend is not configured and not in test environment
+        if (!emailServiceRegistered && !isTestEnvironment && !string.IsNullOrEmpty(azureCommConnectionString) && !string.IsNullOrEmpty(fromEmail))
         {
             try
             {
