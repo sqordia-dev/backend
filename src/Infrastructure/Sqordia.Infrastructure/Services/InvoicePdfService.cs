@@ -1,4 +1,3 @@
-using QuestPDF.Drawing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -12,15 +11,6 @@ namespace Sqordia.Infrastructure.Services;
 /// </summary>
 public class InvoicePdfService : IInvoicePdfService
 {
-    // Brand colors as Color objects for proper QuestPDF rendering
-    private static readonly Color StrategyBlue = Color.FromHex("#1A2B47");
-    private static readonly Color MomentumOrange = Color.FromHex("#FF6B00");
-    private static readonly Color LightGrey = Color.FromHex("#F4F7FA");
-    private static readonly Color PaidGreen = Color.FromHex("#059669");
-    private static readonly Color PaidGreenBg = Color.FromHex("#ECFDF5");
-    private static readonly Color PendingAmber = Color.FromHex("#D97706");
-    private static readonly Color PendingAmberBg = Color.FromHex("#FFFBEB");
-
     static InvoicePdfService()
     {
         // Configure QuestPDF license (Community license for open source / small business)
@@ -137,7 +127,7 @@ public class InvoicePdfService : IInvoicePdfService
                         col.Item().PaddingTop(5).Row(r =>
                         {
                             r.RelativeItem().Text("Paid Date:").FontColor(Colors.Grey.Medium);
-                            r.ConstantItem(120).AlignRight().Text(invoice.PaidDate.Value.ToString("MMM dd, yyyy")).FontColor(MomentumOrange).Bold();
+                            r.ConstantItem(120).AlignRight().Text(invoice.PaidDate.Value.ToString("MMM dd, yyyy")).FontColor(Colors.Orange.Medium).Bold();
                         });
                     }
                 });
@@ -230,8 +220,9 @@ public class InvoicePdfService : IInvoicePdfService
                 // Payment Status Badge
                 totalsColumn.Item().PaddingTop(15).AlignRight().Element(c =>
                 {
-                    var statusColor = invoice.Status.ToLower() == "paid" ? PaidGreen : PendingAmber;
-                    var statusBg = invoice.Status.ToLower() == "paid" ? PaidGreenBg : PendingAmberBg;
+                    var isPaid = invoice.Status.ToLower() == "paid";
+                    var statusColor = isPaid ? Colors.Green.Darken2 : Colors.Amber.Darken2;
+                    var statusBg = isPaid ? Colors.Green.Lighten5 : Colors.Amber.Lighten5;
 
                     c.Background(statusBg)
                         .Border(1)
