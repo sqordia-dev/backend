@@ -79,6 +79,47 @@ public class AIController : BaseApiController
     }
 
     /// <summary>
+    /// Transform an answer using AI with various action types (Ask Sqordia)
+    /// Actions: polish, shorten, expand, professional, examples, simplify
+    /// </summary>
+    /// <param name="request">Answer transformation request</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Transformed answer with improvements list</returns>
+    [HttpPost("transform-answer")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> TransformAnswer(
+        [FromBody] TransformAnswerRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        _logger.LogInformation("Transforming answer for question {QuestionId} with action '{Action}', {Length} characters",
+            request.QuestionId, request.Action, request.Answer.Length);
+
+        var result = await _polishService.TransformTextAsync(request, cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return HandleResult(result);
+        }
+
+        // Map to response format expected by frontend
+        var response = new PolishAnswerResponse
+        {
+            PolishedText = result.Value?.PolishedText,
+            StrengthScore = CalculateStrengthScore(request.Answer, result.Value?.PolishedText),
+            OriginalText = request.Answer,
+            Improvements = result.Value?.Improvements ?? new List<string>()
+        };
+
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Fully analyze an answer (polish + gaps) - on-demand analysis
     /// </summary>
     /// <param name="request">Answer analysis request</param>
@@ -184,6 +225,22 @@ public class AIController : BaseApiController
 
     private int CalculateStrengthScore(string originalText, string? polishedText)
     {
+        // Handle empty original text (e.g., generate action)
+        if (string.IsNullOrEmpty(originalText))
+        {
+            // For generated text, score based on the generated content quality
+            if (!string.IsNullOrEmpty(polishedText))
+            {
+                int genScore = 70; // Good base score for generated content
+                if (polishedText.Length >= 100) genScore += 5;
+                if (polishedText.Length >= 200) genScore += 5;
+                if (polishedText.Length >= 300) genScore += 5;
+                if (polishedText.Contains(".") && polishedText.Split('.').Length > 2) genScore += 5;
+                return Math.Clamp(genScore, 0, 100);
+            }
+            return 50; // Default score
+        }
+
         // Base score on text length and quality indicators
         int score = 50; // Base score
 

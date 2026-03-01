@@ -1,6 +1,7 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sqordia.Application.Common.Interfaces;
@@ -24,16 +25,48 @@ public class AzureBlobStorageService : IStorageService
 {
     private readonly BlobServiceClient _blobServiceClient;
     private readonly AzureStorageSettings _settings;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<AzureBlobStorageService> _logger;
+    private readonly bool _isLocalDevelopment;
 
     public AzureBlobStorageService(
         BlobServiceClient blobServiceClient,
         IOptions<AzureStorageSettings> settings,
+        IHttpContextAccessor httpContextAccessor,
         ILogger<AzureBlobStorageService> logger)
     {
         _blobServiceClient = blobServiceClient;
         _settings = settings.Value;
+        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+
+        // Detect if using Azurite (local development) by checking the connection string
+        _isLocalDevelopment = _settings.ConnectionString.Contains("devstoreaccount1", StringComparison.OrdinalIgnoreCase)
+                           || _settings.ConnectionString.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+                           || _settings.ConnectionString.Contains("localhost", StringComparison.OrdinalIgnoreCase)
+                           || _settings.ConnectionString.Contains("azurite", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string GetBaseUrl()
+    {
+        var httpContext = _httpContextAccessor.HttpContext;
+        if (httpContext != null)
+        {
+            var request = httpContext.Request;
+            return $"{request.Scheme}://{request.Host}";
+        }
+        return "http://localhost:5241";
+    }
+
+    private string GetProxyEndpoint(string key)
+    {
+        // Route to appropriate endpoint based on storage folder
+        if (key.StartsWith("bug-reports/", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"/api/v1/github-issues/screenshot/{key}";
+        }
+        // Default to profile pictures endpoint
+        return $"/api/v1/profile/picture/{key}";
     }
 
     private async Task<BlobContainerClient> GetContainerClientAsync(CancellationToken cancellationToken = default)
@@ -60,23 +93,36 @@ public class AzureBlobStorageService : IStorageService
 
             await blobClient.UploadAsync(content, uploadOptions, cancellationToken);
 
-            // Generate a SAS token URL for profile pictures to make them accessible
-            // For profile pictures, we use a long expiration (1 year) since they should persist
-            // For other files, you might want shorter expiration
+            // Generate a SAS token URL for files that need public access
+            // Profile pictures use long expiration (1 year), bug reports use medium (30 days)
             var isProfilePicture = key.StartsWith("profile-pictures/", StringComparison.OrdinalIgnoreCase);
-            
-            if (isProfilePicture)
+            var isBugReport = key.StartsWith("bug-reports/", StringComparison.OrdinalIgnoreCase);
+
+            if (isProfilePicture || isBugReport)
             {
-                // Generate SAS token URL with 1 year expiration for profile pictures
+                // For local development (Azurite), use proxy endpoints since SAS URLs contain internal hostnames
+                if (_isLocalDevelopment)
+                {
+                    var baseUrl = GetBaseUrl();
+                    var endpoint = GetProxyEndpoint(key);
+                    _logger.LogInformation("File uploaded to Azurite with proxy URL: {Key}", key);
+                    return $"{baseUrl}{endpoint}";
+                }
+
+                // For production Azure, generate SAS token URL with appropriate expiration
+                var expiration = isProfilePicture
+                    ? DateTimeOffset.UtcNow.AddYears(1)
+                    : DateTimeOffset.UtcNow.AddDays(30); // Bug report screenshots expire in 30 days
+
                 var sasBuilder = new BlobSasBuilder
                 {
                     BlobContainerName = _settings.ContainerName,
                     BlobName = key,
                     Resource = "b",
-                    ExpiresOn = DateTimeOffset.UtcNow.AddYears(1)
+                    ExpiresOn = expiration
                 };
                 sasBuilder.SetPermissions(BlobSasPermissions.Read);
-                
+
                 var sasUrl = blobClient.GenerateSasUri(sasBuilder);
                 _logger.LogInformation("File uploaded to Azure Blob Storage with SAS URL: {Key}", key);
                 return sasUrl.ToString();
@@ -192,6 +238,15 @@ public class AzureBlobStorageService : IStorageService
                 throw new FileNotFoundException($"File '{key}' not found in storage");
             }
 
+            // For local development (Azurite), use proxy endpoints
+            if (_isLocalDevelopment)
+            {
+                var baseUrl = GetBaseUrl();
+                var endpoint = GetProxyEndpoint(key);
+                _logger.LogInformation("Generated proxy URL for Azurite: {Key}", key);
+                return $"{baseUrl}{endpoint}";
+            }
+
             var sasBuilder = new BlobSasBuilder
             {
                 BlobContainerName = _settings.ContainerName,
@@ -213,12 +268,11 @@ public class AzureBlobStorageService : IStorageService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating pre-signed URL for Azure Blob Storage: {Key}", key);
-            // Fallback: return blob URL if SAS generation fails
-            var containerClient = await GetContainerClientAsync(cancellationToken);
-            var blobClient = containerClient.GetBlobClient(key);
-            var publicUrl = blobClient.Uri.ToString();
-            _logger.LogWarning("Falling back to blob URL: {Url}", publicUrl);
-            return publicUrl;
+            // Fallback: return proxy URL
+            var baseUrl = GetBaseUrl();
+            var endpoint = GetProxyEndpoint(key);
+            _logger.LogWarning("Falling back to proxy URL: {Key}", key);
+            return $"{baseUrl}{endpoint}";
         }
     }
 }

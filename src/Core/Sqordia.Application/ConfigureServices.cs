@@ -7,6 +7,8 @@ using Sqordia.Application.OBNL.Services;
 using Sqordia.Application.Services.Cms;
 using Sqordia.Application.Services.Implementations.Cms;
 using Sqordia.Application.Services.Questionnaire;
+using Sqordia.Application.Services.V3;
+using Sqordia.Application.Services.V3.Implementations;
 using System.Reflection;
 
 namespace Sqordia.Application;
@@ -80,6 +82,12 @@ public static class ConfigureServices
             services.AddScoped<ICmsRegistryService, CmsRegistryService>();
             services.AddScoped<ICmsApprovalService, CmsApprovalService>();
             services.AddScoped<ICmsTemplateService, CmsTemplateService>();
+
+            // V3 Structure Finale services
+            services.AddScoped<ISectionHierarchyService, SectionHierarchyService>();
+            services.AddScoped<ISectionPromptService, SectionPromptService>();
+            services.AddScoped<IQuestionnaireServiceV3, QuestionnaireServiceV3>();
+            services.AddScoped<IQuestionSectionMappingService, QuestionSectionMappingService>();
 
             return services;
     }

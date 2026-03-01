@@ -87,6 +87,13 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<AIPromptVersion> AIPromptVersions { get; set; }
     public DbSet<PromptTemplate> PromptTemplates { get; set; }
     public DbSet<PromptPerformance> PromptPerformance { get; set; }
+
+    // Structure Finale - Section Hierarchy & V3 Questionnaire
+    public DbSet<MainSection> MainSections { get; set; }
+    public DbSet<SubSection> SubSections { get; set; }
+    public DbSet<SectionPrompt> SectionPrompts { get; set; }
+    public DbSet<QuestionTemplateV3> QuestionTemplatesV3 { get; set; }
+    public DbSet<QuestionSectionMapping> QuestionSectionMappings { get; set; }
     
     // Audit logging
     public DbSet<AuditLog> AuditLogs { get; set; }

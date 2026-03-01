@@ -11,6 +11,7 @@ namespace Sqordia.Application.Services.V2.Implementations;
 
 /// <summary>
 /// V2 Questionnaire service with persona support
+/// Now uses V3 data source for expert advice and coach prompts
 /// </summary>
 public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
 {
@@ -35,10 +36,11 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
     {
         try
         {
-            _logger.LogInformation("Getting V2 questions for persona {Persona} in language {Language}",
+            _logger.LogInformation("Getting V3 questions for persona {Persona} in language {Language}",
                 personaType?.ToString() ?? "All", language);
 
-            var query = _context.QuestionTemplatesV2.AsQueryable();
+            // Use V3 table which has expert advice and coach prompts
+            var query = _context.QuestionTemplatesV3.AsQueryable();
 
             // Filter by persona: include universal questions (NULL PersonaType) plus persona-specific ones
             if (personaType.HasValue)
@@ -52,7 +54,7 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
 
             var questions = await query
                 .OrderBy(q => q.StepNumber)
-                .ThenBy(q => q.Order)
+                .ThenBy(q => q.DisplayOrder)
                 .ToListAsync(cancellationToken);
 
             if (!questions.Any())
@@ -72,7 +74,7 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
                     StepNumber = g.Key,
                     StepTitle = GetStepTitle(g.Key, isEnglish),
                     StepDescription = GetStepDescription(g.Key, isEnglish),
-                    Questions = g.Select(q => MapToResponse(q, isEnglish)).ToList(),
+                    Questions = g.Select(q => MapToResponseV3(q, isEnglish)).ToList(),
                     TotalQuestions = g.Count()
                 })
                 .ToList();
@@ -106,10 +108,11 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
     {
         try
         {
-            _logger.LogInformation("Getting V2 questions for step {Step}, persona {Persona}",
+            _logger.LogInformation("Getting V3 questions for step {Step}, persona {Persona}",
                 stepNumber, personaType?.ToString() ?? "All");
 
-            var query = _context.QuestionTemplatesV2
+            // Use V3 table
+            var query = _context.QuestionTemplatesV3
                 .Where(q => q.StepNumber == stepNumber && q.IsActive);
 
             // Include universal questions (NULL PersonaType) plus persona-specific ones
@@ -119,7 +122,7 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
             }
 
             var questions = await query
-                .OrderBy(q => q.Order)
+                .OrderBy(q => q.DisplayOrder)
                 .ToListAsync(cancellationToken);
 
             if (!questions.Any())
@@ -135,7 +138,7 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
                 StepNumber = stepNumber,
                 StepTitle = GetStepTitle(stepNumber, isEnglish),
                 StepDescription = GetStepDescription(stepNumber, isEnglish),
-                Questions = questions.Select(q => MapToResponse(q, isEnglish)).ToList(),
+                Questions = questions.Select(q => MapToResponseV3(q, isEnglish)).ToList(),
                 TotalQuestions = questions.Count
             };
 
@@ -143,7 +146,7 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting V2 questions for step {Step}", stepNumber);
+            _logger.LogError(ex, "Error getting V3 questions for step {Step}", stepNumber);
             return Result.Failure<QuestionnaireStepResponse>(
                 Error.InternalServerError("Step.GetError", "An error occurred while retrieving step questions."));
         }
@@ -156,9 +159,10 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
     {
         try
         {
-            _logger.LogInformation("Getting V2 question {QuestionId}", questionId);
+            _logger.LogInformation("Getting V3 question {QuestionId}", questionId);
 
-            var question = await _context.QuestionTemplatesV2
+            // Use V3 table
+            var question = await _context.QuestionTemplatesV3
                 .FirstOrDefaultAsync(q => q.Id == questionId && q.IsActive, cancellationToken);
 
             if (question == null)
@@ -168,13 +172,13 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
             }
 
             var isEnglish = language.Equals("en", StringComparison.OrdinalIgnoreCase);
-            var response = MapToResponse(question, isEnglish);
+            var response = MapToResponseV3(question, isEnglish);
 
             return Result.Success(response);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting V2 question {QuestionId}", questionId);
+            _logger.LogError(ex, "Error getting V3 question {QuestionId}", questionId);
             return Result.Failure<PersonaQuestionResponse>(
                 Error.InternalServerError("Question.GetError", "An error occurred while retrieving the question."));
         }
@@ -193,8 +197,8 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
                 .OrderBy(s => s.StepNumber)
                 .ToListAsync(cancellationToken);
 
-            // Get question counts per step
-            var questionCounts = await _context.QuestionTemplatesV2
+            // Get question counts per step from V3 table
+            var questionCounts = await _context.QuestionTemplatesV3
                 .Where(q => q.IsActive)
                 .GroupBy(q => q.StepNumber)
                 .Select(g => new { StepNumber = g.Key, Count = g.Count() })
@@ -221,24 +225,24 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
         }
     }
 
-    private static PersonaQuestionResponse MapToResponse(QuestionTemplateV2 question, bool isEnglish)
+    private static PersonaQuestionResponse MapToResponseV3(QuestionTemplateV3 question, bool isEnglish)
     {
         var questionText = isEnglish && !string.IsNullOrWhiteSpace(question.QuestionTextEN)
             ? question.QuestionTextEN
-            : question.QuestionText;
+            : question.QuestionTextFR;
 
         var helpText = isEnglish && !string.IsNullOrWhiteSpace(question.HelpTextEN)
             ? question.HelpTextEN
-            : question.HelpText;
+            : question.HelpTextFR;
 
         List<string>? options = null;
         List<string>? optionsEN = null;
 
-        if (!string.IsNullOrWhiteSpace(question.Options))
+        if (!string.IsNullOrWhiteSpace(question.OptionsFR))
         {
             try
             {
-                options = JsonSerializer.Deserialize<List<string>>(question.Options);
+                options = JsonSerializer.Deserialize<List<string>>(question.OptionsFR);
             }
             catch { }
         }
@@ -255,19 +259,25 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
         return new PersonaQuestionResponse
         {
             Id = question.Id,
-            PersonaType = question.PersonaType.ToString(),
+            QuestionNumber = question.QuestionNumber,
+            PersonaType = question.PersonaType?.ToString(),
             StepNumber = question.StepNumber,
             QuestionText = questionText,
             QuestionTextEN = question.QuestionTextEN,
             HelpText = helpText,
             HelpTextEN = question.HelpTextEN,
             QuestionType = question.QuestionType.ToString(),
-            Order = question.Order,
+            Order = question.DisplayOrder,
             IsRequired = question.IsRequired,
-            Section = question.Section,
+            Section = null, // V3 uses section mappings instead
             Options = isEnglish && optionsEN != null ? optionsEN : options,
             OptionsEN = optionsEN,
-            Icon = question.Icon
+            Icon = question.Icon,
+            // V3 specific fields
+            CoachPromptFR = question.CoachPromptFR,
+            CoachPromptEN = question.CoachPromptEN,
+            ExpertAdviceFR = question.ExpertAdviceFR,
+            ExpertAdviceEN = question.ExpertAdviceEN
         };
     }
 

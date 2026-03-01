@@ -18,7 +18,7 @@ namespace Sqordia.Persistence.Migrations
                 SELECT
                     gen_random_uuid(),
                     'AI.ActiveProvider',
-                    'OpenAI',
+                    'OpenAI',  -- Only OpenAI for now, Claude/Gemini in future versions
                     'AI',
                     'Active AI provider (OpenAI, Claude, or Gemini)',
                     false,
@@ -37,7 +37,7 @@ namespace Sqordia.Persistence.Migrations
                 SELECT
                     gen_random_uuid(),
                     'AI.FallbackProviders',
-                    '[""Claude"", ""Gemini""]',
+                    '[]',  -- No fallbacks for now, Claude/Gemini in future versions
                     'AI',
                     'Fallback AI providers in order of preference',
                     false,
@@ -75,7 +75,7 @@ namespace Sqordia.Persistence.Migrations
                 SELECT
                     gen_random_uuid(),
                     'AI.Claude.Model',
-                    'claude-3-5-sonnet-20241022',
+                    'claude-sonnet-4-20250514',
                     'AI',
                     'Claude model name',
                     false,

@@ -86,6 +86,11 @@ services:
       - Stripe__PriceIds__Enterprise__Monthly=${STRIPE_PRICE_ENTERPRISE_MONTHLY:-price_1SmnSNFF8GcMsSWeXH1gmoEz}
       - Stripe__PriceIds__Enterprise__Yearly=${STRIPE_PRICE_ENTERPRISE_YEARLY:-price_1T56ojFF8GcMsSWelTiMZNnb}
 
+      # Azure Blob Storage (Azurite for local development)
+      - AzureStorage__ConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://sqordia-azurite:10000/devstoreaccount1;
+      - AzureStorage__ContainerName=sqordia-documents
+      - AzureStorage__AccountName=devstoreaccount1
+
       # Disable HTTPS redirect for Docker development
       - DISABLE_HTTPS_REDIRECT=true
       
@@ -103,6 +108,8 @@ services:
       - sqordia-network
     depends_on:
       sqordia-db:
+        condition: service_healthy
+      sqordia-azurite:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -134,10 +141,31 @@ services:
       retries: 15
       start_period: 10s
 
+  # Azurite - Azure Blob Storage emulator for local development
+  sqordia-azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    container_name: sqordia-azurite-dev
+    command: "azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --loose"
+    ports:
+      - "10000:10000"  # Blob service
+    volumes:
+      - sqordia-azurite-data:/data
+    networks:
+      - sqordia-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:10000/', (r) => process.exit(r.statusCode === 400 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 networks:
   sqordia-network:
     driver: bridge
 
 volumes:
   sqordia-db-data:
+    driver: local
+  sqordia-azurite-data:
     driver: local

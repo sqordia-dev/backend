@@ -39,9 +39,10 @@ public class InMemoryStorageService : IStorageService
         _storage[key] = bytes;
         _contentTypes[key] = contentType;
 
-        // Return URL to the proxy endpoint that serves the image
+        // Return URL to the appropriate proxy endpoint based on file type
         var baseUrl = GetBaseUrl();
-        return Task.FromResult($"{baseUrl}/api/v1/profile/picture/{key}");
+        var endpoint = GetProxyEndpoint(key);
+        return Task.FromResult($"{baseUrl}{endpoint}");
     }
 
     public Task<string> UploadFileAsync(string key, byte[] content, string contentType, CancellationToken cancellationToken = default)
@@ -49,9 +50,21 @@ public class InMemoryStorageService : IStorageService
         _storage[key] = content;
         _contentTypes[key] = contentType;
 
-        // Return URL to the proxy endpoint that serves the image
+        // Return URL to the appropriate proxy endpoint based on file type
         var baseUrl = GetBaseUrl();
-        return Task.FromResult($"{baseUrl}/api/v1/profile/picture/{key}");
+        var endpoint = GetProxyEndpoint(key);
+        return Task.FromResult($"{baseUrl}{endpoint}");
+    }
+
+    private static string GetProxyEndpoint(string key)
+    {
+        // Route to appropriate endpoint based on storage folder
+        if (key.StartsWith("bug-reports/", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"/api/v1/github-issues/screenshot/{key}";
+        }
+        // Default to profile pictures endpoint
+        return $"/api/v1/profile/picture/{key}";
     }
 
     public Task<Stream> DownloadFileAsync(string key, CancellationToken cancellationToken = default)
@@ -93,10 +106,11 @@ public class InMemoryStorageService : IStorageService
             throw new FileNotFoundException($"File not found: {key}");
         }
 
-        // For in-memory storage, return the same proxy endpoint URL
+        // For in-memory storage, return the appropriate proxy endpoint URL
         // Note: In-memory storage doesn't support actual expiration, but the endpoint is always available
         var baseUrl = GetBaseUrl();
-        return Task.FromResult($"{baseUrl}/api/v1/profile/picture/{key}");
+        var endpoint = GetProxyEndpoint(key);
+        return Task.FromResult($"{baseUrl}{endpoint}");
     }
 }
 

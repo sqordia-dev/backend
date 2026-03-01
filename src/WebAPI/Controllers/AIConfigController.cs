@@ -116,7 +116,7 @@ public class AIConfigController : BaseApiController
                 || !string.IsNullOrEmpty(claudeConfigured.ApiKey);
             var claudeModel = (claudeDbModel.IsSuccess && !string.IsNullOrEmpty(claudeDbModel.Value))
                 ? claudeDbModel.Value
-                : claudeConfigured.Model ?? "claude-3-5-sonnet-20241022";
+                : claudeConfigured.Model ?? "claude-sonnet-4-20250514";
             var claudeKeyPreview = claudeDbKey.IsSuccess && !string.IsNullOrEmpty(claudeDbKey.Value)
                 ? MaskApiKey(claudeDbKey.Value)
                 : MaskApiKey(claudeConfigured.ApiKey);

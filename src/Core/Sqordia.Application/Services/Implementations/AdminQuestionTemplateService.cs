@@ -27,7 +27,8 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
-        var query = _context.QuestionTemplatesV2.AsQueryable();
+        // Use V3 questions (STRUCTURE FINALE with expert advice)
+        var query = _context.QuestionTemplatesV3.AsQueryable();
 
         if (stepNumber.HasValue)
             query = query.Where(q => q.StepNumber == stepNumber.Value);
@@ -43,7 +44,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
 
         var questions = await query
             .OrderBy(q => q.StepNumber)
-            .ThenBy(q => q.Order)
+            .ThenBy(q => q.DisplayOrder)
             .ToListAsync(cancellationToken);
 
         return questions.Select(MapToDto).ToList();
@@ -53,7 +54,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         Guid questionId,
         CancellationToken cancellationToken = default)
     {
-        var question = await _context.QuestionTemplatesV2
+        var question = await _context.QuestionTemplatesV3
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         return question == null ? null : MapToDto(question);
@@ -74,23 +75,32 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
             persona = parsed;
         }
 
-        var entity = new QuestionTemplateV2(
+        // Calculate next question number
+        var maxQuestionNumber = await _context.QuestionTemplatesV3
+            .MaxAsync(q => (int?)q.QuestionNumber, cancellationToken) ?? 0;
+
+        var entity = QuestionTemplateV3.Create(
+            questionNumber: maxQuestionNumber + 1,
+            personaType: persona,
             stepNumber: request.StepNumber,
-            questionText: request.QuestionText,
+            questionTextFR: request.QuestionText,
+            questionTextEN: request.QuestionTextEN ?? request.QuestionText,
+            helpTextFR: request.HelpText,
+            helpTextEN: request.HelpTextEN,
             questionType: questionType,
-            order: request.Order,
+            optionsFR: request.Options,
+            optionsEN: request.OptionsEN,
+            validationRules: request.ValidationRules,
+            conditionalLogic: request.ConditionalLogic,
+            coachPromptFR: request.CoachPromptFR,
+            coachPromptEN: request.CoachPromptEN,
+            expertAdviceFR: request.ExpertAdviceFR,
+            expertAdviceEN: request.ExpertAdviceEN,
+            displayOrder: request.Order,
             isRequired: request.IsRequired,
-            section: request.Section,
-            personaType: persona);
+            icon: request.Icon);
 
-        entity.SetEnglishText(request.QuestionTextEN, request.HelpTextEN, request.OptionsEN);
-        entity.SetHelpText(request.HelpText, request.HelpTextEN);
-        entity.SetOptions(request.Options, request.OptionsEN);
-        entity.SetValidationRules(request.ValidationRules);
-        entity.SetConditionalLogic(request.ConditionalLogic);
-        entity.SetIcon(request.Icon);
-
-        _context.QuestionTemplatesV2.Add(entity);
+        _context.QuestionTemplatesV3.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Created question template {QuestionId} for step {StepNumber}", entity.Id, entity.StepNumber);
@@ -102,17 +112,13 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         UpdateQuestionTemplateRequest request,
         CancellationToken cancellationToken = default)
     {
-        var entity = await _context.QuestionTemplatesV2
+        var entity = await _context.QuestionTemplatesV3
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (entity == null) return false;
 
-        // Update core fields if any are provided
-        var questionText = request.QuestionText ?? entity.QuestionText;
+        // Parse question type if provided
         var questionType = entity.QuestionType;
-        var stepNumber = request.StepNumber ?? entity.StepNumber;
-        var isRequired = request.IsRequired ?? entity.IsRequired;
-
         if (request.QuestionType != null)
         {
             if (!Enum.TryParse<QuestionType>(request.QuestionType, out var parsedType))
@@ -120,6 +126,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
             questionType = parsedType;
         }
 
+        // Parse persona type if provided
         PersonaType? persona = entity.PersonaType;
         if (request.PersonaType != null)
         {
@@ -137,38 +144,40 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
             }
         }
 
-        entity.UpdateCoreFields(questionText, questionType, stepNumber, persona, isRequired);
+        // Update core fields using V3 entity methods
+        entity.Update(
+            questionTextFR: request.QuestionText ?? entity.QuestionTextFR,
+            questionTextEN: request.QuestionTextEN ?? entity.QuestionTextEN,
+            helpTextFR: request.HelpText ?? entity.HelpTextFR,
+            helpTextEN: request.HelpTextEN ?? entity.HelpTextEN,
+            questionType: questionType,
+            optionsFR: request.Options ?? entity.OptionsFR,
+            optionsEN: request.OptionsEN ?? entity.OptionsEN,
+            validationRules: request.ValidationRules ?? entity.ValidationRules,
+            conditionalLogic: request.ConditionalLogic ?? entity.ConditionalLogic,
+            expertAdviceFR: request.ExpertAdviceFR ?? entity.ExpertAdviceFR,
+            expertAdviceEN: request.ExpertAdviceEN ?? entity.ExpertAdviceEN,
+            displayOrder: request.Order ?? entity.DisplayOrder,
+            isRequired: request.IsRequired ?? entity.IsRequired,
+            icon: request.Icon ?? entity.Icon);
 
-        // Update optional fields
-        if (request.QuestionTextEN != null || request.HelpTextEN != null || request.OptionsEN != null)
-            entity.SetEnglishText(
-                request.QuestionTextEN ?? entity.QuestionTextEN,
-                request.HelpTextEN ?? entity.HelpTextEN,
-                request.OptionsEN ?? entity.OptionsEN);
+        // Update coach prompts if provided
+        if (request.CoachPromptFR != null || request.CoachPromptEN != null)
+        {
+            entity.SetCoachPrompts(
+                request.CoachPromptFR ?? entity.CoachPromptFR,
+                request.CoachPromptEN ?? entity.CoachPromptEN);
+        }
 
-        if (request.HelpText != null)
-            entity.SetHelpText(request.HelpText, request.HelpTextEN);
+        // Update step number if provided
+        if (request.StepNumber.HasValue)
+            entity.UpdateStepNumber(request.StepNumber.Value);
 
-        if (request.Options != null || request.OptionsEN != null)
-            entity.SetOptions(
-                request.Options ?? entity.Options,
-                request.OptionsEN ?? entity.OptionsEN);
+        // Update persona type
+        if (request.PersonaType != null)
+            entity.SetPersonaType(persona);
 
-        if (request.ValidationRules != null)
-            entity.SetValidationRules(request.ValidationRules);
-
-        if (request.ConditionalLogic != null)
-            entity.SetConditionalLogic(request.ConditionalLogic);
-
-        if (request.Icon != null)
-            entity.SetIcon(request.Icon);
-
-        if (request.Section != null)
-            entity.UpdateSection(request.Section);
-
-        if (request.Order.HasValue)
-            entity.UpdateOrder(request.Order.Value);
-
+        // Update active status
         if (request.IsActive.HasValue)
         {
             if (request.IsActive.Value) entity.Activate();
@@ -184,7 +193,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         Guid questionId,
         CancellationToken cancellationToken = default)
     {
-        var entity = await _context.QuestionTemplatesV2
+        var entity = await _context.QuestionTemplatesV3
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (entity == null) return false;
@@ -201,14 +210,14 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         CancellationToken cancellationToken = default)
     {
         var ids = request.Items.Select(i => i.QuestionId).ToList();
-        var entities = await _context.QuestionTemplatesV2
+        var entities = await _context.QuestionTemplatesV3
             .Where(q => ids.Contains(q.Id))
             .ToListAsync(cancellationToken);
 
         foreach (var item in request.Items)
         {
             var entity = entities.FirstOrDefault(e => e.Id == item.QuestionId);
-            entity?.UpdateOrder(item.Order);
+            entity?.SetDisplayOrder(item.Order);
         }
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -221,7 +230,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         bool isActive,
         CancellationToken cancellationToken = default)
     {
-        var entity = await _context.QuestionTemplatesV2
+        var entity = await _context.QuestionTemplatesV3
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (entity == null) return false;
@@ -234,26 +243,30 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         return true;
     }
 
-    private static QuestionTemplateDto MapToDto(QuestionTemplateV2 entity)
+    private static QuestionTemplateDto MapToDto(QuestionTemplateV3 entity)
     {
         return new QuestionTemplateDto
         {
             Id = entity.Id,
             PersonaType = entity.PersonaType?.ToString(),
             StepNumber = entity.StepNumber,
-            QuestionText = entity.QuestionText,
+            QuestionText = entity.QuestionTextFR,
             QuestionTextEN = entity.QuestionTextEN,
-            HelpText = entity.HelpText,
+            HelpText = entity.HelpTextFR,
             HelpTextEN = entity.HelpTextEN,
             QuestionType = entity.QuestionType.ToString(),
-            Order = entity.Order,
+            Order = entity.DisplayOrder,
             IsRequired = entity.IsRequired,
-            Section = entity.Section,
-            Options = entity.Options,
+            Section = entity.SectionGroup,
+            Options = entity.OptionsFR,
             OptionsEN = entity.OptionsEN,
             ValidationRules = entity.ValidationRules,
             ConditionalLogic = entity.ConditionalLogic,
             Icon = entity.Icon,
+            ExpertAdviceFR = entity.ExpertAdviceFR,
+            ExpertAdviceEN = entity.ExpertAdviceEN,
+            CoachPromptFR = entity.CoachPromptFR,
+            CoachPromptEN = entity.CoachPromptEN,
             IsActive = entity.IsActive,
             Created = entity.Created,
             LastModified = entity.LastModified,

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Models;
+using Sqordia.Application.Services.AI;
 using Sqordia.Domain.Entities;
 using Sqordia.Domain.Enums;
 using System.Text;
@@ -103,22 +104,33 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
                 await _context.SaveChangesAsync(cancellationToken);
             }
 
-            // Get questionnaire context
-            var context = BuildQuestionnaireContext(businessPlan.QuestionnaireResponses);
+            // Convert questionnaire responses to dictionary by question number
+            var answersByQuestionNumber = BuildAnswersDictionary(businessPlan.QuestionnaireResponses);
 
-            // Generate all sections
+            _logger.LogInformation(
+                "Built answers dictionary with {Count} answers for plan {PlanId}",
+                answersByQuestionNumber.Count,
+                businessPlanId);
+
+            // Generate all sections with section-specific context
             var sections = GetAvailableSections(businessPlan.PlanType.ToString());
             var totalSections = sections.Count;
             var completedSections = 0;
 
             foreach (var section in sections)
             {
-                _logger.LogInformation("Generating section: {Section}", section);
+                _logger.LogInformation("Generating section: {Section} with focused context", section);
+
+                // Build section-specific context using QuestionContextMapper
+                var sectionContext = QuestionContextMapper.BuildSectionContext(
+                    section,
+                    answersByQuestionNumber,
+                    language);
 
                 var content = await GenerateSectionContentAsync(
                     businessPlan.PlanType,
                     section,
-                    context,
+                    sectionContext,
                     language,
                     cancellationToken);
 
@@ -215,11 +227,22 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
                 return Result.Failure<BusinessPlan>($"Business plan with ID {businessPlanId} not found.");
             }
 
-            var context = BuildQuestionnaireContext(businessPlan.QuestionnaireResponses);
+            // Build section-specific context using QuestionContextMapper
+            var answersByQuestionNumber = BuildAnswersDictionary(businessPlan.QuestionnaireResponses);
+            var sectionContext = QuestionContextMapper.BuildSectionContext(
+                sectionName,
+                answersByQuestionNumber,
+                language);
+
+            _logger.LogInformation(
+                "Regenerating section {Section} with {QuestionCount} relevant answers",
+                sectionName,
+                QuestionContextMapper.GetQuestionsForSection(sectionName).Length);
+
             var content = await GenerateSectionContentAsync(
                 businessPlan.PlanType,
                 sectionName,
-                context,
+                sectionContext,
                 language,
                 cancellationToken);
 
@@ -228,7 +251,7 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
             // LastModified is automatically updated by EF Core interceptor
             await _context.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("Section regeneration completed");
+            _logger.LogInformation("Section regeneration completed with focused context");
 
             return Result.Success(businessPlan);
         }
@@ -326,68 +349,114 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
         return commonSections;
     }
 
-    private string BuildQuestionnaireContext(ICollection<QuestionnaireResponse> responses)
+    /// <summary>
+    /// Converts questionnaire responses to a dictionary keyed by question number.
+    /// This enables the QuestionContextMapper to build section-specific context.
+    /// </summary>
+    private Dictionary<int, string> BuildAnswersDictionary(ICollection<QuestionnaireResponse> responses)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine("=== QUESTIONNAIRE RESPONSES ===\n");
+        var answers = new Dictionary<int, string>();
 
         if (responses == null || !responses.Any())
         {
             _logger.LogWarning("No questionnaire responses provided for context building");
-            return sb.ToString();
+            return answers;
         }
 
-        // Filter responses that have either V1 or V2 template loaded, then sort by order
-        var validResponses = responses
+        // First, try to use responses with templates (preferred)
+        var responsesWithTemplates = responses
             .Where(r => r.QuestionTemplate != null || r.QuestionTemplateV2 != null)
-            .OrderBy(r => r.QuestionTemplate?.Order ?? r.QuestionTemplateV2?.Order ?? 0)
             .ToList();
 
-        if (!validResponses.Any())
+        if (responsesWithTemplates.Any())
         {
-            _logger.LogWarning("No valid questionnaire responses found (all templates are null). Total responses: {Count}", responses.Count);
-            return sb.ToString();
-        }
+            _logger.LogDebug("Found {Count} responses with templates", responsesWithTemplates.Count);
 
-        foreach (var response in validResponses)
-        {
-            // Get question text from V1 or V2 template
-            var questionText = response.QuestionTemplate?.QuestionText
-                ?? response.QuestionTemplateV2?.QuestionText
-                ?? "Unknown Question";
-
-            // Truncate very long questions (keep first 200 chars)
-            if (questionText.Length > 200)
+            foreach (var response in responsesWithTemplates)
             {
-                questionText = questionText.Substring(0, 197) + "...";
+                // Get question number from template Order field
+                var questionNumber = response.QuestionTemplate?.Order
+                    ?? response.QuestionTemplateV2?.Order
+                    ?? 0;
+
+                if (questionNumber <= 0)
+                    continue;
+
+                var answer = ExtractAnswerFromResponse(response);
+                if (!string.IsNullOrWhiteSpace(answer))
+                {
+                    answers[questionNumber] = answer;
+                }
             }
-
-            // Get question type from V1 or V2 template
-            var questionType = response.QuestionTemplate?.QuestionType
-                ?? response.QuestionTemplateV2?.QuestionType
-                ?? QuestionType.LongText;
-
-            var answer = questionType switch
-            {
-                QuestionType.ShortText or QuestionType.LongText => TruncateText(response.ResponseText, 500),
-                QuestionType.Number => response.NumericValue?.ToString(),
-                QuestionType.Currency => $"${response.NumericValue:N2}",
-                QuestionType.Percentage => $"{response.NumericValue}%",
-                QuestionType.Date => response.DateValue?.ToString("yyyy-MM-dd"),
-                QuestionType.YesNo => response.BooleanValue?.ToString(),
-                QuestionType.SingleChoice or QuestionType.MultipleChoice => response.SelectedOptions,
-                QuestionType.Scale => response.NumericValue?.ToString(),
-                _ => TruncateText(response.ResponseText, 500)
-            };
-
-            // Get order from V1 or V2 template
-            var order = response.QuestionTemplate?.Order ?? response.QuestionTemplateV2?.Order ?? 0;
-
-            // More concise format: Q{order}: {short question} | A: {answer}
-            sb.AppendLine($"Q{order}: {questionText} | A: {answer}");
         }
 
-        return sb.ToString();
+        // Fallback: If no templates linked, use creation order as question number
+        // This handles cases where responses were created without template associations
+        if (!answers.Any())
+        {
+            _logger.LogInformation(
+                "No responses with templates found. Using creation order for {Count} responses",
+                responses.Count);
+
+            var orderedResponses = responses
+                .Where(r => !string.IsNullOrWhiteSpace(r.ResponseText))
+                .OrderBy(r => r.Created)
+                .ToList();
+
+            var questionNumber = 1;
+            foreach (var response in orderedResponses)
+            {
+                var answer = response.ResponseText ?? "";
+                if (!string.IsNullOrWhiteSpace(answer))
+                {
+                    answers[questionNumber] = answer;
+                    _logger.LogDebug(
+                        "Mapped response {Index} (created {Created}) to question {QuestionNum}",
+                        questionNumber,
+                        response.Created,
+                        questionNumber);
+                }
+                questionNumber++;
+            }
+        }
+
+        _logger.LogInformation("Built answers dictionary with {Count} valid answers", answers.Count);
+        return answers;
+    }
+
+    /// <summary>
+    /// Extracts the answer text from a questionnaire response based on its type
+    /// </summary>
+    private string ExtractAnswerFromResponse(QuestionnaireResponse response)
+    {
+        // Get question type from V1 or V2 template
+        var questionType = response.QuestionTemplate?.QuestionType
+            ?? response.QuestionTemplateV2?.QuestionType
+            ?? QuestionType.LongText;
+
+        return questionType switch
+        {
+            QuestionType.ShortText or QuestionType.LongText => response.ResponseText ?? "",
+            QuestionType.Number => response.NumericValue?.ToString() ?? "",
+            QuestionType.Currency => response.NumericValue.HasValue ? $"${response.NumericValue:N2}" : "",
+            QuestionType.Percentage => response.NumericValue.HasValue ? $"{response.NumericValue}%" : "",
+            QuestionType.Date => response.DateValue?.ToString("yyyy-MM-dd") ?? "",
+            QuestionType.YesNo => response.BooleanValue?.ToString() ?? "",
+            QuestionType.SingleChoice or QuestionType.MultipleChoice => response.SelectedOptions ?? "",
+            QuestionType.Scale => response.NumericValue?.ToString() ?? "",
+            _ => response.ResponseText ?? ""
+        };
+    }
+
+    /// <summary>
+    /// Legacy method - builds flat questionnaire context for backward compatibility.
+    /// Prefer using BuildAnswersDictionary + QuestionContextMapper for new code.
+    /// </summary>
+    [Obsolete("Use BuildAnswersDictionary with QuestionContextMapper.BuildSectionContext instead")]
+    private string BuildQuestionnaireContext(ICollection<QuestionnaireResponse> responses)
+    {
+        var answers = BuildAnswersDictionary(responses);
+        return QuestionContextMapper.BuildFullContext(answers, "fr");
     }
 
     private string TruncateText(string? text, int maxLength)

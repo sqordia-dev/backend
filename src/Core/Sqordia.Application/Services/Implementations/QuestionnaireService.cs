@@ -87,9 +87,11 @@ public class QuestionnaireService : IQuestionnaireService
             }
 
             // Get existing responses - use effective question ID (V1 or V2)
+            // Filter to only include responses with a valid template ID to avoid duplicate key errors
             var responses = await _context.QuestionnaireResponses
                 .Where(qr => qr.BusinessPlanId == businessPlanId)
-                .ToDictionaryAsync(qr => qr.QuestionTemplateId ?? qr.QuestionTemplateV2Id ?? Guid.Empty, cancellationToken);
+                .Where(qr => qr.QuestionTemplateId != null || qr.QuestionTemplateV2Id != null)
+                .ToDictionaryAsync(qr => qr.QuestionTemplateId ?? qr.QuestionTemplateV2Id!.Value, cancellationToken);
 
             // Detect current language
             var currentLanguage = _localizationService.GetCurrentLanguage();
@@ -202,7 +204,7 @@ public class QuestionnaireService : IQuestionnaireService
                 return Result.Failure<QuestionnaireQuestionResponse>(Error.Forbidden("BusinessPlan.Forbidden", "You don't have access to this business plan."));
             }
 
-            // Get question template - check both V1 and V2 tables
+            // Get question template - check V1, V2, and V3 tables
             var questionTemplate = await _context.QuestionTemplates
                 .FirstOrDefaultAsync(qt => qt.Id == request.QuestionTemplateId, cancellationToken);
 
@@ -211,19 +213,40 @@ public class QuestionnaireService : IQuestionnaireService
                     .FirstOrDefaultAsync(qt => qt.Id == request.QuestionTemplateId, cancellationToken)
                 : null;
 
-            if (questionTemplate == null && questionTemplateV2 == null)
+            // Also check V3 templates (STRUCTURE FINALE questions)
+            var questionTemplateV3 = questionTemplate == null && questionTemplateV2 == null
+                ? await _context.QuestionTemplatesV3
+                    .FirstOrDefaultAsync(qt => qt.Id == request.QuestionTemplateId && qt.IsActive, cancellationToken)
+                : null;
+
+            if (questionTemplate == null && questionTemplateV2 == null && questionTemplateV3 == null)
             {
                 return Result.Failure<QuestionnaireQuestionResponse>(Error.NotFound("Question.NotFound", "Question not found."));
             }
 
-            // Check if response already exists - check both V1 and V2 IDs
-            var existingResponse = questionTemplate != null
-                ? await _context.QuestionnaireResponses
+            // Check if response already exists - check V1, V2, and V3 IDs
+            QuestionnaireResponse? existingResponse;
+            if (questionTemplate != null)
+            {
+                // V1 template - use QuestionTemplateId
+                existingResponse = await _context.QuestionnaireResponses
                     .FirstOrDefaultAsync(qr => qr.BusinessPlanId == businessPlanId &&
-                                              qr.QuestionTemplateId == request.QuestionTemplateId, cancellationToken)
-                : await _context.QuestionnaireResponses
+                                              qr.QuestionTemplateId == request.QuestionTemplateId, cancellationToken);
+            }
+            else if (questionTemplateV2 != null)
+            {
+                // V2 template - use QuestionTemplateV2Id
+                existingResponse = await _context.QuestionnaireResponses
                     .FirstOrDefaultAsync(qr => qr.BusinessPlanId == businessPlanId &&
                                               qr.QuestionTemplateV2Id == request.QuestionTemplateId, cancellationToken);
+            }
+            else
+            {
+                // V3 template - use QuestionTemplateV3Id
+                existingResponse = await _context.QuestionnaireResponses
+                    .FirstOrDefaultAsync(qr => qr.BusinessPlanId == businessPlanId &&
+                                              qr.QuestionTemplateV3Id == request.QuestionTemplateId, cancellationToken);
+            }
 
             if (existingResponse != null)
             {
@@ -249,10 +272,15 @@ public class QuestionnaireService : IQuestionnaireService
                     // V1 template
                     newResponse = new QuestionnaireResponse(businessPlanId, request.QuestionTemplateId, request.ResponseText);
                 }
-                else
+                else if (questionTemplateV2 != null)
                 {
                     // V2 template
                     newResponse = QuestionnaireResponse.CreateForV2(businessPlanId, request.QuestionTemplateId, request.ResponseText);
+                }
+                else
+                {
+                    // V3 template (STRUCTURE FINALE)
+                    newResponse = QuestionnaireResponse.CreateForV3(businessPlanId, request.QuestionTemplateId, request.ResponseText);
                 }
 
                 newResponse.SetNumericValue(request.NumericValue);
@@ -284,9 +312,15 @@ public class QuestionnaireService : IQuestionnaireService
             _logger.LogInformation("Response submitted for question {QuestionId} in business plan {PlanId} by user {UserId}",
                 request.QuestionTemplateId, businessPlanId, currentUserId.Value);
 
-            // Parse options and selected options - handle both V1 and V2 templates
+            // Detect current language for V3 templates
+            var currentLanguage = _localizationService.GetCurrentLanguage();
+            var isEnglish = currentLanguage.Equals("en", StringComparison.OrdinalIgnoreCase);
+
+            // Parse options and selected options - handle V1, V2, and V3 templates
             List<string>? options = null;
-            string? optionsJson = questionTemplate?.Options ?? questionTemplateV2?.Options;
+            string? optionsJson = questionTemplate?.Options
+                ?? questionTemplateV2?.Options
+                ?? (isEnglish ? questionTemplateV3?.OptionsEN : questionTemplateV3?.OptionsFR);
             if (!string.IsNullOrWhiteSpace(optionsJson))
             {
                 try
@@ -306,23 +340,66 @@ public class QuestionnaireService : IQuestionnaireService
                 catch { }
             }
 
-            // Build response using V1 or V2 template data
-            var response = new QuestionnaireQuestionResponse
+            // Build response using V1, V2, or V3 template data
+            QuestionnaireQuestionResponse response;
+            if (questionTemplate != null)
             {
-                Id = questionTemplate?.Id ?? questionTemplateV2!.Id,
-                QuestionText = questionTemplate?.QuestionText ?? questionTemplateV2!.QuestionText,
-                HelpText = questionTemplate?.HelpText ?? questionTemplateV2?.HelpText,
-                QuestionType = questionTemplate?.QuestionType.ToString() ?? questionTemplateV2!.QuestionType.ToString(),
-                Order = questionTemplate?.Order ?? questionTemplateV2!.Order,
-                IsRequired = questionTemplate?.IsRequired ?? questionTemplateV2!.IsRequired,
-                Section = questionTemplate?.Section ?? questionTemplateV2?.Section,
-                Options = options,
-                UserResponse = existingResponse.ResponseText,
-                NumericValue = existingResponse.NumericValue,
-                DateValue = existingResponse.DateValue,
-                BooleanValue = existingResponse.BooleanValue,
-                SelectedOptions = selectedOptions
-            };
+                response = new QuestionnaireQuestionResponse
+                {
+                    Id = questionTemplate.Id,
+                    QuestionText = questionTemplate.QuestionText,
+                    HelpText = questionTemplate.HelpText,
+                    QuestionType = questionTemplate.QuestionType.ToString(),
+                    Order = questionTemplate.Order,
+                    IsRequired = questionTemplate.IsRequired,
+                    Section = questionTemplate.Section,
+                    Options = options,
+                    UserResponse = existingResponse.ResponseText,
+                    NumericValue = existingResponse.NumericValue,
+                    DateValue = existingResponse.DateValue,
+                    BooleanValue = existingResponse.BooleanValue,
+                    SelectedOptions = selectedOptions
+                };
+            }
+            else if (questionTemplateV2 != null)
+            {
+                response = new QuestionnaireQuestionResponse
+                {
+                    Id = questionTemplateV2.Id,
+                    QuestionText = questionTemplateV2.QuestionText,
+                    HelpText = questionTemplateV2.HelpText,
+                    QuestionType = questionTemplateV2.QuestionType.ToString(),
+                    Order = questionTemplateV2.Order,
+                    IsRequired = questionTemplateV2.IsRequired,
+                    Section = questionTemplateV2.Section,
+                    Options = options,
+                    UserResponse = existingResponse.ResponseText,
+                    NumericValue = existingResponse.NumericValue,
+                    DateValue = existingResponse.DateValue,
+                    BooleanValue = existingResponse.BooleanValue,
+                    SelectedOptions = selectedOptions
+                };
+            }
+            else
+            {
+                // V3 template
+                response = new QuestionnaireQuestionResponse
+                {
+                    Id = questionTemplateV3!.Id,
+                    QuestionText = isEnglish ? questionTemplateV3.QuestionTextEN : questionTemplateV3.QuestionTextFR,
+                    HelpText = isEnglish ? questionTemplateV3.HelpTextEN : questionTemplateV3.HelpTextFR,
+                    QuestionType = questionTemplateV3.QuestionType.ToString(),
+                    Order = questionTemplateV3.DisplayOrder,
+                    IsRequired = questionTemplateV3.IsRequired,
+                    Section = questionTemplateV3.SectionGroup,
+                    Options = options,
+                    UserResponse = existingResponse.ResponseText,
+                    NumericValue = existingResponse.NumericValue,
+                    DateValue = existingResponse.DateValue,
+                    BooleanValue = existingResponse.BooleanValue,
+                    SelectedOptions = selectedOptions
+                };
+            }
 
             return Result.Success(response);
         }
@@ -373,16 +450,23 @@ public class QuestionnaireService : IQuestionnaireService
                 return Result.Success(Enumerable.Empty<QuestionnaireQuestionResponse>());
             }
 
-            // Get question template IDs
-            var questionIds = responses.Select(r => r.QuestionTemplateId).Distinct().ToList();
+            // Get question template IDs from V1, V2, and V3 columns
+            var v1QuestionIds = responses.Where(r => r.QuestionTemplateId.HasValue).Select(r => r.QuestionTemplateId!.Value).Distinct().ToList();
+            var v2QuestionIds = responses.Where(r => r.QuestionTemplateV2Id.HasValue).Select(r => r.QuestionTemplateV2Id!.Value).Distinct().ToList();
+            var v3QuestionIds = responses.Where(r => r.QuestionTemplateV3Id.HasValue).Select(r => r.QuestionTemplateV3Id!.Value).Distinct().ToList();
+            var allQuestionIds = v1QuestionIds.Concat(v2QuestionIds).Concat(v3QuestionIds).Distinct().ToList();
 
-            // Load templates from both V1 and V2 tables
+            // Load templates from V1, V2, and V3 tables
             var v1Templates = await _context.QuestionTemplates
-                .Where(qt => questionIds.Contains(qt.Id))
+                .Where(qt => allQuestionIds.Contains(qt.Id))
                 .ToDictionaryAsync(qt => qt.Id, cancellationToken);
 
             var v2Templates = await _context.QuestionTemplatesV2
-                .Where(qt => questionIds.Contains(qt.Id))
+                .Where(qt => allQuestionIds.Contains(qt.Id))
+                .ToDictionaryAsync(qt => qt.Id, cancellationToken);
+
+            var v3Templates = await _context.QuestionTemplatesV3
+                .Where(qt => allQuestionIds.Contains(qt.Id) && qt.IsActive)
                 .ToDictionaryAsync(qt => qt.Id, cancellationToken);
 
             // Detect current language
@@ -430,8 +514,7 @@ public class QuestionnaireService : IQuestionnaireService
                 }
 
                 // Try V2 template
-                var v2TemplateId = r.QuestionTemplateV2Id ?? r.QuestionTemplateId;
-                if (v2TemplateId.HasValue && v2Templates.TryGetValue(v2TemplateId.Value, out var v2Template))
+                if (r.QuestionTemplateV2Id.HasValue && v2Templates.TryGetValue(r.QuestionTemplateV2Id.Value, out var v2Template))
                 {
                     var questionText = isEnglish && !string.IsNullOrWhiteSpace(v2Template.QuestionTextEN)
                         ? v2Template.QuestionTextEN
@@ -458,6 +541,37 @@ public class QuestionnaireService : IQuestionnaireService
                         Order = v2Template.Order,
                         IsRequired = v2Template.IsRequired,
                         Section = v2Template.Section,
+                        Options = options,
+                        UserResponse = r.ResponseText,
+                        NumericValue = r.NumericValue,
+                        DateValue = r.DateValue,
+                        BooleanValue = r.BooleanValue,
+                        SelectedOptions = selectedOptions
+                    };
+                }
+
+                // Try V3 template (STRUCTURE FINALE questions)
+                if (r.QuestionTemplateV3Id.HasValue && v3Templates.TryGetValue(r.QuestionTemplateV3Id.Value, out var v3Template))
+                {
+                    var questionText = isEnglish ? v3Template.QuestionTextEN : v3Template.QuestionTextFR;
+                    var helpText = isEnglish ? v3Template.HelpTextEN : v3Template.HelpTextFR;
+
+                    List<string>? options = null;
+                    var optionsJson = isEnglish ? v3Template.OptionsEN : v3Template.OptionsFR;
+                    if (!string.IsNullOrWhiteSpace(optionsJson))
+                    {
+                        try { options = JsonConvert.DeserializeObject<List<string>>(optionsJson); } catch { }
+                    }
+
+                    return new QuestionnaireQuestionResponse
+                    {
+                        Id = v3Template.Id,
+                        QuestionText = questionText,
+                        HelpText = helpText,
+                        QuestionType = v3Template.QuestionType.ToString(),
+                        Order = v3Template.DisplayOrder,
+                        IsRequired = v3Template.IsRequired,
+                        Section = v3Template.SectionGroup,
                         Options = options,
                         UserResponse = r.ResponseText,
                         NumericValue = r.NumericValue,

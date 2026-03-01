@@ -80,6 +80,15 @@ public static class DatabaseSeedExtensions
 
             // Seed prompt templates using EF Core seeder
             await SeedPromptTemplatesAsync(services, logger);
+
+            // Seed STRUCTURE FINALE data (sections, questions, mappings)
+            await SeedStructureFinaleAsync(services, logger);
+
+            // Seed/Update STRUCTURE FINALE questions with expert advice and coach prompts
+            await SeedStructureFinaleQuestionsAsync(services, logger);
+
+            // Seed/Update Section prompts for AI content generation
+            await SeedSectionPromptsAsync(services, logger);
         }
         catch (PostgresException pgEx)
         {
@@ -164,6 +173,69 @@ public static class DatabaseSeedExtensions
         catch (Exception ex)
         {
             logger.LogError(ex, "An error occurred while seeding prompt templates. Application will continue.");
+            // Don't throw - allow application to continue
+        }
+    }
+
+    private static async Task SeedStructureFinaleAsync(IServiceProvider services, ILogger logger)
+    {
+        try
+        {
+            logger.LogInformation("Starting STRUCTURE FINALE seeding...");
+
+            var context = services.GetRequiredService<ApplicationDbContext>();
+            var seederLogger = services.GetRequiredService<ILoggerFactory>().CreateLogger<StructureFinaleSeeder>();
+            var seeder = new StructureFinaleSeeder(context, seederLogger);
+
+            await seeder.SeedAsync();
+
+            logger.LogInformation("STRUCTURE FINALE seeding completed successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An error occurred while seeding STRUCTURE FINALE data. Application will continue.");
+            // Don't throw - allow application to continue
+        }
+    }
+
+    private static async Task SeedStructureFinaleQuestionsAsync(IServiceProvider services, ILogger logger)
+    {
+        try
+        {
+            logger.LogInformation("Starting STRUCTURE FINALE Questions seeding/update...");
+
+            var context = services.GetRequiredService<ApplicationDbContext>();
+            var seederLogger = services.GetRequiredService<ILoggerFactory>().CreateLogger<StructureFinaleQuestionsSeeder>();
+            var seeder = new StructureFinaleQuestionsSeeder(context, seederLogger);
+
+            await seeder.SeedOrUpdateAsync();
+
+            logger.LogInformation("STRUCTURE FINALE Questions seeding/update completed successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An error occurred while seeding STRUCTURE FINALE questions. Application will continue.");
+            // Don't throw - allow application to continue
+        }
+    }
+
+    private static async Task SeedSectionPromptsAsync(IServiceProvider services, ILogger logger)
+    {
+        try
+        {
+            logger.LogInformation("Starting Section Prompts seeding/update...");
+
+            var context = services.GetRequiredService<ApplicationDbContext>();
+            var seederLogger = services.GetRequiredService<ILoggerFactory>().CreateLogger<SectionPromptSeeder>();
+            var seeder = new SectionPromptSeeder(context, seederLogger);
+
+            await seeder.SeedOrUpdateAsync();
+
+            logger.LogInformation("Section Prompts seeding/update completed successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An error occurred while seeding Section Prompts. Application will continue.");
             // Don't throw - allow application to continue
         }
     }

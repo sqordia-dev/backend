@@ -19,6 +19,11 @@ public class QuestionnaireResponse : BaseAuditableEntity
     /// </summary>
     public Guid? QuestionTemplateV2Id { get; private set; }
 
+    /// <summary>
+    /// FK to QuestionTemplateV3 (STRUCTURE FINALE) - nullable to support V1/V2 questions
+    /// </summary>
+    public Guid? QuestionTemplateV3Id { get; private set; }
+
     public string ResponseText { get; private set; } = null!;
 
     // For numeric responses
@@ -40,6 +45,7 @@ public class QuestionnaireResponse : BaseAuditableEntity
     public BusinessPlan BusinessPlan { get; private set; } = null!;
     public QuestionTemplate? QuestionTemplate { get; private set; }
     public QuestionTemplateV2? QuestionTemplateV2 { get; private set; }
+    public QuestionTemplateV3? QuestionTemplateV3 { get; private set; }
     
     private QuestionnaireResponse() { } // EF Core constructor
 
@@ -72,7 +78,24 @@ public class QuestionnaireResponse : BaseAuditableEntity
         };
     }
 
+    /// <summary>
+    /// Create response for V3 question template (STRUCTURE FINALE)
+    /// </summary>
+    public static QuestionnaireResponse CreateForV3(
+        Guid businessPlanId,
+        Guid questionTemplateV3Id,
+        string responseText)
+    {
+        return new QuestionnaireResponse
+        {
+            BusinessPlanId = businessPlanId,
+            QuestionTemplateV3Id = questionTemplateV3Id,
+            ResponseText = responseText ?? string.Empty
+        };
+    }
+
     public void SetQuestionTemplateV2Id(Guid? id) => QuestionTemplateV2Id = id;
+    public void SetQuestionTemplateV3Id(Guid? id) => QuestionTemplateV3Id = id;
     
     public void UpdateResponse(string responseText)
     {

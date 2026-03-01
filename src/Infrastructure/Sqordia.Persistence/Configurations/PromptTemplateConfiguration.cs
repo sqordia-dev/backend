@@ -74,11 +74,11 @@ public class PromptTemplateConfiguration : IEntityTypeConfiguration<PromptTempla
 
         // Visual Elements JSON - can be very large
         builder.Property(x => x.VisualElementsJson)
-            .HasColumnType("nvarchar(max)");
+            .HasColumnType("text");
 
         // Example Output - can be large
         builder.Property(x => x.ExampleOutput)
-            .HasColumnType("nvarchar(max)");
+            .HasColumnType("text");
 
         // Timestamps
         builder.Property(x => x.CreatedAt)
@@ -112,7 +112,7 @@ public class PromptTemplateConfiguration : IEntityTypeConfiguration<PromptTempla
 
         // Unique constraint: only one active prompt per section/plan/industry combo
         builder.HasIndex(x => new { x.SectionType, x.PlanType, x.IndustryCategory, x.IsActive })
-            .HasFilter("[IsActive] = 1")
+            .HasFilter("\"IsActive\" = true")
             .IsUnique()
             .HasDatabaseName("IX_PromptTemplates_Unique_Active");
 

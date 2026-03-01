@@ -1,4 +1,5 @@
 using Sqordia.Application.Common.Models;
+using Sqordia.Contracts.Requests.AI;
 using Sqordia.Contracts.Requests.V2.Questionnaire;
 using Sqordia.Contracts.Responses.V2.Questionnaire;
 
@@ -15,5 +16,13 @@ public interface IQuestionPolishService
     /// </summary>
     Task<Result<PolishedTextResponse>> PolishTextAsync(
         PolishTextRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Transforms text based on the specified action type
+    /// Actions: polish, shorten, expand, professional, examples, simplify
+    /// </summary>
+    Task<Result<PolishedTextResponse>> TransformTextAsync(
+        TransformAnswerRequest request,
         CancellationToken cancellationToken = default);
 }

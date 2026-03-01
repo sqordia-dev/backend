@@ -46,10 +46,18 @@ public class QuestionnaireResponseConfiguration : IEntityTypeConfiguration<Quest
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // V3 question template (optional) - STRUCTURE FINALE questions
+        builder.HasOne(qr => qr.QuestionTemplateV3)
+            .WithMany()
+            .HasForeignKey(qr => qr.QuestionTemplateV3Id)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Indexes
         builder.HasIndex(qr => qr.BusinessPlanId);
         builder.HasIndex(qr => qr.QuestionTemplateId);
         builder.HasIndex(qr => qr.QuestionTemplateV2Id);
+        builder.HasIndex(qr => qr.QuestionTemplateV3Id);
 
         // Unique constraint: one response per question per business plan (for V1)
         builder.HasIndex(qr => new { qr.BusinessPlanId, qr.QuestionTemplateId })
@@ -60,6 +68,11 @@ public class QuestionnaireResponseConfiguration : IEntityTypeConfiguration<Quest
         builder.HasIndex(qr => new { qr.BusinessPlanId, qr.QuestionTemplateV2Id })
             .IsUnique()
             .HasFilter("\"QuestionTemplateV2Id\" IS NOT NULL");
+
+        // Unique constraint: one response per question per business plan (for V3)
+        builder.HasIndex(qr => new { qr.BusinessPlanId, qr.QuestionTemplateV3Id })
+            .IsUnique()
+            .HasFilter("\"QuestionTemplateV3Id\" IS NOT NULL");
     }
 }
 

@@ -85,6 +85,13 @@ public interface IApplicationDbContext
     DbSet<AIPromptVersion> AIPromptVersions { get; }
     DbSet<PromptTemplate> PromptTemplates { get; }
     DbSet<PromptPerformance> PromptPerformance { get; }
+
+    // Structure Finale - Section Hierarchy & V3 Questionnaire
+    DbSet<MainSection> MainSections { get; }
+    DbSet<SubSection> SubSections { get; }
+    DbSet<SectionPrompt> SectionPrompts { get; }
+    DbSet<QuestionTemplateV3> QuestionTemplatesV3 { get; }
+    DbSet<QuestionSectionMapping> QuestionSectionMappings { get; }
     
     // Audit logging
     DbSet<AuditLog> AuditLogs { get; }

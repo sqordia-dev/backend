@@ -6,6 +6,7 @@ namespace Sqordia.Contracts.Responses.V2.Questionnaire;
 public class PersonaQuestionResponse
 {
     public Guid Id { get; set; }
+    public int QuestionNumber { get; set; }
     public string? PersonaType { get; set; }
     public int StepNumber { get; set; }
     public required string QuestionText { get; set; }
@@ -19,6 +20,26 @@ public class PersonaQuestionResponse
     public List<string>? Options { get; set; }
     public List<string>? OptionsEN { get; set; }
     public string? Icon { get; set; }
+
+    /// <summary>
+    /// AI Coach prompt in French for generating suggestions
+    /// </summary>
+    public string? CoachPromptFR { get; set; }
+
+    /// <summary>
+    /// AI Coach prompt in English for generating suggestions
+    /// </summary>
+    public string? CoachPromptEN { get; set; }
+
+    /// <summary>
+    /// Expert advice tips in French
+    /// </summary>
+    public string? ExpertAdviceFR { get; set; }
+
+    /// <summary>
+    /// Expert advice tips in English
+    /// </summary>
+    public string? ExpertAdviceEN { get; set; }
 }
 
 /// <summary>

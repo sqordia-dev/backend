@@ -18,6 +18,15 @@ public class QuestionTemplateDto
     public string? ValidationRules { get; set; }
     public string? ConditionalLogic { get; set; }
     public string? Icon { get; set; }
+
+    // Expert Tips (Conseil d'expert)
+    public string? ExpertAdviceFR { get; set; }
+    public string? ExpertAdviceEN { get; set; }
+
+    // AI Coach Prompts
+    public string? CoachPromptFR { get; set; }
+    public string? CoachPromptEN { get; set; }
+
     public required bool IsActive { get; set; }
     public required DateTime Created { get; set; }
     public DateTime? LastModified { get; set; }
