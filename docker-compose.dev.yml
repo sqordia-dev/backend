@@ -29,19 +29,17 @@ services:
       - GoogleOAuth__ClientSecret=${GOOGLE_OAUTH_CLIENT_SECRET:-}
       
       # OpenAI Configuration
-      # For local dev: Set OPENAI_API_KEY in your .env file or system environment
-      # For production: Use Azure Container App environment variables
-      # This file is safe for local development defaults (not committed to git)
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OpenAI__ApiKey=${OPENAI_API_KEY:-}
+      # Uses appsettings.json by default. Override with OPENAI_API_KEY env var if needed.
       - OpenAI__Model=${OPENAI_MODEL:-gpt-4o}
-      - AI__OpenAI__ApiKey=${OPENAI_API_KEY:-}
       - AI__OpenAI__Model=${OPENAI_MODEL:-gpt-4o}
       
-      # Alternative AI Providers (optional)
-      - AI__Claude__ApiKey=${CLAUDE_API_KEY:-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}
-      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-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}
-      - AI__Gemini__ApiKey=${GEMINI_API_KEY:-}
+      # AI Provider Configuration
+      - AI__DefaultProvider=OpenAI
+      - AI__FallbackProviders=
+
+      # Alternative AI Providers (disabled for now)
+      # - AI__Claude__ApiKey=${CLAUDE_API_KEY:-}
+      # - AI__Gemini__ApiKey=${GEMINI_API_KEY:-}
       
       # Resend Email Configuration (preferred - set RESEND_API_KEY in .env file)
       # Priority: Resend > Azure Communication Services > Azure Service Bus > MockEmailService

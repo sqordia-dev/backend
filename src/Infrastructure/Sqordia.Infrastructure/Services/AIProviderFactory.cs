@@ -174,8 +174,8 @@ public class AIProviderFactory : IAIProviderFactory
             _logger.LogWarning(ex, "Could not read fallback providers from settings. Using default.");
         }
 
-        // Default fallback order: Claude, then Gemini
-        _cachedFallbackProviders = new List<string> { "Claude", "Gemini" };
+        // Default: No fallback providers (OpenAI only)
+        _cachedFallbackProviders = new List<string>();
         _lastCacheTime = DateTime.UtcNow;
         return _cachedFallbackProviders;
     }
