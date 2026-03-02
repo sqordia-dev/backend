@@ -74,6 +74,7 @@ public class FinancialService : IFinancialService
         try
         {
             var projection = await _context.FinancialProjectionItems
+                .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (projection == null)
@@ -97,6 +98,7 @@ public class FinancialService : IFinancialService
         try
         {
             var projections = await _context.FinancialProjectionItems
+                .AsNoTracking()
                 .Where(p => p.BusinessPlanId == businessPlanId)
                 .OrderBy(p => p.Year)
                 .ThenBy(p => p.Month)
@@ -118,6 +120,7 @@ public class FinancialService : IFinancialService
         {
             var scenarioName = scenario.ToString();
             var projections = await _context.FinancialProjectionItems
+                .AsNoTracking()
                 .Where(p => p.BusinessPlanId == businessPlanId && p.Scenario == scenarioName)
                 .OrderBy(p => p.Year)
                 .ThenBy(p => p.Month)

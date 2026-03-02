@@ -73,6 +73,8 @@ try
     builder.Services.AddLocalizationServices();
     builder.Services.AddRateLimitingServices(builder.Configuration);
     builder.Services.AddHealthCheckServices();
+    builder.Services.AddCompressionServices();
+    builder.Services.AddCachingServices();
 
     var app = builder.Build();
 

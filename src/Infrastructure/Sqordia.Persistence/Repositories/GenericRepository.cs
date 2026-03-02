@@ -24,12 +24,13 @@ public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
 
     public async Task<IReadOnlyList<T>> GetAllAsync()
     {
-        return await Context.Set<T>().ToListAsync();
+        return await Context.Set<T>().AsNoTracking().ToListAsync();
     }
 
     public async Task<IReadOnlyList<T>> GetPagedResponseAsync(int pageNumber, int pageSize)
     {
         return await Context.Set<T>()
+            .AsNoTracking()
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();

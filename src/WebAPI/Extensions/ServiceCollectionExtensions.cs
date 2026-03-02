@@ -3,8 +3,11 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Net.Http.Headers;
+using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 
@@ -281,6 +284,91 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddHealthCheckServices(this IServiceCollection services)
     {
         services.AddHealthChecks();
+        return services;
+    }
+
+    /// <summary>
+    /// Add response compression services for better performance.
+    /// Compresses responses using Brotli (preferred) and GZip.
+    /// </summary>
+    public static IServiceCollection AddCompressionServices(this IServiceCollection services)
+    {
+        services.AddResponseCompression(options =>
+        {
+            options.EnableForHttps = true;
+            options.Providers.Add<BrotliCompressionProvider>();
+            options.Providers.Add<GzipCompressionProvider>();
+            options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[]
+            {
+                "application/json",
+                "text/json",
+                "application/xml",
+                "text/xml",
+                "text/plain",
+                "text/html",
+                "text/css",
+                "application/javascript",
+                "text/javascript",
+                "image/svg+xml"
+            });
+        });
+
+        services.Configure<BrotliCompressionProviderOptions>(options =>
+        {
+            options.Level = CompressionLevel.Fastest;
+        });
+
+        services.Configure<GzipCompressionProviderOptions>(options =>
+        {
+            options.Level = CompressionLevel.Fastest;
+        });
+
+        return services;
+    }
+
+    /// <summary>
+    /// Add response caching services with predefined cache profiles.
+    /// Controllers can use [ResponseCache(CacheProfileName = "...")] attribute.
+    /// </summary>
+    public static IServiceCollection AddCachingServices(this IServiceCollection services)
+    {
+        services.AddResponseCaching();
+
+        services.AddControllers(options =>
+        {
+            // Short cache for frequently changing data (1 minute)
+            options.CacheProfiles.Add("Short", new CacheProfile
+            {
+                Duration = 60,
+                Location = ResponseCacheLocation.Any,
+                VaryByHeader = "Accept, Accept-Encoding, Authorization"
+            });
+
+            // Medium cache for semi-static data (5 minutes)
+            options.CacheProfiles.Add("Medium", new CacheProfile
+            {
+                Duration = 300,
+                Location = ResponseCacheLocation.Any,
+                VaryByHeader = "Accept, Accept-Encoding, Authorization"
+            });
+
+            // Long cache for static reference data (1 hour)
+            options.CacheProfiles.Add("Static", new CacheProfile
+            {
+                Duration = 3600,
+                Location = ResponseCacheLocation.Any,
+                VaryByHeader = "Accept, Accept-Encoding"
+            });
+
+            // No cache for sensitive/dynamic data
+            options.CacheProfiles.Add("NoCache", new CacheProfile
+            {
+                Duration = 0,
+                Location = ResponseCacheLocation.None,
+                NoStore = true
+            });
+        });
+
         return services;
     }
 }

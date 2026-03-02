@@ -1,4 +1,5 @@
 using Sqordia.Application.Common.Models;
+using Sqordia.Contracts.Common;
 using Sqordia.Contracts.Requests.BusinessPlan;
 using Sqordia.Contracts.Responses.BusinessPlan;
 
@@ -10,21 +11,31 @@ public interface IBusinessPlanService
     /// Create a new business plan
     /// </summary>
     Task<Result<BusinessPlanResponse>> CreateBusinessPlanAsync(CreateBusinessPlanRequest request, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Get a business plan by ID
     /// </summary>
     Task<Result<BusinessPlanResponse>> GetBusinessPlanAsync(Guid id, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
-    /// Get all business plans for the current user
+    /// Get all business plans for the current user (legacy, returns all)
     /// </summary>
     Task<Result<IEnumerable<BusinessPlanResponse>>> GetUserBusinessPlansAsync(CancellationToken cancellationToken = default);
-    
+
     /// <summary>
-    /// Get all business plans for an organization
+    /// Get paginated business plans for the current user with filtering options
+    /// </summary>
+    Task<Result<PaginatedResponse<BusinessPlanResponse>>> GetUserBusinessPlansAsync(BusinessPlanListRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get all business plans for an organization (legacy, returns all)
     /// </summary>
     Task<Result<IEnumerable<BusinessPlanResponse>>> GetOrganizationBusinessPlansAsync(Guid organizationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get paginated business plans for an organization with filtering options
+    /// </summary>
+    Task<Result<PaginatedResponse<BusinessPlanResponse>>> GetOrganizationBusinessPlansAsync(Guid organizationId, BusinessPlanListRequest request, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Update business plan metadata (title, description)

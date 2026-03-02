@@ -72,6 +72,9 @@ public static class WebApplicationExtensions
     {
         var environment = app.Environment;
 
+        // Response compression - should be early in pipeline for best performance
+        app.UseResponseCompression();
+
         // Configure Swagger (enabled in all environments including production)
         app.UseSwagger();
         app.UseSwaggerUI(options =>
@@ -88,7 +91,10 @@ public static class WebApplicationExtensions
 
         // CORS - MUST be before error handling to ensure preflight requests get CORS headers
         app.UseCors("AllowAll");
-        
+
+        // Response caching - must be after CORS but before endpoints
+        app.UseResponseCaching();
+
         // Custom middleware - Error handling should be after CORS
         app.UseMiddleware<ErrorHandlingMiddleware>();
         

@@ -34,6 +34,7 @@ public class SectionService : ISectionService
 
             // Get the business plan
             var businessPlan = await _context.BusinessPlans
+                .AsNoTracking()
                 .FirstOrDefaultAsync(bp => bp.Id == businessPlanId, cancellationToken);
 
             if (businessPlan == null)
@@ -103,6 +104,7 @@ public class SectionService : ISectionService
 
             // Get the business plan
             var businessPlan = await _context.BusinessPlans
+                .AsNoTracking()
                 .FirstOrDefaultAsync(bp => bp.Id == businessPlanId, cancellationToken);
 
             if (businessPlan == null)

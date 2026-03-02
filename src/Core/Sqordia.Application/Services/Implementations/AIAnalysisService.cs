@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
+using Sqordia.Application.Common.Models;
 using Sqordia.Application.Services;
 using Sqordia.Contracts.Requests.AI;
 using Sqordia.Contracts.Responses.AI;
@@ -13,22 +14,22 @@ public class AIAnalysisService : IAIAnalysisService
 {
     private readonly IApplicationDbContext _context;
     private readonly IAIService _aiService;
-    private readonly ICurrentUserService _currentUserService;
+    private readonly IAuthorizationHelper _authHelper;
     private readonly ILogger<AIAnalysisService> _logger;
 
     public AIAnalysisService(
         IApplicationDbContext context,
         IAIService aiService,
-        ICurrentUserService currentUserService,
+        IAuthorizationHelper authHelper,
         ILogger<AIAnalysisService> logger)
     {
         _context = context;
         _aiService = aiService;
-        _currentUserService = currentUserService;
+        _authHelper = authHelper;
         _logger = logger;
     }
 
-    public async Task<StrategySuggestionResponse> GenerateStrategySuggestionsAsync(
+    public async Task<Result<StrategySuggestionResponse>> GenerateStrategySuggestionsAsync(
         StrategySuggestionRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -36,11 +37,19 @@ public class AIAnalysisService : IAIAnalysisService
         {
             _logger.LogInformation("Generating strategy suggestions for business plan {BusinessPlanId}", request.BusinessPlanId);
 
+            // Verify access to business plan using authorization helper
+            var authResult = await _authHelper.RequireBusinessPlanAccessAsync(request.BusinessPlanId, cancellationToken);
+            if (!authResult.IsSuccess)
+            {
+                return Result.Failure<StrategySuggestionResponse>(authResult.Error);
+            }
+
             // Get business plan with context
-            var businessPlan = await GetBusinessPlanWithContextAsync(request.BusinessPlanId, cancellationToken);
+            var businessPlan = await GetBusinessPlanWithContextAsync(request.BusinessPlanId, authResult.Value.UserId, cancellationToken);
             if (businessPlan == null)
             {
-                throw new ArgumentException($"Business plan {request.BusinessPlanId} not found or access denied");
+                return Result.Failure<StrategySuggestionResponse>(
+                    Error.NotFound("BusinessPlan.NotFound", $"Business plan {request.BusinessPlanId} not found"));
             }
 
             // Build context string
@@ -51,16 +60,17 @@ public class AIAnalysisService : IAIAnalysisService
 
             _logger.LogInformation("Strategy suggestions generated successfully for business plan {BusinessPlanId}", request.BusinessPlanId);
 
-            return response;
+            return Result.Success(response);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating strategy suggestions for business plan {BusinessPlanId}", request.BusinessPlanId);
-            throw;
+            return Result.Failure<StrategySuggestionResponse>(
+                Error.InternalServerError("AI.Analysis.Failed", "Failed to generate strategy suggestions"));
         }
     }
 
-    public async Task<RiskMitigationResponse> AnalyzeRisksAsync(
+    public async Task<Result<RiskMitigationResponse>> AnalyzeRisksAsync(
         RiskMitigationRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -68,11 +78,19 @@ public class AIAnalysisService : IAIAnalysisService
         {
             _logger.LogInformation("Analyzing risks for business plan {BusinessPlanId}", request.BusinessPlanId);
 
+            // Verify access to business plan using authorization helper
+            var authResult = await _authHelper.RequireBusinessPlanAccessAsync(request.BusinessPlanId, cancellationToken);
+            if (!authResult.IsSuccess)
+            {
+                return Result.Failure<RiskMitigationResponse>(authResult.Error);
+            }
+
             // Get business plan with context
-            var businessPlan = await GetBusinessPlanWithContextAsync(request.BusinessPlanId, cancellationToken);
+            var businessPlan = await GetBusinessPlanWithContextAsync(request.BusinessPlanId, authResult.Value.UserId, cancellationToken);
             if (businessPlan == null)
             {
-                throw new ArgumentException($"Business plan {request.BusinessPlanId} not found or access denied");
+                return Result.Failure<RiskMitigationResponse>(
+                    Error.NotFound("BusinessPlan.NotFound", $"Business plan {request.BusinessPlanId} not found"));
             }
 
             // Build context string
@@ -83,16 +101,17 @@ public class AIAnalysisService : IAIAnalysisService
 
             _logger.LogInformation("Risk analysis completed successfully for business plan {BusinessPlanId}", request.BusinessPlanId);
 
-            return response;
+            return Result.Success(response);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error analyzing risks for business plan {BusinessPlanId}", request.BusinessPlanId);
-            throw;
+            return Result.Failure<RiskMitigationResponse>(
+                Error.InternalServerError("AI.Analysis.Failed", "Failed to analyze risks"));
         }
     }
 
-    public async Task<BusinessMentorResponse> PerformBusinessMentorAnalysisAsync(
+    public async Task<Result<BusinessMentorResponse>> PerformBusinessMentorAnalysisAsync(
         BusinessMentorRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -100,11 +119,19 @@ public class AIAnalysisService : IAIAnalysisService
         {
             _logger.LogInformation("Performing business mentor analysis for business plan {BusinessPlanId}", request.BusinessPlanId);
 
+            // Verify access to business plan using authorization helper
+            var authResult = await _authHelper.RequireBusinessPlanAccessAsync(request.BusinessPlanId, cancellationToken);
+            if (!authResult.IsSuccess)
+            {
+                return Result.Failure<BusinessMentorResponse>(authResult.Error);
+            }
+
             // Get business plan with context
-            var businessPlan = await GetBusinessPlanWithContextAsync(request.BusinessPlanId, cancellationToken);
+            var businessPlan = await GetBusinessPlanWithContextAsync(request.BusinessPlanId, authResult.Value.UserId, cancellationToken);
             if (businessPlan == null)
             {
-                throw new ArgumentException($"Business plan {request.BusinessPlanId} not found or access denied");
+                return Result.Failure<BusinessMentorResponse>(
+                    Error.NotFound("BusinessPlan.NotFound", $"Business plan {request.BusinessPlanId} not found"));
             }
 
             // Build context string
@@ -115,41 +142,27 @@ public class AIAnalysisService : IAIAnalysisService
 
             _logger.LogInformation("Business mentor analysis completed successfully for business plan {BusinessPlanId}", request.BusinessPlanId);
 
-            return response;
+            return Result.Success(response);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error performing business mentor analysis for business plan {BusinessPlanId}", request.BusinessPlanId);
-            throw;
+            return Result.Failure<BusinessMentorResponse>(
+                Error.InternalServerError("AI.Analysis.Failed", "Failed to perform business mentor analysis"));
         }
     }
 
-    private async Task<BusinessPlan?> GetBusinessPlanWithContextAsync(Guid businessPlanId, CancellationToken cancellationToken)
+    private async Task<BusinessPlan?> GetBusinessPlanWithContextAsync(Guid businessPlanId, Guid userId, CancellationToken cancellationToken)
     {
-        var currentUserIdString = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(currentUserIdString) || !Guid.TryParse(currentUserIdString, out var currentUserId))
-        {
-            return null;
-        }
-
+        // Authorization is already verified by the calling method via IAuthorizationHelper
+        // This method just retrieves the business plan with its context data
         var businessPlan = await _context.BusinessPlans
             .Include(bp => bp.Organization)
             .Include(bp => bp.QuestionnaireResponses)
                 .ThenInclude(qr => qr.QuestionTemplate)
             .FirstOrDefaultAsync(bp => bp.Id == businessPlanId && !bp.IsDeleted, cancellationToken);
 
-        if (businessPlan == null)
-        {
-            return null;
-        }
-
-        // Verify user has access
-        var isMember = await _context.OrganizationMembers
-            .AnyAsync(om => om.OrganizationId == businessPlan.OrganizationId &&
-                           om.UserId == currentUserId &&
-                           om.IsActive, cancellationToken);
-
-        return isMember ? businessPlan : null;
+        return businessPlan;
     }
 
     private string BuildBusinessPlanContext(BusinessPlan businessPlan)

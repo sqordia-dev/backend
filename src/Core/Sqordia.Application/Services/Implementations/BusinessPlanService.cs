@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Models;
+using Sqordia.Contracts.Common;
 using Sqordia.Contracts.Requests.BusinessPlan;
 using Sqordia.Contracts.Responses.BusinessPlan;
 using Sqordia.Domain.Enums;
@@ -144,6 +145,7 @@ public class BusinessPlanService : IBusinessPlanService
             }
 
             var businessPlan = await _context.BusinessPlans
+                .AsNoTracking()
                 .Include(bp => bp.Organization)
                 .FirstOrDefaultAsync(bp => bp.Id == id && !bp.IsDeleted, cancellationToken);
 
@@ -154,8 +156,8 @@ public class BusinessPlanService : IBusinessPlanService
 
             // Verify user has access to this business plan (member of organization)
             var isMember = await _context.OrganizationMembers
-                .AnyAsync(om => om.OrganizationId == businessPlan.OrganizationId && 
-                               om.UserId == currentUserId.Value && 
+                .AnyAsync(om => om.OrganizationId == businessPlan.OrganizationId &&
+                               om.UserId == currentUserId.Value &&
                                om.IsActive, cancellationToken);
 
             if (!isMember)
@@ -217,6 +219,7 @@ public class BusinessPlanService : IBusinessPlanService
             }
 
             var businessPlans = await _context.BusinessPlans
+                .AsNoTracking()
                 .Include(bp => bp.Organization)
                 .Where(bp => bp.OrganizationId == organizationId && !bp.IsDeleted)
                 .OrderByDescending(bp => bp.Created)
@@ -549,6 +552,7 @@ public class BusinessPlanService : IBusinessPlanService
 
             // Get all organizations where the user is a member
             var userOrganizations = await _context.OrganizationMembers
+                .AsNoTracking()
                 .Where(om => om.UserId == currentUserId.Value && om.IsActive)
                 .Select(om => om.OrganizationId)
                 .ToListAsync(cancellationToken);
@@ -560,6 +564,7 @@ public class BusinessPlanService : IBusinessPlanService
 
             // Get all business plans for these organizations (excluding deleted ones)
             var businessPlans = await _context.BusinessPlans
+                .AsNoTracking()
                 .Include(bp => bp.Organization)
                 .Where(bp => userOrganizations.Contains(bp.OrganizationId) && !bp.IsDeleted)
                 .OrderByDescending(bp => bp.Created)
@@ -763,6 +768,218 @@ public class BusinessPlanService : IBusinessPlanService
         {
             _logger.LogError(ex, "Error duplicating business plan {PlanId}", id);
             return Result.Failure<BusinessPlanResponse>(Error.InternalServerError("General.InternalServerError", _localizationService.GetString("General.InternalServerError")));
+        }
+    }
+
+    public async Task<Result<PaginatedResponse<BusinessPlanResponse>>> GetUserBusinessPlansAsync(BusinessPlanListRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var currentUserId = _currentUserService.GetUserIdAsGuid();
+            if (!currentUserId.HasValue)
+            {
+                return Result.Failure<PaginatedResponse<BusinessPlanResponse>>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
+            }
+
+            // Get all organizations where the user is a member
+            var userOrganizations = await _context.OrganizationMembers
+                .AsNoTracking()
+                .Where(om => om.UserId == currentUserId.Value && om.IsActive)
+                .Select(om => om.OrganizationId)
+                .ToListAsync(cancellationToken);
+
+            if (!userOrganizations.Any())
+            {
+                return Result.Success(PaginatedResponse<BusinessPlanResponse>.Empty(request.PageNumber, request.PageSize));
+            }
+
+            // Build query for business plans
+            var query = _context.BusinessPlans
+                .AsNoTracking()
+                .Include(bp => bp.Organization)
+                .Where(bp => userOrganizations.Contains(bp.OrganizationId) && !bp.IsDeleted);
+
+            // Apply filters
+            if (!string.IsNullOrEmpty(request.SearchTerm))
+            {
+                var searchTerm = request.SearchTerm.ToLower();
+                query = query.Where(bp => bp.Title.ToLower().Contains(searchTerm) ||
+                                         (bp.Description != null && bp.Description.ToLower().Contains(searchTerm)));
+            }
+
+            if (!string.IsNullOrEmpty(request.PlanType) && Enum.TryParse<BusinessPlanType>(request.PlanType, true, out var planType))
+            {
+                query = query.Where(bp => bp.PlanType == planType);
+            }
+
+            if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<BusinessPlanStatus>(request.Status, true, out var status))
+            {
+                query = query.Where(bp => bp.Status == status);
+            }
+
+            if (request.OrganizationId.HasValue)
+            {
+                query = query.Where(bp => bp.OrganizationId == request.OrganizationId.Value);
+            }
+
+            if (!request.IncludeArchived)
+            {
+                query = query.Where(bp => bp.Status != BusinessPlanStatus.Archived);
+            }
+
+            // Apply sorting
+            query = request.SortBy?.ToLower() switch
+            {
+                "title" => request.SortDescending ? query.OrderByDescending(bp => bp.Title) : query.OrderBy(bp => bp.Title),
+                "status" => request.SortDescending ? query.OrderByDescending(bp => bp.Status) : query.OrderBy(bp => bp.Status),
+                "lastmodified" => request.SortDescending ? query.OrderByDescending(bp => bp.LastModified) : query.OrderBy(bp => bp.LastModified),
+                _ => request.SortDescending ? query.OrderByDescending(bp => bp.Created) : query.OrderBy(bp => bp.Created)
+            };
+
+            // Get total count
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            // Get paginated items
+            var businessPlans = await query
+                .Skip(request.Skip)
+                .Take(request.PageSize)
+                .ToListAsync(cancellationToken);
+
+            var responses = businessPlans.Select(bp => new BusinessPlanResponse
+            {
+                Id = bp.Id,
+                Title = bp.Title,
+                Description = bp.Description,
+                PlanType = bp.PlanType.ToString(),
+                Status = bp.Status.ToString(),
+                Persona = bp.Persona?.ToString(),
+                OrganizationId = bp.OrganizationId,
+                OrganizationName = bp.Organization.Name,
+                Version = bp.Version,
+                TotalQuestions = bp.TotalQuestions,
+                CompletedQuestions = bp.CompletedQuestions,
+                CompletionPercentage = bp.CompletionPercentage,
+                QuestionnaireCompletedAt = bp.QuestionnaireCompletedAt,
+                GenerationStartedAt = bp.GenerationStartedAt,
+                GenerationCompletedAt = bp.GenerationCompletedAt,
+                FinalizedAt = bp.FinalizedAt,
+                Created = bp.Created,
+                LastModified = bp.LastModified,
+                CreatedBy = bp.CreatedBy ?? "Unknown"
+            }).ToList();
+
+            _logger.LogInformation("Retrieved page {Page} of business plans for user {UserId} ({Count} of {Total})",
+                request.PageNumber, currentUserId.Value, responses.Count, totalCount);
+
+            return Result.Success(PaginatedResponse<BusinessPlanResponse>.Create(responses, totalCount, request));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving paginated business plans for user");
+            return Result.Failure<PaginatedResponse<BusinessPlanResponse>>(Error.InternalServerError("General.InternalServerError", _localizationService.GetString("General.InternalServerError")));
+        }
+    }
+
+    public async Task<Result<PaginatedResponse<BusinessPlanResponse>>> GetOrganizationBusinessPlansAsync(Guid organizationId, BusinessPlanListRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var currentUserId = _currentUserService.GetUserIdAsGuid();
+            if (!currentUserId.HasValue)
+            {
+                return Result.Failure<PaginatedResponse<BusinessPlanResponse>>(Error.Unauthorized("General.Unauthorized", _localizationService.GetString("General.Unauthorized")));
+            }
+
+            // Verify user is a member of the organization
+            var isMember = await _context.OrganizationMembers
+                .AnyAsync(om => om.OrganizationId == organizationId &&
+                               om.UserId == currentUserId.Value &&
+                               om.IsActive, cancellationToken);
+
+            if (!isMember)
+            {
+                return Result.Failure<PaginatedResponse<BusinessPlanResponse>>(Error.Forbidden("Organization.Error.Forbidden", _localizationService.GetString("Organization.Error.Forbidden")));
+            }
+
+            // Build query for business plans
+            var query = _context.BusinessPlans
+                .AsNoTracking()
+                .Include(bp => bp.Organization)
+                .Where(bp => bp.OrganizationId == organizationId && !bp.IsDeleted);
+
+            // Apply filters
+            if (!string.IsNullOrEmpty(request.SearchTerm))
+            {
+                var searchTerm = request.SearchTerm.ToLower();
+                query = query.Where(bp => bp.Title.ToLower().Contains(searchTerm) ||
+                                         (bp.Description != null && bp.Description.ToLower().Contains(searchTerm)));
+            }
+
+            if (!string.IsNullOrEmpty(request.PlanType) && Enum.TryParse<BusinessPlanType>(request.PlanType, true, out var planType))
+            {
+                query = query.Where(bp => bp.PlanType == planType);
+            }
+
+            if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<BusinessPlanStatus>(request.Status, true, out var status))
+            {
+                query = query.Where(bp => bp.Status == status);
+            }
+
+            if (!request.IncludeArchived)
+            {
+                query = query.Where(bp => bp.Status != BusinessPlanStatus.Archived);
+            }
+
+            // Apply sorting
+            query = request.SortBy?.ToLower() switch
+            {
+                "title" => request.SortDescending ? query.OrderByDescending(bp => bp.Title) : query.OrderBy(bp => bp.Title),
+                "status" => request.SortDescending ? query.OrderByDescending(bp => bp.Status) : query.OrderBy(bp => bp.Status),
+                "lastmodified" => request.SortDescending ? query.OrderByDescending(bp => bp.LastModified) : query.OrderBy(bp => bp.LastModified),
+                _ => request.SortDescending ? query.OrderByDescending(bp => bp.Created) : query.OrderBy(bp => bp.Created)
+            };
+
+            // Get total count
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            // Get paginated items
+            var businessPlans = await query
+                .Skip(request.Skip)
+                .Take(request.PageSize)
+                .ToListAsync(cancellationToken);
+
+            var responses = businessPlans.Select(bp => new BusinessPlanResponse
+            {
+                Id = bp.Id,
+                Title = bp.Title,
+                Description = bp.Description,
+                PlanType = bp.PlanType.ToString(),
+                Status = bp.Status.ToString(),
+                Persona = bp.Persona?.ToString(),
+                OrganizationId = bp.OrganizationId,
+                OrganizationName = bp.Organization.Name,
+                Version = bp.Version,
+                TotalQuestions = bp.TotalQuestions,
+                CompletedQuestions = bp.CompletedQuestions,
+                CompletionPercentage = bp.CompletionPercentage,
+                QuestionnaireCompletedAt = bp.QuestionnaireCompletedAt,
+                GenerationStartedAt = bp.GenerationStartedAt,
+                GenerationCompletedAt = bp.GenerationCompletedAt,
+                FinalizedAt = bp.FinalizedAt,
+                Created = bp.Created,
+                LastModified = bp.LastModified,
+                CreatedBy = bp.CreatedBy ?? string.Empty
+            }).ToList();
+
+            _logger.LogInformation("Retrieved page {Page} of business plans for organization {OrgId} ({Count} of {Total})",
+                request.PageNumber, organizationId, responses.Count, totalCount);
+
+            return Result.Success(PaginatedResponse<BusinessPlanResponse>.Create(responses, totalCount, request));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving paginated business plans for organization {OrgId}", organizationId);
+            return Result.Failure<PaginatedResponse<BusinessPlanResponse>>(Error.InternalServerError("General.InternalServerError", _localizationService.GetString("General.InternalServerError")));
         }
     }
 

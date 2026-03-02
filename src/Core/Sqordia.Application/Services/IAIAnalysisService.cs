@@ -1,3 +1,4 @@
+using Sqordia.Application.Common.Models;
 using Sqordia.Contracts.Requests.AI;
 using Sqordia.Contracts.Responses.AI;
 
@@ -11,21 +12,21 @@ public interface IAIAnalysisService
     /// <summary>
     /// Generates strategy suggestions for a business plan
     /// </summary>
-    Task<StrategySuggestionResponse> GenerateStrategySuggestionsAsync(
+    Task<Result<StrategySuggestionResponse>> GenerateStrategySuggestionsAsync(
         StrategySuggestionRequest request,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Performs risk mitigation analysis for a business plan
     /// </summary>
-    Task<RiskMitigationResponse> AnalyzeRisksAsync(
+    Task<Result<RiskMitigationResponse>> AnalyzeRisksAsync(
         RiskMitigationRequest request,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Performs comprehensive business mentor analysis
     /// </summary>
-    Task<BusinessMentorResponse> PerformBusinessMentorAnalysisAsync(
+    Task<Result<BusinessMentorResponse>> PerformBusinessMentorAnalysisAsync(
         BusinessMentorRequest request,
         CancellationToken cancellationToken = default);
 }

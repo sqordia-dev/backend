@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Persistence.Constants;
 using Sqordia.Persistence.Contexts;
@@ -15,6 +16,10 @@ public static class ConfigureServices
     {
         // Register interceptor first
         services.AddScoped<AuditableEntitySaveChangesInterceptor>();
+
+        // Determine if we're in development
+        var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        var isDevelopment = environment == Environments.Development;
 
         // Configure database
         services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
@@ -33,7 +38,14 @@ public static class ConfigureServices
                         errorCodesToAdd: null);
                     npgsqlOptions.CommandTimeout(DatabaseConstants.CommandTimeoutSeconds);
                 });
-            
+
+            // Enable detailed errors and sensitive data logging in development
+            if (isDevelopment)
+            {
+                options.EnableDetailedErrors();
+                options.EnableSensitiveDataLogging();
+            }
+
             options.AddInterceptors(serviceProvider.GetRequiredService<AuditableEntitySaveChangesInterceptor>());
         });
 

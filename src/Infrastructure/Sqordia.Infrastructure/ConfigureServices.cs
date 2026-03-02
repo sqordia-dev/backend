@@ -495,6 +495,9 @@ public static class ConfigureServices
         // Settings cache service
         services.AddScoped<ISettingsCacheService, SettingsCacheService>();
 
+        // Organization membership cache - high-frequency permission checks
+        services.AddScoped<IOrganizationMembershipCache, OrganizationMembershipCacheService>();
+
         return services;
     }
 }

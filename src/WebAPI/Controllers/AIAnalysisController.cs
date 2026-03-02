@@ -42,7 +42,7 @@ public class AIAnalysisController : BaseApiController
 
         request.BusinessPlanId = businessPlanId;
         var result = await _aiAnalysisService.GenerateStrategySuggestionsAsync(request, cancellationToken);
-        return Ok(result);
+        return HandleResult(result);
     }
 
     /// <summary>
@@ -66,7 +66,7 @@ public class AIAnalysisController : BaseApiController
 
         request.BusinessPlanId = businessPlanId;
         var result = await _aiAnalysisService.AnalyzeRisksAsync(request, cancellationToken);
-        return Ok(result);
+        return HandleResult(result);
     }
 
     /// <summary>
@@ -90,7 +90,7 @@ public class AIAnalysisController : BaseApiController
 
         request.BusinessPlanId = businessPlanId;
         var result = await _aiAnalysisService.PerformBusinessMentorAnalysisAsync(request, cancellationToken);
-        return Ok(result);
+        return HandleResult(result);
     }
 }
 

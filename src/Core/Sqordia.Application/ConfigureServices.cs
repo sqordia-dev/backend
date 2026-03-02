@@ -49,6 +49,9 @@ public static class ConfigureServices
             // Current user service
             services.AddScoped<ICurrentUserService, CurrentUserService>();
 
+            // Authorization helper for common permission checks
+            services.AddScoped<IAuthorizationHelper, AuthorizationHelper>();
+
             // AI Prompt management service
             services.AddScoped<IAIPromptService, AIPromptService>();
             services.AddScoped<IPromptMigrationService, PromptMigrationService>();

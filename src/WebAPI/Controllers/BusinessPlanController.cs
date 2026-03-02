@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Services;
 using Sqordia.Application.Services.V2;
+using Sqordia.Contracts.Common;
 using Sqordia.Contracts.Requests.BusinessPlan;
 using Sqordia.Contracts.Requests.V2.StrategyMap;
 using Sqordia.Contracts.Responses.BusinessPlan;
@@ -105,22 +106,127 @@ public class BusinessPlanController : BaseApiController
     }
 
     /// <summary>
-    /// Get all business plans for the current user
+    /// Get business plans for the current user with optional pagination and filtering
     /// </summary>
+    /// <param name="searchTerm">Search in title and description</param>
+    /// <param name="planType">Filter by plan type (BusinessPlan, StrategicPlan, LeanCanvas)</param>
+    /// <param name="status">Filter by status (Draft, Active, Completed, Archived)</param>
+    /// <param name="organizationId">Filter by organization</param>
+    /// <param name="includeArchived">Include archived plans (default: false)</param>
+    /// <param name="sortBy">Sort field (Created, Title, Status, LastModified)</param>
+    /// <param name="sortDescending">Sort descending (default: true)</param>
+    /// <param name="pageNumber">Page number (1-based, default: 1)</param>
+    /// <param name="pageSize">Page size (1-100, default: 20, use 0 for all)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Paginated list of business plans</returns>
+    /// <remarks>
+    /// Returns business plans accessible to the current user.
+    /// Use pageSize=0 to get all results without pagination (legacy behavior).
+    ///
+    /// Sample request:
+    /// GET /api/v1/business-plans?pageNumber=1&amp;pageSize=10&amp;sortBy=Created&amp;sortDescending=true
+    /// </remarks>
     [HttpGet]
-    public async Task<IActionResult> GetUserBusinessPlans(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(PaginatedResponse<BusinessPlanResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetUserBusinessPlans(
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] string? planType = null,
+        [FromQuery] string? status = null,
+        [FromQuery] Guid? organizationId = null,
+        [FromQuery] bool includeArchived = false,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool sortDescending = true,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var result = await _businessPlanService.GetUserBusinessPlansAsync(cancellationToken);
+        // If pageSize is 0, return all (legacy behavior)
+        if (pageSize == 0)
+        {
+            var legacyResult = await _businessPlanService.GetUserBusinessPlansAsync(cancellationToken);
+            return HandleResult(legacyResult);
+        }
+
+        // Validate pagination parameters
+        if (pageNumber < 1 || pageSize < 1 || pageSize > 100)
+        {
+            return BadRequest(new { message = "Invalid pagination parameters. PageNumber must be >= 1, PageSize must be between 1 and 100." });
+        }
+
+        var request = new BusinessPlanListRequest
+        {
+            SearchTerm = searchTerm,
+            PlanType = planType,
+            Status = status,
+            OrganizationId = organizationId,
+            IncludeArchived = includeArchived,
+            SortBy = sortBy,
+            SortDescending = sortDescending,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+
+        var result = await _businessPlanService.GetUserBusinessPlansAsync(request, cancellationToken);
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Get all business plans for an organization
+    /// Get business plans for an organization with optional pagination and filtering
     /// </summary>
+    /// <param name="organizationId">The organization ID</param>
+    /// <param name="searchTerm">Search in title and description</param>
+    /// <param name="planType">Filter by plan type (BusinessPlan, StrategicPlan, LeanCanvas)</param>
+    /// <param name="status">Filter by status (Draft, Active, Completed, Archived)</param>
+    /// <param name="includeArchived">Include archived plans (default: false)</param>
+    /// <param name="sortBy">Sort field (Created, Title, Status, LastModified)</param>
+    /// <param name="sortDescending">Sort descending (default: true)</param>
+    /// <param name="pageNumber">Page number (1-based, default: 1)</param>
+    /// <param name="pageSize">Page size (1-100, default: 20, use 0 for all)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Paginated list of business plans</returns>
     [HttpGet("organizations/{organizationId}")]
-    public async Task<IActionResult> GetOrganizationBusinessPlans(Guid organizationId, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(PaginatedResponse<BusinessPlanResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetOrganizationBusinessPlans(
+        Guid organizationId,
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] string? planType = null,
+        [FromQuery] string? status = null,
+        [FromQuery] bool includeArchived = false,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool sortDescending = true,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var result = await _businessPlanService.GetOrganizationBusinessPlansAsync(organizationId, cancellationToken);
+        // If pageSize is 0, return all (legacy behavior)
+        if (pageSize == 0)
+        {
+            var legacyResult = await _businessPlanService.GetOrganizationBusinessPlansAsync(organizationId, cancellationToken);
+            return HandleResult(legacyResult);
+        }
+
+        // Validate pagination parameters
+        if (pageNumber < 1 || pageSize < 1 || pageSize > 100)
+        {
+            return BadRequest(new { message = "Invalid pagination parameters. PageNumber must be >= 1, PageSize must be between 1 and 100." });
+        }
+
+        var request = new BusinessPlanListRequest
+        {
+            SearchTerm = searchTerm,
+            PlanType = planType,
+            Status = status,
+            IncludeArchived = includeArchived,
+            SortBy = sortBy,
+            SortDescending = sortDescending,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+
+        var result = await _businessPlanService.GetOrganizationBusinessPlansAsync(organizationId, request, cancellationToken);
         return HandleResult(result);
     }
 

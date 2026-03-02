@@ -37,6 +37,7 @@ public class PromptRepository : IPromptRepository
             industryCategory ?? "generic");
 
         var query = _context.PromptTemplates
+            .AsNoTracking()
             .Where(p => p.SectionType == sectionType
                 && p.PlanType == planType
                 && p.IsActive);
@@ -68,6 +69,7 @@ public class PromptRepository : IPromptRepository
             planType);
 
         var query = _context.PromptTemplates
+            .AsNoTracking()
             .Where(p => p.SectionType == sectionType
                 && p.PlanType == planType
                 && p.Alias == alias);
@@ -99,6 +101,7 @@ public class PromptRepository : IPromptRepository
             planType);
 
         var query = _context.PromptTemplates
+            .AsNoTracking()
             .Where(p => p.SectionType == sectionType
                 && p.PlanType == planType
                 && p.Version == version);
@@ -134,6 +137,7 @@ public class PromptRepository : IPromptRepository
             planType);
 
         return await _context.PromptTemplates
+            .AsNoTracking()
             .Where(p => p.SectionType == sectionType && p.PlanType == planType)
             .OrderByDescending(p => p.Version)
             .ToListAsync(cancellationToken);
@@ -309,6 +313,7 @@ public class PromptRepository : IPromptRepository
             startDate?.ToString("yyyy-MM-dd") ?? "all time");
 
         var query = _context.PromptPerformance
+            .AsNoTracking()
             .Where(p => p.PromptTemplateId == promptId);
 
         if (startDate.HasValue)

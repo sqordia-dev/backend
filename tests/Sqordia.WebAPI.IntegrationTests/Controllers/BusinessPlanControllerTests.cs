@@ -299,7 +299,7 @@ public class BusinessPlanControllerTests
             .ReturnsAsync(result);
 
         // Act
-        var response = await _sut.GetUserBusinessPlans(CancellationToken.None);
+        var response = await _sut.GetUserBusinessPlans(cancellationToken: CancellationToken.None, pageSize: 0);
 
         // Assert
         response.Should().BeOfType<OkObjectResult>();
@@ -319,7 +319,7 @@ public class BusinessPlanControllerTests
             .ReturnsAsync(result);
 
         // Act
-        var response = await _sut.GetUserBusinessPlans(CancellationToken.None);
+        var response = await _sut.GetUserBusinessPlans(cancellationToken: CancellationToken.None, pageSize: 0);
 
         // Assert
         response.Should().BeOfType<OkObjectResult>();
@@ -339,7 +339,7 @@ public class BusinessPlanControllerTests
             .ReturnsAsync(result);
 
         // Act
-        var response = await _sut.GetUserBusinessPlans(CancellationToken.None);
+        var response = await _sut.GetUserBusinessPlans(cancellationToken: CancellationToken.None, pageSize: 0);
 
         // Assert
         response.Should().BeOfType<BadRequestObjectResult>();
@@ -364,7 +364,7 @@ public class BusinessPlanControllerTests
             .ReturnsAsync(result);
 
         // Act
-        var response = await _sut.GetOrganizationBusinessPlans(organizationId, CancellationToken.None);
+        var response = await _sut.GetOrganizationBusinessPlans(organizationId, cancellationToken: CancellationToken.None, pageSize: 0);
 
         // Assert
         response.Should().BeOfType<OkObjectResult>();
@@ -385,7 +385,7 @@ public class BusinessPlanControllerTests
             .ReturnsAsync(result);
 
         // Act
-        var response = await _sut.GetOrganizationBusinessPlans(organizationId, CancellationToken.None);
+        var response = await _sut.GetOrganizationBusinessPlans(organizationId, cancellationToken: CancellationToken.None, pageSize: 0);
 
         // Assert
         response.Should().BeOfType<NotFoundObjectResult>();

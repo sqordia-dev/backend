@@ -15,17 +15,20 @@ public class OrganizationService : IOrganizationService
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<OrganizationService> _logger;
     private readonly ILocalizationService _localizationService;
+    private readonly IOrganizationMembershipCache _membershipCache;
 
     public OrganizationService(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
         ILogger<OrganizationService> logger,
-        ILocalizationService localizationService)
+        ILocalizationService localizationService,
+        IOrganizationMembershipCache membershipCache)
     {
         _context = context;
         _currentUserService = currentUserService;
         _logger = logger;
         _localizationService = localizationService;
+        _membershipCache = membershipCache;
     }
 
     public async Task<Result<OrganizationResponse>> CreateOrganizationAsync(CreateOrganizationRequest request, CancellationToken cancellationToken = default)
@@ -460,6 +463,9 @@ public class OrganizationService : IOrganizationService
             _context.OrganizationMembers.Add(member);
             await _context.SaveChangesAsync(cancellationToken);
 
+            // Invalidate membership cache for the new member
+            _membershipCache.InvalidateMembership(organizationId, request.UserId);
+
             _logger.LogInformation("User {UserId} added to organization {OrganizationId} by {InvitedBy}", request.UserId, organizationId, userId.Value);
 
             return Result.Success(new OrganizationMemberResponse
@@ -630,6 +636,9 @@ public class OrganizationService : IOrganizationService
             member.Deactivate();
             await _context.SaveChangesAsync(cancellationToken);
 
+            // Invalidate membership cache for the removed member
+            _membershipCache.InvalidateMembership(organizationId, member.UserId);
+
             _logger.LogInformation("Member {MemberId} removed from organization {OrganizationId} by {UserId}", memberId, organizationId, userId.Value);
 
             return Result.Success();
@@ -641,24 +650,21 @@ public class OrganizationService : IOrganizationService
         }
     }
 
-    // Helper methods
+    // Helper methods - using cached membership service for high-frequency checks
     private async Task<bool> IsUserMemberAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken)
     {
-        return await _context.OrganizationMembers
-            .AnyAsync(om => om.OrganizationId == organizationId && om.UserId == userId && om.IsActive, cancellationToken);
+        return await _membershipCache.IsUserMemberAsync(organizationId, userId, cancellationToken);
     }
 
     private async Task<bool> IsUserOwnerAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken)
     {
-        return await _context.OrganizationMembers
-            .AnyAsync(om => om.OrganizationId == organizationId && om.UserId == userId && om.IsActive && om.Role == OrganizationRole.Owner, cancellationToken);
+        return await _membershipCache.IsUserOwnerAsync(organizationId, userId, cancellationToken);
     }
 
     private async Task<bool> IsUserOwnerOrAdminAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken)
     {
-        return await _context.OrganizationMembers
-            .AnyAsync(om => om.OrganizationId == organizationId && om.UserId == userId && om.IsActive && 
-                (om.Role == OrganizationRole.Owner || om.Role == OrganizationRole.Admin), cancellationToken);
+        var role = await _membershipCache.GetUserRoleAsync(organizationId, userId, cancellationToken);
+        return role == OrganizationRole.Owner.ToString() || role == OrganizationRole.Admin.ToString();
     }
 
     private static OrganizationResponse MapToOrganizationResponse(Organization organization)
