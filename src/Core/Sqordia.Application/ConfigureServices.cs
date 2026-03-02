@@ -75,6 +75,9 @@ public static class ConfigureServices
             // Feature flags service
             services.AddScoped<IFeatureFlagsService, FeatureFlagsService>();
 
+            // Maintenance service
+            services.AddScoped<IMaintenanceService, MaintenanceService>();
+
             // OAuth service
             services.AddScoped<IOAuthService, OAuthService>();
 

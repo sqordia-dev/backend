@@ -22,8 +22,46 @@ env:
   POSTGRESQL_SERVER_NAME: ${{ secrets.AZURE_POSTGRESQL_SERVER_NAME || 'sqordia-production-postgres' }}
   IMAGE_NAME: api
   DOTNET_VERSION: '8.0.x'
+  # Maintenance mode configuration
+  API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://sqordia-production-api.azurecontainerapps.io' }}
+  DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
 
 jobs:
+  enable-maintenance:
+    name: Enable Maintenance Mode
+    runs-on: ubuntu-latest
+    if: ${{ vars.ENABLE_MAINTENANCE_MODE != 'false' }}
+    steps:
+      - name: Enable maintenance mode
+        if: ${{ env.DEPLOYMENT_API_KEY != '' }}
+        run: |
+          echo "🔧 Enabling maintenance mode..."
+          ESTIMATED_END=$(date -u -d '+20 minutes' +"%Y-%m-%dT%H:%M:%SZ")
+
+          curl -sf -X POST "${{ env.API_BASE_URL }}/api/v1/maintenance/ci/enable" \
+            -H "Content-Type: application/json" \
+            -H "X-Deployment-Key: ${{ env.DEPLOYMENT_API_KEY }}" \
+            -d '{
+              "isEnabled": true,
+              "deploymentId": "${{ github.run_id }}",
+              "reason": "Deploying version ${{ github.sha }}",
+              "type": "Deployment",
+              "estimatedEnd": "'"$ESTIMATED_END"'",
+              "progressPercent": 5,
+              "currentStep": "Starting deployment pipeline",
+              "allowAdminAccess": true,
+              "autoDisableMinutes": 30
+            }' || echo "⚠️ Failed to enable maintenance mode (API may be unreachable)"
+
+          echo "✅ Maintenance mode enabled" >> $GITHUB_STEP_SUMMARY
+
+      - name: Skip maintenance (no API key)
+        if: ${{ env.DEPLOYMENT_API_KEY == '' }}
+        run: |
+          echo "⚠️ DEPLOYMENT_API_KEY not configured - skipping maintenance mode"
+          echo "⚠️ Maintenance mode skipped (no API key)" >> $GITHUB_STEP_SUMMARY
+
+
   check-secrets:
     name: Check Required Secrets
     runs-on: ubuntu-latest
@@ -60,11 +98,20 @@ jobs:
   build-and-test:
     name: Build and Test
     runs-on: ubuntu-latest
-    needs: check-secrets
-    
+    needs: [check-secrets, enable-maintenance]
+    if: ${{ always() && needs.check-secrets.result == 'success' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Update progress - Building
+        if: ${{ env.DEPLOYMENT_API_KEY != '' }}
+        run: |
+          curl -sf -X POST "${{ env.API_BASE_URL }}/api/v1/maintenance/ci/progress" \
+            -H "Content-Type: application/json" \
+            -H "X-Deployment-Key: ${{ env.DEPLOYMENT_API_KEY }}" \
+            -d '{"progressPercent": 15, "currentStep": "Building application"}' || true
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
@@ -77,9 +124,25 @@ jobs:
       - name: Build solution
         run: dotnet build --no-restore --configuration Release
 
+      - name: Update progress - Testing
+        if: ${{ env.DEPLOYMENT_API_KEY != '' && (github.event_name != 'workflow_dispatch' || !inputs.skip_tests) }}
+        run: |
+          curl -sf -X POST "${{ env.API_BASE_URL }}/api/v1/maintenance/ci/progress" \
+            -H "Content-Type: application/json" \
+            -H "X-Deployment-Key: ${{ env.DEPLOYMENT_API_KEY }}" \
+            -d '{"progressPercent": 25, "currentStep": "Running tests"}' || true
+
       - name: Run tests
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_tests }}
         run: dotnet test --no-build --configuration Release --verbosity normal
+
+      - name: Update progress - Build complete
+        if: ${{ env.DEPLOYMENT_API_KEY != '' }}
+        run: |
+          curl -sf -X POST "${{ env.API_BASE_URL }}/api/v1/maintenance/ci/progress" \
+            -H "Content-Type: application/json" \
+            -H "X-Deployment-Key: ${{ env.DEPLOYMENT_API_KEY }}" \
+            -d '{"progressPercent": 35, "currentStep": "Build and tests completed"}' || true
 
   migrate-database:
     name: Run Database Migrations
@@ -89,6 +152,14 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Update progress - Migrations
+        if: ${{ env.DEPLOYMENT_API_KEY != '' }}
+        run: |
+          curl -sf -X POST "${{ env.API_BASE_URL }}/api/v1/maintenance/ci/progress" \
+            -H "Content-Type: application/json" \
+            -H "X-Deployment-Key: ${{ env.DEPLOYMENT_API_KEY }}" \
+            -d '{"progressPercent": 45, "currentStep": "Running database migrations"}' || true
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -205,6 +276,14 @@ jobs:
             --connection "$CONNECTION_STRING" \
             --no-build
 
+      - name: Update progress - Migrations complete
+        if: ${{ env.DEPLOYMENT_API_KEY != '' }}
+        run: |
+          curl -sf -X POST "${{ env.API_BASE_URL }}/api/v1/maintenance/ci/progress" \
+            -H "Content-Type: application/json" \
+            -H "X-Deployment-Key: ${{ env.DEPLOYMENT_API_KEY }}" \
+            -d '{"progressPercent": 55, "currentStep": "Database migrations completed"}' || true
+
       - name: Migration summary
         run: echo "✅ Database migrations completed"
 
@@ -269,15 +348,39 @@ jobs:
         run: |
           az acr login --name ${{ env.CONTAINER_REGISTRY_NAME }}
 
+      - name: Update progress - Building Docker image
+        if: ${{ env.DEPLOYMENT_API_KEY != '' }}
+        run: |
+          curl -sf -X POST "${{ env.API_BASE_URL }}/api/v1/maintenance/ci/progress" \
+            -H "Content-Type: application/json" \
+            -H "X-Deployment-Key: ${{ env.DEPLOYMENT_API_KEY }}" \
+            -d '{"progressPercent": 60, "currentStep": "Building Docker image"}' || true
+
       - name: Build Docker image
         run: |
           docker build -t ${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .
           docker tag ${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
 
+      - name: Update progress - Pushing image
+        if: ${{ env.DEPLOYMENT_API_KEY != '' }}
+        run: |
+          curl -sf -X POST "${{ env.API_BASE_URL }}/api/v1/maintenance/ci/progress" \
+            -H "Content-Type: application/json" \
+            -H "X-Deployment-Key: ${{ env.DEPLOYMENT_API_KEY }}" \
+            -d '{"progressPercent": 70, "currentStep": "Pushing Docker image to registry"}' || true
+
       - name: Push Docker image
         run: |
           docker push ${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+
+      - name: Update progress - Deploying to Container App
+        if: ${{ env.DEPLOYMENT_API_KEY != '' }}
+        run: |
+          curl -sf -X POST "${{ env.API_BASE_URL }}/api/v1/maintenance/ci/progress" \
+            -H "Content-Type: application/json" \
+            -H "X-Deployment-Key: ${{ env.DEPLOYMENT_API_KEY }}" \
+            -d '{"progressPercent": 80, "currentStep": "Deploying to Azure Container Apps"}' || true
 
       - name: Update Container App with new image
         run: |
@@ -339,6 +442,14 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Update progress - Deploying Functions
+        if: ${{ env.DEPLOYMENT_API_KEY != '' }}
+        run: |
+          curl -sf -X POST "${{ env.API_BASE_URL }}/api/v1/maintenance/ci/progress" \
+            -H "Content-Type: application/json" \
+            -H "X-Deployment-Key: ${{ env.DEPLOYMENT_API_KEY }}" \
+            -d '{"progressPercent": 85, "currentStep": "Deploying Azure Functions"}' || true
 
       - name: Build and Deploy Azure Functions
         run: |
@@ -409,6 +520,14 @@ jobs:
           echo "url=https://$URL" >> $GITHUB_OUTPUT
           echo "Container App URL: https://$URL"
 
+      - name: Update progress - Health check
+        if: ${{ env.DEPLOYMENT_API_KEY != '' }}
+        run: |
+          curl -sf -X POST "${{ env.API_BASE_URL }}/api/v1/maintenance/ci/progress" \
+            -H "Content-Type: application/json" \
+            -H "X-Deployment-Key: ${{ env.DEPLOYMENT_API_KEY }}" \
+            -d '{"progressPercent": 95, "currentStep": "Performing health check"}' || true
+
       - name: Health Check
         run: |
           sleep 30  # Wait for Container App to be ready
@@ -418,6 +537,16 @@ jobs:
           else
             echo "⚠️ Container App URL not available yet"
           fi
+
+      - name: Disable maintenance mode
+        if: ${{ success() && env.DEPLOYMENT_API_KEY != '' }}
+        run: |
+          echo "🎉 Disabling maintenance mode..."
+          curl -sf -X POST "${{ env.API_BASE_URL }}/api/v1/maintenance/ci/disable" \
+            -H "Content-Type: application/json" \
+            -H "X-Deployment-Key: ${{ env.DEPLOYMENT_API_KEY }}" \
+            -d '{"deploymentId": "${{ github.run_id }}"}' || echo "⚠️ Failed to disable maintenance mode"
+          echo "✅ Maintenance mode disabled" >> $GITHUB_STEP_SUMMARY
 
       - name: Deployment Summary
         run: |
@@ -430,3 +559,25 @@ jobs:
           echo "**Container Registry:** ${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.event.head_commit.message }}" >> $GITHUB_STEP_SUMMARY
+
+  deployment-failed:
+    name: Handle Deployment Failure
+    runs-on: ubuntu-latest
+    needs: [build-and-test, migrate-database, deploy-image, deploy-functions, health-check]
+    if: ${{ failure() && vars.ENABLE_MAINTENANCE_MODE != 'false' }}
+
+    steps:
+      - name: Update maintenance status on failure
+        if: ${{ env.DEPLOYMENT_API_KEY != '' }}
+        run: |
+          echo "❌ Deployment failed, updating maintenance status..."
+          curl -sf -X POST "${{ env.API_BASE_URL }}/api/v1/maintenance/ci/progress" \
+            -H "Content-Type: application/json" \
+            -H "X-Deployment-Key: ${{ env.DEPLOYMENT_API_KEY }}" \
+            -d '{
+              "progressPercent": 0,
+              "currentStep": "Deployment failed - investigating issue"
+            }' || echo "⚠️ Failed to update maintenance status"
+
+          echo "⚠️ Maintenance mode remains enabled due to deployment failure" >> $GITHUB_STEP_SUMMARY
+          echo "Run the deployment again or manually disable maintenance mode" >> $GITHUB_STEP_SUMMARY
