@@ -10,6 +10,7 @@ using Microsoft.Net.Http.Headers;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace WebAPI.Extensions;
 
@@ -24,8 +25,11 @@ public static class ServiceCollectionExtensions
                 options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
                 options.JsonSerializerOptions.WriteIndented = false;
                 // Handle circular references (e.g., BusinessPlan -> QuestionnaireResponses -> BusinessPlan)
-                options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+                options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
                 options.JsonSerializerOptions.MaxDepth = 64; // Increase max depth to handle deep object graphs
+                // Allow enums to be serialized/deserialized as strings (e.g., "Active" instead of 0)
+                // Using null naming policy to accept both "Active" and "active" (case-insensitive)
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
             });
         services.AddHttpContextAccessor();
 

@@ -108,6 +108,9 @@ public class BusinessPlanConfiguration : IEntityTypeConfiguration<Domain.Entitie
         builder.Property(bp => bp.StrategyMapJson)
             .HasColumnType("jsonb");
 
+        builder.Property(bp => bp.OnboardingContextJson)
+            .HasColumnType("jsonb");
+
         builder.Property(bp => bp.ReadinessScore)
             .HasPrecision(5, 2);
 

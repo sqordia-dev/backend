@@ -19,4 +19,6 @@ public class UserDto
     public required string Email { get; set; }
     public required string UserName { get; set; }
     public required IEnumerable<string> Roles { get; set; }
+    public bool OnboardingCompleted { get; set; }
+    public string? Persona { get; set; }
 }

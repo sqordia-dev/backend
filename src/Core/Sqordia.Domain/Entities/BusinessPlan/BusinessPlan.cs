@@ -64,6 +64,9 @@ public class BusinessPlan : BaseAuditableEntity
     public decimal? ReadinessScore { get; private set; }
     public FinancialHealthMetrics? HealthMetrics { get; private set; }
 
+    // Onboarding context (JSON containing industry, goals, business stage, team size, etc.)
+    public string? OnboardingContextJson { get; private set; }
+
     // Generation progress tracking
     public string? CurrentGenerationSection { get; private set; }
     public int GenerationProgress { get; private set; }
@@ -227,6 +230,11 @@ public class BusinessPlan : BaseAuditableEntity
     public void UpdateHealthMetrics(FinancialHealthMetrics? metrics)
     {
         HealthMetrics = metrics;
+    }
+
+    public void SetOnboardingContext(string? contextJson)
+    {
+        OnboardingContextJson = contextJson;
     }
 
     public void UpdateGenerationProgress(string? currentSection, int progress)

@@ -24,5 +24,24 @@ public class CreateBusinessPlanRequest
     /// </summary>
     [RegularExpression("^(Entrepreneur|Consultant|OBNL)?$", ErrorMessage = "Persona must be one of: Entrepreneur, Consultant, OBNL")]
     public string? Persona { get; set; }
+
+    /// <summary>
+    /// Optional onboarding context containing industry, goals, business stage, team size, etc.
+    /// Stored as JSON and used for AI-powered questionnaire generation
+    /// </summary>
+    public OnboardingContextDto? OnboardingContext { get; set; }
+}
+
+/// <summary>
+/// Onboarding context data collected during the onboarding flow
+/// </summary>
+public class OnboardingContextDto
+{
+    public string? Industry { get; set; }
+    public string? BusinessStage { get; set; }
+    public string? TeamSize { get; set; }
+    public string? FundingStatus { get; set; }
+    public List<string>? Goals { get; set; }
+    public string? TargetMarket { get; set; }
 }
 

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
@@ -26,6 +27,27 @@ public class BusinessPlanService : IBusinessPlanService
         _currentUserService = currentUserService;
         _logger = logger;
         _localizationService = localizationService;
+    }
+
+    /// <summary>
+    /// Deserializes the OnboardingContextJson from a business plan into an OnboardingContextDto
+    /// </summary>
+    private static OnboardingContextDto? ParseOnboardingContext(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<OnboardingContextDto>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<Result<BusinessPlanResponse>> CreateBusinessPlanAsync(CreateBusinessPlanRequest request, CancellationToken cancellationToken = default)
@@ -93,6 +115,13 @@ public class BusinessPlanService : IBusinessPlanService
                 businessPlan.SetPersona(personaType.Value);
             }
 
+            // Store onboarding context if provided
+            if (request.OnboardingContext != null)
+            {
+                var contextJson = System.Text.Json.JsonSerializer.Serialize(request.OnboardingContext);
+                businessPlan.SetOnboardingContext(contextJson);
+            }
+
             _context.BusinessPlans.Add(businessPlan);
             await _context.SaveChangesAsync(cancellationToken);
 
@@ -120,7 +149,8 @@ public class BusinessPlanService : IBusinessPlanService
                 FinalizedAt = businessPlan.FinalizedAt,
                 Created = businessPlan.Created,
                 LastModified = businessPlan.LastModified,
-                CreatedBy = businessPlan.CreatedBy ?? string.Empty
+                CreatedBy = businessPlan.CreatedBy ?? string.Empty,
+                OnboardingContext = request.OnboardingContext
             };
 
             _logger.LogInformation("Business plan {PlanId} created with persona {Persona}", businessPlan.Id, businessPlan.Persona);
@@ -185,7 +215,8 @@ public class BusinessPlanService : IBusinessPlanService
                 FinalizedAt = businessPlan.FinalizedAt,
                 Created = businessPlan.Created,
                 LastModified = businessPlan.LastModified,
-                CreatedBy = businessPlan.CreatedBy ?? string.Empty
+                CreatedBy = businessPlan.CreatedBy ?? string.Empty,
+                OnboardingContext = ParseOnboardingContext(businessPlan.OnboardingContextJson)
             };
 
             return Result.Success(response);

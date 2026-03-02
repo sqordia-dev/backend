@@ -1,3 +1,5 @@
+using Sqordia.Contracts.Requests.BusinessPlan;
+
 namespace Sqordia.Contracts.Responses.BusinessPlan;
 
 public class BusinessPlanResponse
@@ -21,5 +23,10 @@ public class BusinessPlanResponse
     public DateTime Created { get; set; }
     public DateTime? LastModified { get; set; }
     public required string CreatedBy { get; set; }
+
+    /// <summary>
+    /// Onboarding context data (industry, goals, business stage, team size, funding status, target market)
+    /// </summary>
+    public OnboardingContextDto? OnboardingContext { get; set; }
 }
 

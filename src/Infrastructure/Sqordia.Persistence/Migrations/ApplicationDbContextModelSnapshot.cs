@@ -417,6 +417,9 @@ namespace Sqordia.Persistence.Migrations
                     b.Property<string>("MissionStatement")
                         .HasColumnType("text");
 
+                    b.Property<string>("OnboardingContextJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<string>("OperationsPlan")
                         .HasColumnType("text");
 
