@@ -466,34 +466,34 @@ public class SettingsService : ISettingsService
         {
             _logger.LogInformation("Upserting system setting: {Key}", key);
 
-            var existing = await _context.Settings.FirstOrDefaultAsync(s => s.Key == key, cancellationToken);
+            var existing = await _context.Settings.FirstOrDefaultAsync(s => s.Key == key && !s.IsDeleted, cancellationToken);
 
             if (existing != null)
             {
-                existing.Value = value;
-                existing.Description = description ?? existing.Description;
-                existing.IsPublic = isPublic;
-                existing.SettingType = settingType;
-                existing.DataType = dataType;
-                existing.UpdatedAt = DateTime.UtcNow;
+                existing.UpdateValue(value);
+                existing.UpdateCategory(category);
+                existing.UpdateDescription(description);
+                existing.UpdateSettingType(settingType);
+                existing.UpdateDataType(dataType);
+                if (isPublic)
+                    existing.MarkAsPublic();
+                else
+                    existing.MarkAsPrivate();
             }
             else
             {
-                var setting = new Setting
-                {
-                    Key = key,
-                    Value = value,
-                    Category = category,
-                    Description = description,
-                    IsPublic = isPublic,
-                    SettingType = settingType,
-                    DataType = dataType,
-                    IsEncrypted = false,
-                    IsCritical = true,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                _context.Settings.Add(setting);
+                var newSetting = new Settings(
+                    key,
+                    value,
+                    category,
+                    description,
+                    isPublic,
+                    settingType,
+                    dataType,
+                    isEncrypted: false,
+                    cacheDurationMinutes: null,
+                    isCritical: true);
+                _context.Settings.Add(newSetting);
             }
 
             await _context.SaveChangesAsync(cancellationToken);
