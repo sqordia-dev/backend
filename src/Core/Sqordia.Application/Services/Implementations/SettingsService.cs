@@ -443,6 +443,73 @@ public class SettingsService : ISettingsService
         }
     }
 
+    public async Task<Result> UpsertSystemSettingAsync(
+        string key,
+        string value,
+        string category,
+        string? description = null,
+        bool isPublic = false,
+        SettingType settingType = SettingType.Config,
+        SettingDataType dataType = SettingDataType.String,
+        CancellationToken cancellationToken = default)
+    {
+        // Only allow specific system keys to be updated without auth
+        var allowedSystemKeys = new[] { "System:MaintenanceStatus" };
+
+        if (!allowedSystemKeys.Contains(key))
+        {
+            _logger.LogWarning("Attempted to use UpsertSystemSettingAsync for non-system key: {Key}", key);
+            return Result.Failure(Error.Forbidden("Settings.Forbidden", "This method only allows specific system keys"));
+        }
+
+        try
+        {
+            _logger.LogInformation("Upserting system setting: {Key}", key);
+
+            var existing = await _context.Settings.FirstOrDefaultAsync(s => s.Key == key, cancellationToken);
+
+            if (existing != null)
+            {
+                existing.Value = value;
+                existing.Description = description ?? existing.Description;
+                existing.IsPublic = isPublic;
+                existing.SettingType = settingType;
+                existing.DataType = dataType;
+                existing.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                var setting = new Setting
+                {
+                    Key = key,
+                    Value = value,
+                    Category = category,
+                    Description = description,
+                    IsPublic = isPublic,
+                    SettingType = settingType,
+                    DataType = dataType,
+                    IsEncrypted = false,
+                    IsCritical = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.Settings.Add(setting);
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Invalidate cache
+            _cacheService.Remove(key);
+
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error upserting system setting: {Key}", key);
+            return Result.Failure(Error.Failure("Settings.Error", "An error occurred while saving system setting"));
+        }
+    }
+
     private async Task<bool> IsAdminAsync(Guid userId, CancellationToken cancellationToken)
     {
         // Check if user has admin role
@@ -452,7 +519,7 @@ public class SettingsService : ISettingsService
             .Select(ur => ur.Role.Name)
             .ToListAsync(cancellationToken);
 
-        return userRoles.Any(r => r.Equals("Admin", StringComparison.OrdinalIgnoreCase) || 
+        return userRoles.Any(r => r.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
                                   r.Equals("Administrator", StringComparison.OrdinalIgnoreCase));
     }
 }

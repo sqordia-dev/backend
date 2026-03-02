@@ -102,7 +102,7 @@ public class MaintenanceService : IMaintenanceService
 
             var json = JsonSerializer.Serialize(status, JsonOptions);
 
-            var saveResult = await _settingsService.UpsertSettingAsync(
+            var saveResult = await _settingsService.UpsertSystemSettingAsync(
                 MaintenanceStatusKey,
                 json,
                 "System",
@@ -110,9 +110,6 @@ public class MaintenanceService : IMaintenanceService
                 isPublic: true,
                 settingType: SettingType.Config,
                 dataType: SettingDataType.Json,
-                encrypt: false,
-                cacheDurationMinutes: 0, // We handle caching ourselves
-                isCritical: true,
                 cancellationToken);
 
             if (!saveResult.IsSuccess)
@@ -141,7 +138,7 @@ public class MaintenanceService : IMaintenanceService
             var status = CreateDefaultStatus();
             var json = JsonSerializer.Serialize(status, JsonOptions);
 
-            var saveResult = await _settingsService.UpsertSettingAsync(
+            var saveResult = await _settingsService.UpsertSystemSettingAsync(
                 MaintenanceStatusKey,
                 json,
                 "System",
@@ -149,9 +146,6 @@ public class MaintenanceService : IMaintenanceService
                 isPublic: true,
                 settingType: SettingType.Config,
                 dataType: SettingDataType.Json,
-                encrypt: false,
-                cacheDurationMinutes: 0,
-                isCritical: true,
                 cancellationToken);
 
             if (!saveResult.IsSuccess)
@@ -201,7 +195,7 @@ public class MaintenanceService : IMaintenanceService
 
             var json = JsonSerializer.Serialize(status, JsonOptions);
 
-            var saveResult = await _settingsService.UpsertSettingAsync(
+            var saveResult = await _settingsService.UpsertSystemSettingAsync(
                 MaintenanceStatusKey,
                 json,
                 "System",
@@ -209,9 +203,6 @@ public class MaintenanceService : IMaintenanceService
                 isPublic: true,
                 settingType: SettingType.Config,
                 dataType: SettingDataType.Json,
-                encrypt: false,
-                cacheDurationMinutes: 0,
-                isCritical: true,
                 cancellationToken);
 
             if (!saveResult.IsSuccess)
