@@ -88,6 +88,7 @@ public class MaintenanceController : BaseApiController
     /// <param name="request">Maintenance settings including deployment ID.</param>
     /// <returns>Success or error result.</returns>
     [HttpPost("ci/enable")]
+    [AllowAnonymous]
     [DeploymentApiKey]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -110,6 +111,7 @@ public class MaintenanceController : BaseApiController
     /// </summary>
     /// <returns>Success or error result.</returns>
     [HttpPost("ci/disable")]
+    [AllowAnonymous]
     [DeploymentApiKey]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -128,6 +130,7 @@ public class MaintenanceController : BaseApiController
     /// <param name="request">Progress update including percentage and current step.</param>
     /// <returns>Success or error result.</returns>
     [HttpPost("ci/progress")]
+    [AllowAnonymous]
     [DeploymentApiKey]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
