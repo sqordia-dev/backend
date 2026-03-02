@@ -35,12 +35,30 @@ public static class WebApplicationExtensions
 
             var db = services.GetRequiredService<ApplicationDbContext>();
 
-            logger.LogInformation("Applying database migrations (will create database if it doesn't exist)...");
-            
-            // MigrateAsync will create the database if it doesn't exist
-            await db.Database.MigrateAsync();
-            
-            logger.LogInformation("Database migrations completed successfully.");
+            // Check for pending migrations before applying
+            var pendingMigrations = (await db.Database.GetPendingMigrationsAsync()).ToList();
+            var appliedMigrations = (await db.Database.GetAppliedMigrationsAsync()).ToList();
+
+            logger.LogInformation("Database migration status: {AppliedCount} applied, {PendingCount} pending",
+                appliedMigrations.Count, pendingMigrations.Count);
+
+            if (pendingMigrations.Any())
+            {
+                logger.LogInformation("Pending migrations to apply: {Migrations}",
+                    string.Join(", ", pendingMigrations));
+
+                logger.LogInformation("Applying database migrations...");
+
+                // MigrateAsync will create the database if it doesn't exist
+                await db.Database.MigrateAsync();
+
+                logger.LogInformation("Successfully applied {Count} migrations: {Migrations}",
+                    pendingMigrations.Count, string.Join(", ", pendingMigrations));
+            }
+            else
+            {
+                logger.LogInformation("Database is up to date. No migrations to apply.");
+            }
 
             // Seed database after migrations (only in Development or if explicitly enabled)
             await app.SeedDatabaseAsync();
@@ -53,18 +71,41 @@ public static class WebApplicationExtensions
             // PostgreSQL error codes:
             // 3D000 = database does not exist
             // 28P01 = authentication failed
-            logger.LogWarning(pgEx, "PostgreSQL database connection failed. Error: {Message}", pgEx.Message);
-            logger.LogInformation("For PostgreSQL, the database should be created manually or via migrations. Railway creates databases automatically.");
+            logger.LogError(pgEx, "PostgreSQL database connection failed. Error: {Message}", pgEx.Message);
+
+            var environment = services.GetRequiredService<IWebHostEnvironment>();
+            if (!environment.IsDevelopment())
+            {
+                logger.LogCritical("CRITICAL: Cannot connect to database in production. SqlState: {SqlState}", pgEx.SqlState);
+                throw;
+            }
         }
         catch (PostgresException pgEx)
         {
             // PostgreSQL-specific errors
             logger.LogError(pgEx, "PostgreSQL error occurred while applying database migrations. Error Code: {SqlState}, Message: {Message}", pgEx.SqlState, pgEx.Message);
-            logger.LogInformation("Application will continue without database connectivity. Please check your DATABASE_URL environment variable.");
+
+            var environment = services.GetRequiredService<IWebHostEnvironment>();
+            if (!environment.IsDevelopment())
+            {
+                logger.LogCritical("CRITICAL: Database migration failed in production. SqlState: {SqlState}", pgEx.SqlState);
+                throw;
+            }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "An error occurred while applying database migrations. Application will continue without database connectivity.");
+            logger.LogError(ex, "An error occurred while applying database migrations.");
+
+            // In production, we should fail fast if migrations fail
+            // This prevents the app from running with an incompatible database schema
+            var environment = services.GetRequiredService<IWebHostEnvironment>();
+            if (!environment.IsDevelopment())
+            {
+                logger.LogCritical("CRITICAL: Database migration failed in production. Application cannot start safely.");
+                throw; // Re-throw to prevent app from starting with broken schema
+            }
+
+            logger.LogWarning("Application will continue without database connectivity (Development mode only).");
         }
     }
 
