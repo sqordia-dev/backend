@@ -61,5 +61,10 @@ public interface IBusinessPlanService
     /// Duplicate a business plan
     /// </summary>
     Task<Result<BusinessPlanResponse>> DuplicateBusinessPlanAsync(Guid id, string? newTitle = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get dashboard statistics for the current user
+    /// </summary>
+    Task<Result<UserDashboardStatsResponse>> GetUserDashboardStatsAsync(CancellationToken cancellationToken = default);
 }
 

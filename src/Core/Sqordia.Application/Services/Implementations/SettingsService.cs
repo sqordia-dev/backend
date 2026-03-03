@@ -107,14 +107,46 @@ public class SettingsService : ISettingsService
     {
         try
         {
-            var result = await GetTypedSettingAsync<bool>(featureKey, cancellationToken);
-            if (!result.IsSuccess)
+            // Get the raw setting value first
+            var settingResult = await GetSettingAsync(featureKey, cancellationToken);
+            if (!settingResult.IsSuccess || string.IsNullOrWhiteSpace(settingResult.Value))
             {
                 // If feature flag doesn't exist, default to false
                 return Result.Success(false);
             }
 
-            return Result.Success(result.Value);
+            var value = settingResult.Value.Trim();
+
+            // Try simple boolean first
+            if (bool.TryParse(value, out var simpleBool))
+            {
+                return Result.Success(simpleBool);
+            }
+
+            // Try JSON format with isEnabled property
+            if (value.StartsWith("{"))
+            {
+                try
+                {
+                    var json = System.Text.Json.JsonDocument.Parse(value);
+                    if (json.RootElement.TryGetProperty("isEnabled", out var isEnabledProp))
+                    {
+                        return Result.Success(isEnabledProp.GetBoolean());
+                    }
+                    // Also check for PascalCase
+                    if (json.RootElement.TryGetProperty("IsEnabled", out var isEnabledPropPascal))
+                    {
+                        return Result.Success(isEnabledPropPascal.GetBoolean());
+                    }
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    // Invalid JSON, default to false
+                    _logger.LogWarning("Invalid JSON in feature flag '{FeatureKey}'", featureKey);
+                }
+            }
+
+            return Result.Success(false);
         }
         catch (Exception ex)
         {

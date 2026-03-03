@@ -15,13 +15,16 @@ namespace WebAPI.Controllers;
 public class PromptRegistryController : BaseApiController
 {
     private readonly IPromptRegistryService _service;
+    private readonly IPromptImprovementService _improvementService;
     private readonly ILogger<PromptRegistryController> _logger;
 
     public PromptRegistryController(
         IPromptRegistryService service,
+        IPromptImprovementService improvementService,
         ILogger<PromptRegistryController> logger)
     {
         _service = service;
+        _improvementService = improvementService;
         _logger = logger;
     }
 
@@ -243,6 +246,25 @@ public class PromptRegistryController : BaseApiController
     {
         _logger.LogInformation("Testing draft prompt for {SectionType}/{PlanType}", request.SectionType, request.PlanType);
         var result = await _service.TestDraftPromptAsync(request, ct);
+        return HandleResult(result);
+    }
+
+    #endregion
+
+    #region AI Improvement
+
+    /// <summary>
+    /// Improves a prompt using AI analysis
+    /// </summary>
+    [HttpPost("improve")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ImprovePrompt([FromBody] PromptImprovementRequest request, CancellationToken ct)
+    {
+        _logger.LogInformation("Improving prompt with focus area: {FocusArea}", request.FocusArea);
+        var result = await _improvementService.ImprovePromptAsync(request, ct);
         return HandleResult(result);
     }
 

@@ -403,6 +403,88 @@ public class AIConfigController : BaseApiController
         return Ok(models);
     }
 
+    /// <summary>
+    /// Get section-specific AI provider overrides
+    /// </summary>
+    [HttpGet("section-overrides")]
+    public async Task<IActionResult> GetSectionOverrides(CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Admin requesting AI section overrides");
+
+        try
+        {
+            var overridesResult = await _settingsService.GetSettingAsync("AI.SectionOverrides");
+
+            if (overridesResult.IsSuccess && !string.IsNullOrEmpty(overridesResult.Value))
+            {
+                try
+                {
+                    var overrides = JsonSerializer.Deserialize<Dictionary<string, SectionOverrideInfo>>(overridesResult.Value);
+                    return Ok(overrides ?? new Dictionary<string, SectionOverrideInfo>());
+                }
+                catch
+                {
+                    return Ok(new Dictionary<string, SectionOverrideInfo>());
+                }
+            }
+
+            return Ok(new Dictionary<string, SectionOverrideInfo>());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving AI section overrides");
+            return StatusCode(500, new { message = "Error retrieving section overrides", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Update section-specific AI provider overrides
+    /// </summary>
+    [HttpPost("section-overrides")]
+    public async Task<IActionResult> UpdateSectionOverrides(
+        [FromBody] Dictionary<string, SectionOverrideInfo> overrides,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Admin updating AI section overrides for {Count} sections", overrides.Count);
+
+        try
+        {
+            // Validate that all providers in overrides are valid
+            var validProviders = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "OpenAI", "Claude", "Gemini" };
+            foreach (var kvp in overrides)
+            {
+                if (!validProviders.Contains(kvp.Value.Provider))
+                {
+                    return BadRequest(new { message = $"Invalid provider '{kvp.Value.Provider}' for section '{kvp.Key}'" });
+                }
+            }
+
+            var overridesJson = JsonSerializer.Serialize(overrides);
+            await _settingsService.UpsertSettingAsync(
+                "AI.SectionOverrides",
+                overridesJson,
+                "AI",
+                "Section-specific AI provider overrides",
+                isPublic: false,
+                settingType: SettingType.Config,
+                dataType: SettingDataType.Json,
+                encrypt: false,
+                isCritical: false
+            );
+
+            // Invalidate factory cache to pick up new settings
+            _providerFactory.InvalidateCache();
+
+            _logger.LogInformation("AI section overrides updated successfully for {Count} sections", overrides.Count);
+            return Ok(new { message = "Section overrides updated successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating AI section overrides");
+            return StatusCode(500, new { message = "Error updating section overrides", error = ex.Message });
+        }
+    }
+
     // Helper methods
 
     private string MaskApiKey(string? apiKey)
@@ -488,4 +570,20 @@ public class AIConfigController : BaseApiController
             return (false, "Connection failed", ex.Message);
         }
     }
+}
+
+/// <summary>
+/// Represents a section-specific AI provider override
+/// </summary>
+public class SectionOverrideInfo
+{
+    /// <summary>
+    /// The AI provider to use for this section (OpenAI, Claude, Gemini)
+    /// </summary>
+    public required string Provider { get; set; }
+
+    /// <summary>
+    /// Optional specific model to use (if not specified, uses provider default)
+    /// </summary>
+    public string? Model { get; set; }
 }

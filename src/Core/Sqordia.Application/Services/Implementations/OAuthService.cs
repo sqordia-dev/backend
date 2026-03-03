@@ -48,7 +48,13 @@ public class OAuthService : IOAuthService
         var httpContext = _httpContextAccessor.HttpContext;
         if (httpContext?.Connection?.RemoteIpAddress != null)
         {
-            return httpContext.Connection.RemoteIpAddress.ToString();
+            var ip = httpContext.Connection.RemoteIpAddress;
+            // Convert IPv6-mapped IPv4 addresses to IPv4 format
+            if (ip.IsIPv4MappedToIPv6)
+            {
+                ip = ip.MapToIPv4();
+            }
+            return ip.ToString();
         }
         return "Unknown";
     }

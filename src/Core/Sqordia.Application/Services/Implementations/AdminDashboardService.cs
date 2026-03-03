@@ -53,12 +53,12 @@ public class AdminDashboardService : IAdminDashboardService
             var newOrganizationsToday = await _context.Organizations.CountAsync(o => o.Created >= today, cancellationToken);
             var newOrganizationsThisWeek = await _context.Organizations.CountAsync(o => o.Created >= weekStart, cancellationToken);
 
-            // Business plan statistics
-            var totalBusinessPlans = await _context.BusinessPlans.CountAsync(cancellationToken);
-            var completedBusinessPlans = await _context.BusinessPlans.CountAsync(bp => bp.CompletionPercentage >= 100, cancellationToken);
+            // Business plan statistics (excluding soft-deleted plans)
+            var totalBusinessPlans = await _context.BusinessPlans.CountAsync(bp => !bp.IsDeleted, cancellationToken);
+            var completedBusinessPlans = await _context.BusinessPlans.CountAsync(bp => !bp.IsDeleted && bp.CompletionPercentage >= 100, cancellationToken);
             var inProgressBusinessPlans = totalBusinessPlans - completedBusinessPlans;
-            var businessPlansCreatedToday = await _context.BusinessPlans.CountAsync(bp => bp.Created >= today, cancellationToken);
-            var businessPlansCreatedThisWeek = await _context.BusinessPlans.CountAsync(bp => bp.Created >= weekStart, cancellationToken);
+            var businessPlansCreatedToday = await _context.BusinessPlans.CountAsync(bp => !bp.IsDeleted && bp.Created >= today, cancellationToken);
+            var businessPlansCreatedThisWeek = await _context.BusinessPlans.CountAsync(bp => !bp.IsDeleted && bp.Created >= weekStart, cancellationToken);
 
             // Financial projections
             var totalFinancialProjections = await _context.BusinessPlanFinancialProjections.CountAsync(cancellationToken);

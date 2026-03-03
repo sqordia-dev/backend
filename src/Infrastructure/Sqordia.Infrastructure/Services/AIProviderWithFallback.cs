@@ -382,6 +382,47 @@ public class AIProviderWithFallback : IAIService
             lastException);
     }
 
+    public async Task<(string Content, int TokenCount)> GenerateChatResponseAsync(
+        string systemPrompt,
+        List<AIChatMessage> conversationHistory,
+        int maxTokens = 2000,
+        CancellationToken cancellationToken = default)
+    {
+        var providers = await GetProviderChainAsync();
+
+        Exception? lastException = null;
+
+        foreach (var provider in providers)
+        {
+            try
+            {
+                var providerName = provider.GetType().Name.Replace("Service", "");
+                _logger.LogInformation("Generating chat response with provider: {Provider}", providerName);
+
+                var result = await provider.GenerateChatResponseAsync(
+                    systemPrompt,
+                    conversationHistory,
+                    maxTokens,
+                    cancellationToken);
+
+                _logger.LogInformation("Successfully generated chat response with provider: {Provider}", providerName);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+                var providerName = provider.GetType().Name.Replace("Service", "");
+                _logger.LogWarning(ex, "Provider {Provider} failed to generate chat response. Trying next provider...", providerName);
+            }
+        }
+
+        _logger.LogError(lastException, "All AI providers failed to generate chat response");
+        throw new InvalidOperationException(
+            "All configured AI providers failed to generate chat response. Please check provider configurations and API keys.",
+            lastException);
+    }
+
     /// <summary>
     /// Gets the chain of providers to try (primary + fallbacks)
     /// </summary>

@@ -119,5 +119,35 @@ public interface IAIService
         BusinessMentorRequest request,
         string businessPlanContext,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Generates a chat response for multi-turn conversations
+    /// </summary>
+    /// <param name="systemPrompt">The system instructions for the AI</param>
+    /// <param name="conversationHistory">List of previous messages in the conversation</param>
+    /// <param name="maxTokens">Maximum number of tokens to generate</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>A tuple containing the response content and token count</returns>
+    Task<(string Content, int TokenCount)> GenerateChatResponseAsync(
+        string systemPrompt,
+        List<AIChatMessage> conversationHistory,
+        int maxTokens = 2000,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Represents a message in an AI chat conversation
+/// </summary>
+public class AIChatMessage
+{
+    /// <summary>
+    /// The role of the message sender: "user" or "assistant"
+    /// </summary>
+    public string Role { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The message content
+    /// </summary>
+    public string Content { get; set; } = string.Empty;
 }
 

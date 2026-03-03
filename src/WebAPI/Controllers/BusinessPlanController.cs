@@ -172,6 +172,28 @@ public class BusinessPlanController : BaseApiController
     }
 
     /// <summary>
+    /// Get dashboard statistics for the current user
+    /// </summary>
+    /// <remarks>
+    /// Returns aggregated statistics for the user's dashboard including:
+    /// - Total business plans
+    /// - Plans created this week vs last week
+    /// - Growth percentage
+    /// - Status breakdown (in progress, completed, generated)
+    /// - Daily activity for sparkline charts
+    /// </remarks>
+    /// <response code="200">Dashboard statistics</response>
+    /// <response code="401">Unauthorized - authentication required</response>
+    [HttpGet("stats")]
+    [ProducesResponseType(typeof(UserDashboardStatsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetUserDashboardStats(CancellationToken cancellationToken = default)
+    {
+        var result = await _businessPlanService.GetUserDashboardStatsAsync(cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
     /// Get business plans for an organization with optional pagination and filtering
     /// </summary>
     /// <param name="organizationId">The organization ID</param>

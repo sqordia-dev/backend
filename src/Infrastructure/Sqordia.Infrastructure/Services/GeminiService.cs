@@ -503,4 +503,53 @@ public class GeminiService : IAIService
             throw;
         }
     }
+
+    public async Task<(string Content, int TokenCount)> GenerateChatResponseAsync(
+        string systemPrompt,
+        List<AIChatMessage> conversationHistory,
+        int maxTokens = 2000,
+        CancellationToken cancellationToken = default)
+    {
+        if (_model == null)
+        {
+            _logger.LogWarning("Gemini service not configured");
+            throw new InvalidOperationException("Gemini service is not configured. Please provide a valid API key.");
+        }
+
+        try
+        {
+            _logger.LogInformation("Generating chat response with {MessageCount} messages in history", conversationHistory.Count);
+
+            // Build conversation context for Gemini
+            var conversationContext = new System.Text.StringBuilder();
+            conversationContext.AppendLine(systemPrompt);
+            conversationContext.AppendLine();
+
+            foreach (var message in conversationHistory)
+            {
+                var role = message.Role.ToLowerInvariant() == "user" ? "User" : "Assistant";
+                conversationContext.AppendLine($"{role}: {message.Content}");
+            }
+
+            var response = await _model.GenerateContent(conversationContext.ToString());
+            var content = response.Text ?? string.Empty;
+
+            // Estimate token count (Gemini doesn't always return usage data)
+            var tokenCount = EstimateTokenCount(content);
+
+            _logger.LogInformation("Chat response generated successfully with estimated {TokenCount} tokens", tokenCount);
+            return (content, tokenCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating chat response with Gemini");
+            throw;
+        }
+    }
+
+    private static int EstimateTokenCount(string text)
+    {
+        // Rough estimate: ~4 characters per token for English text
+        return (int)Math.Ceiling(text.Length / 4.0);
+    }
 }

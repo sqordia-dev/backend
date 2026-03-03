@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sqordia.Domain.Entities;
+using Sqordia.Domain.Entities.AICoach;
 using Sqordia.Domain.Entities.BusinessPlan;
 using Sqordia.Domain.Entities.Cms;
 using Sqordia.Domain.Entities.Identity;
@@ -123,6 +124,11 @@ public interface IApplicationDbContext
     // Bug Reports
     DbSet<BugReport> BugReports { get; }
     DbSet<BugReportAttachment> BugReportAttachments { get; }
+
+    // AI Coach
+    DbSet<AICoachConversation> AICoachConversations { get; }
+    DbSet<AICoachMessage> AICoachMessages { get; }
+    DbSet<AICoachUsage> AICoachUsages { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default);

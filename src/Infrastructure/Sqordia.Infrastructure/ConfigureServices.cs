@@ -341,6 +341,10 @@ public static class ConfigureServices
         // Register the main IAIService as the fallback wrapper (replaces direct OpenAIService registration)
         services.AddSingleton<IAIService, AIProviderWithFallback>();
 
+        // Register Prompt Improvement service for AI-powered prompt optimization
+        services.AddHttpClient("Anthropic");
+        services.AddScoped<IPromptImprovementService, PromptImprovementService>();
+
         // Document export service - Required for PDF/Word export
         services.AddTransient<IDocumentExportService, DocumentExportService>();
 
@@ -358,6 +362,9 @@ public static class ConfigureServices
         
         // AI Analysis service - Required for strategy suggestions, risk analysis, and business mentor
         services.AddTransient<IAIAnalysisService, AIAnalysisService>();
+
+        // AI Coach service - Required for multi-turn conversational coaching
+        services.AddScoped<IAICoachService, AICoachService>();
         
         // Currency conversion service - Required for multi-currency support
         services.AddTransient<ICurrencyConversionService, CurrencyConversionService>();

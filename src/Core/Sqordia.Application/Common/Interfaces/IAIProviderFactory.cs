@@ -11,6 +11,13 @@ public interface IAIProviderFactory
     Task<IAIService?> GetActiveProviderAsync();
 
     /// <summary>
+    /// Gets the AI provider for a specific section, respecting section overrides
+    /// </summary>
+    /// <param name="sectionType">The section type to get a provider for</param>
+    /// <returns>The section-specific provider if configured, otherwise the active provider</returns>
+    Task<IAIService?> GetProviderForSectionAsync(SectionType sectionType);
+
+    /// <summary>
     /// Gets the fallback providers in order based on settings
     /// </summary>
     Task<List<IAIService>> GetFallbackProvidersAsync();

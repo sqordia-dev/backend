@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Domain.Common;
 using Sqordia.Domain.Entities;
+using Sqordia.Domain.Entities.AICoach;
 using Sqordia.Domain.Entities.BusinessPlan;
 using Sqordia.Domain.Entities.Cms;
 using Sqordia.Domain.Entities.Identity;
@@ -125,6 +126,11 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     // Bug Reports
     public DbSet<BugReport> BugReports { get; set; }
     public DbSet<BugReportAttachment> BugReportAttachments { get; set; }
+
+    // AI Coach
+    public DbSet<AICoachConversation> AICoachConversations { get; set; }
+    public DbSet<AICoachMessage> AICoachMessages { get; set; }
+    public DbSet<AICoachUsage> AICoachUsages { get; set; }
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {

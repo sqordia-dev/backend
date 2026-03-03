@@ -22,6 +22,216 @@ namespace Sqordia.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Sqordia.Domain.Entities.AICoach.AICoachConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BusinessPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("en");
+
+                    b.Property<DateTime?>("LastMessageAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Persona")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("QuestionId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("QuestionNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("QuestionText")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int>("TotalTokensUsed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessPlanId")
+                        .HasDatabaseName("IX_AICoachConversations_BusinessPlanId");
+
+                    b.HasIndex("LastMessageAt")
+                        .HasDatabaseName("IX_AICoachConversations_LastMessageAt");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_AICoachConversations_UserId");
+
+                    b.HasIndex("UserId", "BusinessPlanId", "QuestionId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_AICoachConversations_UserId_BusinessPlanId_QuestionId");
+
+                    b.ToTable("AICoachConversations", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.AICoach.AICoachMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TokenCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId")
+                        .HasDatabaseName("IX_AICoachMessages_ConversationId");
+
+                    b.HasIndex("Created")
+                        .HasDatabaseName("IX_AICoachMessages_Created");
+
+                    b.HasIndex("ConversationId", "Sequence")
+                        .HasDatabaseName("IX_AICoachMessages_ConversationId_Sequence");
+
+                    b.ToTable("AICoachMessages", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.AICoach.AICoachUsage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TotalTokensUsed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Month")
+                        .HasDatabaseName("IX_AICoachUsages_Month");
+
+                    b.HasIndex("OrganizationId")
+                        .HasDatabaseName("IX_AICoachUsages_OrganizationId");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_AICoachUsages_UserId");
+
+                    b.HasIndex("UserId", "OrganizationId", "Month")
+                        .IsUnique()
+                        .HasDatabaseName("IX_AICoachUsages_UserId_OrganizationId_Month");
+
+                    b.ToTable("AICoachUsages", (string)null);
+                });
+
             modelBuilder.Entity("Sqordia.Domain.Entities.AIPrompt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5934,6 +6144,17 @@ namespace Sqordia.Persistence.Migrations
                     b.ToTable("TemplateUsages");
                 });
 
+            modelBuilder.Entity("Sqordia.Domain.Entities.AICoach.AICoachMessage", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.AICoach.AICoachConversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
             modelBuilder.Entity("Sqordia.Domain.Entities.AIPromptVersion", b =>
                 {
                     b.HasOne("Sqordia.Domain.Entities.AIPrompt", "AIPrompt")
@@ -6714,6 +6935,11 @@ namespace Sqordia.Persistence.Migrations
                     b.Navigation("Template");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.AICoach.AICoachConversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.BugReport", b =>

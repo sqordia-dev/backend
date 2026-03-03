@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
@@ -12,13 +13,16 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
 {
     private readonly IApplicationDbContext _context;
     private readonly ILogger<AdminQuestionTemplateService> _logger;
+    private readonly IAIProviderFactory _aiProviderFactory;
 
     public AdminQuestionTemplateService(
         IApplicationDbContext context,
-        ILogger<AdminQuestionTemplateService> logger)
+        ILogger<AdminQuestionTemplateService> logger,
+        IAIProviderFactory aiProviderFactory)
     {
         _context = context;
         _logger = logger;
+        _aiProviderFactory = aiProviderFactory;
     }
 
     public async Task<List<QuestionTemplateDto>> GetAllQuestionsAsync(
@@ -241,6 +245,170 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         await _context.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Toggled question template {QuestionId} active={IsActive}", questionId, isActive);
         return true;
+    }
+
+    public async Task<TestCoachPromptResponse?> TestCoachPromptAsync(
+        Guid questionId,
+        TestCoachPromptRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await _context.QuestionTemplatesV3
+            .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
+
+        if (entity == null)
+        {
+            _logger.LogWarning("Question template {QuestionId} not found for coach prompt test", questionId);
+            return null;
+        }
+
+        // Get the appropriate coach prompt based on language
+        var coachPrompt = request.Language == "en"
+            ? entity.CoachPromptEN ?? entity.CoachPromptFR
+            : entity.CoachPromptFR ?? entity.CoachPromptEN;
+
+        if (string.IsNullOrWhiteSpace(coachPrompt))
+        {
+            _logger.LogWarning("Question template {QuestionId} has no coach prompt for language {Language}",
+                questionId, request.Language);
+            return new TestCoachPromptResponse
+            {
+                Output = request.Language == "en"
+                    ? "This question has no coach prompt configured."
+                    : "Cette question n'a pas de prompt de coach configuré.",
+                TokensUsed = 0,
+                ResponseTimeMs = 0,
+                Provider = "None",
+                Model = "N/A"
+            };
+        }
+
+        // Get the question text for context
+        var questionText = request.Language == "en"
+            ? entity.QuestionTextEN ?? entity.QuestionTextFR
+            : entity.QuestionTextFR ?? entity.QuestionTextEN;
+
+        // Get the AI provider
+        IAIService? aiService = null;
+        string providerName = "Default";
+
+        if (!string.IsNullOrEmpty(request.Provider) &&
+            Enum.TryParse<AIProviderType>(request.Provider, true, out var providerType))
+        {
+            aiService = _aiProviderFactory.GetProvider(providerType);
+            providerName = request.Provider;
+        }
+
+        aiService ??= await _aiProviderFactory.GetActiveProviderAsync();
+
+        if (aiService == null)
+        {
+            _logger.LogError("No AI provider available for coach prompt test");
+            return new TestCoachPromptResponse
+            {
+                Output = request.Language == "en"
+                    ? "No AI provider is currently available. Please check your AI configuration."
+                    : "Aucun fournisseur d'IA n'est disponible actuellement. Veuillez vérifier votre configuration IA.",
+                TokensUsed = 0,
+                ResponseTimeMs = 0,
+                Provider = "None",
+                Model = "N/A"
+            };
+        }
+
+        // Build the system prompt for coaching
+        var systemPrompt = request.Language == "en"
+            ? """
+              You are an expert business coach helping entrepreneurs improve their business plan responses.
+              Your role is to provide constructive feedback, suggestions, and guidance based on the user's answer.
+              Be encouraging but honest. Focus on practical improvements.
+              Keep your response concise and actionable.
+              """
+            : """
+              Vous êtes un coach d'affaires expert aidant les entrepreneurs à améliorer leurs réponses de plan d'affaires.
+              Votre rôle est de fournir des commentaires constructifs, des suggestions et des conseils basés sur la réponse de l'utilisateur.
+              Soyez encourageant mais honnête. Concentrez-vous sur des améliorations pratiques.
+              Gardez votre réponse concise et actionnable.
+              """;
+
+        // Build the user prompt with context
+        var userPrompt = request.Language == "en"
+            ? $"""
+              Question: {questionText}
+
+              Coaching Instructions: {coachPrompt}
+
+              User's Answer: {request.Answer}
+
+              Please provide your coaching feedback based on the instructions above.
+              """
+            : $"""
+              Question: {questionText}
+
+              Instructions de coaching: {coachPrompt}
+
+              Réponse de l'utilisateur: {request.Answer}
+
+              Veuillez fournir vos commentaires de coaching basés sur les instructions ci-dessus.
+              """;
+
+        // Generate the response
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            var output = await aiService.GenerateContentAsync(
+                systemPrompt,
+                userPrompt,
+                request.MaxTokens,
+                (float)request.Temperature,
+                cancellationToken);
+
+            stopwatch.Stop();
+
+            // Estimate tokens (rough approximation: ~4 chars per token)
+            var estimatedTokens = (systemPrompt.Length + userPrompt.Length + output.Length) / 4;
+
+            _logger.LogInformation(
+                "Coach prompt test completed for question {QuestionId} using {Provider} in {ResponseTimeMs}ms",
+                questionId, providerName, stopwatch.ElapsedMilliseconds);
+
+            return new TestCoachPromptResponse
+            {
+                Output = output,
+                TokensUsed = estimatedTokens,
+                ResponseTimeMs = stopwatch.ElapsedMilliseconds,
+                Provider = providerName,
+                Model = GetModelName(aiService)
+            };
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            _logger.LogError(ex, "Error testing coach prompt for question {QuestionId}", questionId);
+
+            return new TestCoachPromptResponse
+            {
+                Output = request.Language == "en"
+                    ? $"Error generating response: {ex.Message}"
+                    : $"Erreur lors de la génération de la réponse: {ex.Message}",
+                TokensUsed = 0,
+                ResponseTimeMs = stopwatch.ElapsedMilliseconds,
+                Provider = providerName,
+                Model = "Error"
+            };
+        }
+    }
+
+    private static string GetModelName(IAIService aiService)
+    {
+        var typeName = aiService.GetType().Name;
+        return typeName switch
+        {
+            "OpenAIService" => "GPT-4",
+            "ClaudeService" or "AnthropicService" => "Claude-3",
+            "GeminiService" or "GoogleService" => "Gemini-Pro",
+            _ => typeName.Replace("Service", "")
+        };
     }
 
     private static QuestionTemplateDto MapToDto(QuestionTemplateV3 entity)

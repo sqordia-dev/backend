@@ -1348,5 +1348,66 @@ Guidelines:
             throw;
         }
     }
+
+    public async Task<(string Content, int TokenCount)> GenerateChatResponseAsync(
+        string systemPrompt,
+        List<AIChatMessage> conversationHistory,
+        int maxTokens = 2000,
+        CancellationToken cancellationToken = default)
+    {
+        if (_chatClient == null)
+        {
+            _logger.LogWarning("OpenAI service not configured");
+            throw new InvalidOperationException("OpenAI service is not configured. Please provide a valid API key.");
+        }
+
+        try
+        {
+            _logger.LogInformation("Generating chat response with {MessageCount} messages in history", conversationHistory.Count);
+
+            var messages = new List<OpenAI.Chat.ChatMessage>
+            {
+                OpenAI.Chat.ChatMessage.CreateSystemMessage(systemPrompt)
+            };
+
+            foreach (var message in conversationHistory)
+            {
+                if (message.Role.ToLowerInvariant() == "user")
+                {
+                    messages.Add(OpenAI.Chat.ChatMessage.CreateUserMessage(message.Content));
+                }
+                else
+                {
+                    messages.Add(OpenAI.Chat.ChatMessage.CreateAssistantMessage(message.Content));
+                }
+            }
+
+            var options = new ChatCompletionOptions
+            {
+                MaxOutputTokenCount = maxTokens,
+                Temperature = 0.7f
+            };
+
+            var response = await _chatClient.CompleteChatAsync(messages, options, cancellationToken);
+            var content = response.Value.Content[0].Text;
+
+            // Get token count from response usage
+            var tokenCount = response.Value.Usage?.OutputTokenCount ?? EstimateTokenCount(content);
+
+            _logger.LogInformation("Chat response generated successfully with {TokenCount} tokens", tokenCount);
+            return (content, tokenCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating chat response with OpenAI");
+            throw;
+        }
+    }
+
+    private static int EstimateTokenCount(string text)
+    {
+        // Rough estimate: ~4 characters per token for English text
+        return (int)Math.Ceiling(text.Length / 4.0);
+    }
 }
 

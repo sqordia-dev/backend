@@ -5,6 +5,18 @@ namespace Sqordia.Application.Common.Interfaces;
 
 public interface IAdminQuestionTemplateService
 {
+    /// <summary>
+    /// Tests a question's coach prompt by generating AI coaching feedback for a sample answer
+    /// </summary>
+    /// <param name="questionId">The question template ID</param>
+    /// <param name="request">The test request with answer and AI settings</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The AI-generated coaching response with metadata</returns>
+    Task<TestCoachPromptResponse?> TestCoachPromptAsync(
+        Guid questionId,
+        TestCoachPromptRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<List<QuestionTemplateDto>> GetAllQuestionsAsync(
         int? stepNumber = null,
         string? personaType = null,

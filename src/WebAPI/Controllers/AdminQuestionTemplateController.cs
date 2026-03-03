@@ -144,4 +144,32 @@ public class AdminQuestionTemplateController : BaseApiController
         if (!success) return NotFound();
         return Ok(new { message = $"Question {(isActive ? "activated" : "deactivated")} successfully" });
     }
+
+    /// <summary>
+    /// Test a question's coach prompt with a sample answer
+    /// </summary>
+    /// <param name="questionId">The question template ID</param>
+    /// <param name="request">The test request containing the answer and AI settings</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>AI-generated coaching feedback with performance metrics</returns>
+    [HttpPost("{questionId:guid}/test-coach-prompt")]
+    [ProducesResponseType(typeof(TestCoachPromptResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> TestCoachPrompt(
+        Guid questionId,
+        [FromBody] TestCoachPromptRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _service.TestCoachPromptAsync(questionId, request, cancellationToken);
+            if (response == null) return NotFound(new { error = "Question template not found" });
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 }

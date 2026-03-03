@@ -13,6 +13,7 @@ public class AIProviderFactory : IAIProviderFactory
     private readonly ILogger<AIProviderFactory> _logger;
     private string? _cachedActiveProvider;
     private List<string>? _cachedFallbackProviders;
+    private Dictionary<string, SectionOverrideConfig>? _cachedSectionOverrides;
     private DateTime _lastCacheTime = DateTime.MinValue;
     private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(5);
 
@@ -95,11 +96,42 @@ public class AIProviderFactory : IAIProviderFactory
         };
     }
 
+    public async Task<IAIService?> GetProviderForSectionAsync(SectionType sectionType)
+    {
+        try
+        {
+            var overrides = await GetSectionOverridesAsync();
+            var sectionKey = sectionType.ToString();
+
+            if (overrides.TryGetValue(sectionKey, out var overrideConfig))
+            {
+                var provider = GetProviderByName(overrideConfig.Provider);
+                if (provider != null)
+                {
+                    _logger.LogDebug("Using override provider {Provider} for section {Section}",
+                        overrideConfig.Provider, sectionKey);
+                    return provider;
+                }
+                _logger.LogWarning("Override provider {Provider} for section {Section} could not be resolved. Using default.",
+                    overrideConfig.Provider, sectionKey);
+            }
+
+            // Fall back to active provider
+            return await GetActiveProviderAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting provider for section {Section}. Falling back to default.", sectionType);
+            return await GetActiveProviderAsync();
+        }
+    }
+
     public void InvalidateCache()
     {
         _logger.LogInformation("Invalidating AI provider cache");
         _cachedActiveProvider = null;
         _cachedFallbackProviders = null;
+        _cachedSectionOverrides = null;
         _lastCacheTime = DateTime.MinValue;
     }
 
@@ -180,6 +212,43 @@ public class AIProviderFactory : IAIProviderFactory
         return _cachedFallbackProviders;
     }
 
+    private async Task<Dictionary<string, SectionOverrideConfig>> GetSectionOverridesAsync()
+    {
+        // Check if cache is still valid
+        if (_cachedSectionOverrides != null && DateTime.UtcNow - _lastCacheTime < _cacheExpiration)
+        {
+            return _cachedSectionOverrides;
+        }
+
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var settingsService = scope.ServiceProvider.GetService<ISettingsService>();
+            if (settingsService != null)
+            {
+                var result = await settingsService.GetSettingAsync("AI.SectionOverrides");
+                if (result.IsSuccess && !string.IsNullOrEmpty(result.Value))
+                {
+                    var overrides = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, SectionOverrideConfig>>(result.Value);
+                    if (overrides != null)
+                    {
+                        _cachedSectionOverrides = overrides;
+                        _logger.LogInformation("Loaded AI section overrides for {Count} sections", overrides.Count);
+                        return _cachedSectionOverrides;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read section overrides from settings.");
+        }
+
+        // Default: No section overrides
+        _cachedSectionOverrides = new Dictionary<string, SectionOverrideConfig>();
+        return _cachedSectionOverrides;
+    }
+
     private IAIService? GetProviderByName(string providerName)
     {
         return providerName.ToLower() switch
@@ -190,4 +259,13 @@ public class AIProviderFactory : IAIProviderFactory
             _ => null
         };
     }
+}
+
+/// <summary>
+/// Configuration for a section-specific AI provider override
+/// </summary>
+public class SectionOverrideConfig
+{
+    public required string Provider { get; set; }
+    public string? Model { get; set; }
 }

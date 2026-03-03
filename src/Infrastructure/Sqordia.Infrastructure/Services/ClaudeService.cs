@@ -519,4 +519,61 @@ public class ClaudeService : IAIService
             throw;
         }
     }
+
+    public async Task<(string Content, int TokenCount)> GenerateChatResponseAsync(
+        string systemPrompt,
+        List<AIChatMessage> conversationHistory,
+        int maxTokens = 2000,
+        CancellationToken cancellationToken = default)
+    {
+        if (_client == null)
+        {
+            _logger.LogWarning("Claude service not configured");
+            throw new InvalidOperationException("Claude service is not configured. Please provide a valid API key.");
+        }
+
+        try
+        {
+            _logger.LogInformation("Generating chat response with {MessageCount} messages in history", conversationHistory.Count);
+
+            var messages = conversationHistory.Select(m => new Message
+            {
+                Role = m.Role.ToLowerInvariant() == "user" ? RoleType.User : RoleType.Assistant,
+                Content = new List<ContentBase>
+                {
+                    new TextContent { Text = m.Content }
+                }
+            }).ToList();
+
+            var parameters = new MessageParameters
+            {
+                Model = _settings.Model,
+                Messages = messages,
+                MaxTokens = maxTokens,
+                Temperature = 0.7m,
+                System = new List<SystemMessage> { new SystemMessage(systemPrompt) }
+            };
+
+            var response = await _client.Messages.GetClaudeMessageAsync(parameters, cancellationToken);
+            var textContent = response.Content.FirstOrDefault() as TextContent;
+            var content = textContent?.Text ?? string.Empty;
+
+            // Calculate approximate token count (Claude returns usage data)
+            var tokenCount = response.Usage?.OutputTokens ?? EstimateTokenCount(content);
+
+            _logger.LogInformation("Chat response generated successfully with {TokenCount} tokens", tokenCount);
+            return (content, tokenCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating chat response with Claude");
+            throw;
+        }
+    }
+
+    private static int EstimateTokenCount(string text)
+    {
+        // Rough estimate: ~4 characters per token for English text
+        return (int)Math.Ceiling(text.Length / 4.0);
+    }
 }

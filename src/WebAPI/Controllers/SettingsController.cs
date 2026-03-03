@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sqordia.Application.Common.Models;
 using Sqordia.Application.Services;
+using Sqordia.Contracts.Requests.Settings;
+using Sqordia.Contracts.Responses.Settings;
 using Sqordia.Domain.Enums;
 using WebAPI.Controllers;
 
@@ -206,6 +208,156 @@ public class SettingsController : BaseApiController
     public async Task<IActionResult> DisableFeature(string featureName, CancellationToken cancellationToken)
     {
         var result = await _featureFlagsService.DisableFeatureAsync(featureName, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get all feature flags with detailed metadata (admin only)
+    /// </summary>
+    /// <returns>List of feature flags with metadata</returns>
+    [HttpGet("features/detailed")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(typeof(FeatureFlagListResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAllFeaturesDetailed(CancellationToken cancellationToken)
+    {
+        var result = await _featureFlagsService.GetAllFeaturesDetailedAsync(cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get a specific feature flag with detailed metadata (admin only)
+    /// </summary>
+    /// <param name="featureName">Feature name</param>
+    /// <returns>Feature flag with metadata</returns>
+    [HttpGet("features/{featureName}/detailed")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(typeof(FeatureFlagResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetFeatureDetailed(string featureName, CancellationToken cancellationToken)
+    {
+        var result = await _featureFlagsService.GetFeatureDetailedAsync(featureName, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Create a new feature flag with metadata (admin only)
+    /// </summary>
+    /// <param name="request">Feature flag creation request</param>
+    /// <returns>Created feature flag</returns>
+    [HttpPost("features")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(typeof(FeatureFlagResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> CreateFeature([FromBody] CreateFeatureFlagRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var result = await _featureFlagsService.CreateFeatureAsync(request, cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            return CreatedAtAction(nameof(GetFeatureDetailed), new { featureName = request.Name }, result.Value);
+        }
+
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Update a feature flag's metadata (admin only)
+    /// </summary>
+    /// <param name="featureName">Feature name</param>
+    /// <param name="request">Update request</param>
+    /// <returns>Updated feature flag</returns>
+    [HttpPatch("features/{featureName}")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(typeof(FeatureFlagResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> UpdateFeatureMetadata(string featureName, [FromBody] UpdateFeatureFlagRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var result = await _featureFlagsService.UpdateFeatureMetadataAsync(featureName, request, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Toggle a feature flag's enabled state (admin only)
+    /// </summary>
+    /// <param name="featureName">Feature name</param>
+    /// <param name="request">Toggle request</param>
+    /// <returns>Updated feature flag</returns>
+    [HttpPost("features/{featureName}/toggle")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(typeof(FeatureFlagResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ToggleFeature(string featureName, [FromBody] ToggleFeatureFlagRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        Result result;
+        if (request.IsEnabled)
+        {
+            result = await _featureFlagsService.EnableFeatureAsync(featureName, cancellationToken);
+        }
+        else
+        {
+            result = await _featureFlagsService.DisableFeatureAsync(featureName, cancellationToken);
+        }
+
+        if (!result.IsSuccess)
+        {
+            return HandleResult(result);
+        }
+
+        var detailedResult = await _featureFlagsService.GetFeatureDetailedAsync(featureName, cancellationToken);
+        return HandleResult(detailedResult);
+    }
+
+    /// <summary>
+    /// Mark a feature flag as stale (admin only)
+    /// </summary>
+    /// <param name="featureName">Feature name</param>
+    /// <returns>Success result</returns>
+    [HttpPost("features/{featureName}/stale")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> MarkFeatureAsStale(string featureName, CancellationToken cancellationToken)
+    {
+        var result = await _featureFlagsService.MarkAsStaleAsync(featureName, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Archive a feature flag (admin only)
+    /// </summary>
+    /// <param name="featureName">Feature name</param>
+    /// <returns>Success result</returns>
+    [HttpDelete("features/{featureName}/archive")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ArchiveFeature(string featureName, CancellationToken cancellationToken)
+    {
+        var result = await _featureFlagsService.ArchiveFeatureAsync(featureName, cancellationToken);
         return HandleResult(result);
     }
 

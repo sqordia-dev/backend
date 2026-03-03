@@ -1046,5 +1046,112 @@ public class BusinessPlanService : IBusinessPlanService
         destination.UpdateGrantStrategy(source.GrantStrategy);
         destination.UpdateSustainabilityPlan(source.SustainabilityPlan);
     }
+
+    /// <inheritdoc />
+    public async Task<Result<UserDashboardStatsResponse>> GetUserDashboardStatsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var userId = _currentUserService.GetUserIdAsGuid();
+            if (userId == null)
+            {
+                return Result.Failure<UserDashboardStatsResponse>(Error.Unauthorized("Auth.Unauthorized", "User not authenticated"));
+            }
+
+            var now = DateTime.UtcNow;
+            var today = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Utc);
+            var thisWeekStart = today.AddDays(-(int)today.DayOfWeek);
+            var lastWeekStart = thisWeekStart.AddDays(-7);
+            var lastWeekEnd = thisWeekStart;
+            var sevenDaysAgo = today.AddDays(-7);
+
+            // Get user's business plans (CreatedBy is stored as string)
+            var userIdString = userId.Value.ToString();
+            var userPlans = await _context.BusinessPlans
+                .Where(bp => bp.CreatedBy == userIdString && !bp.IsDeleted)
+                .Select(bp => new
+                {
+                    bp.Id,
+                    bp.Created,
+                    bp.Status,
+                    bp.CompletionPercentage,
+                    bp.LastModified
+                })
+                .ToListAsync(cancellationToken);
+
+            var totalPlans = userPlans.Count;
+            var plansThisWeek = userPlans.Count(p => p.Created >= thisWeekStart);
+            var plansLastWeek = userPlans.Count(p => p.Created >= lastWeekStart && p.Created < lastWeekEnd);
+
+            // Calculate growth percentage
+            decimal growthPercentage = 0;
+            bool isPositiveTrend = true;
+            if (plansLastWeek > 0)
+            {
+                growthPercentage = ((decimal)(plansThisWeek - plansLastWeek) / plansLastWeek) * 100;
+                isPositiveTrend = growthPercentage >= 0;
+            }
+            else if (plansThisWeek > 0)
+            {
+                growthPercentage = 100; // 100% growth from 0
+                isPositiveTrend = true;
+            }
+
+            // Count by status (Draft, QuestionnaireComplete, Generating, InReview = in progress)
+            var inProgress = userPlans.Count(p =>
+                p.Status == BusinessPlanStatus.Draft ||
+                p.Status == BusinessPlanStatus.QuestionnaireComplete ||
+                p.Status == BusinessPlanStatus.Generating ||
+                p.Status == BusinessPlanStatus.InReview);
+            var completed = userPlans.Count(p =>
+                p.Status == BusinessPlanStatus.Complete ||
+                p.Status == BusinessPlanStatus.Finalized ||
+                p.CompletionPercentage >= 100);
+            var generated = userPlans.Count(p =>
+                p.Status == BusinessPlanStatus.Generated ||
+                p.Status == BusinessPlanStatus.Exported);
+
+            // Get daily activity for the last 7 days
+            var dailyActivity = Enumerable.Range(0, 7)
+                .Select(i =>
+                {
+                    var date = today.AddDays(-6 + i);
+                    var nextDate = date.AddDays(1);
+                    return new DailyPlanCount
+                    {
+                        Date = date,
+                        Count = userPlans.Count(p => p.Created >= date && p.Created < nextDate)
+                    };
+                })
+                .ToList();
+
+            // Get last activity date
+            var lastActivity = userPlans
+                .Select(p => p.LastModified ?? p.Created)
+                .OrderByDescending(d => d)
+                .FirstOrDefault();
+
+            var response = new UserDashboardStatsResponse
+            {
+                TotalPlans = totalPlans,
+                PlansCreatedThisWeek = plansThisWeek,
+                PlansCreatedLastWeek = plansLastWeek,
+                GrowthPercentage = Math.Round(growthPercentage, 1),
+                IsPositiveTrend = isPositiveTrend,
+                InProgressPlans = inProgress,
+                CompletedPlans = completed,
+                GeneratedPlans = generated,
+                DailyActivity = dailyActivity,
+                LastActivityDate = lastActivity != default ? lastActivity : null
+            };
+
+            return Result.Success(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting user dashboard stats");
+            return Result.Failure<UserDashboardStatsResponse>(Error.Failure("BusinessPlan.StatsError", "Failed to retrieve dashboard statistics"));
+        }
+    }
 }
 
