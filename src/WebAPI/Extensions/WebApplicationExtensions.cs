@@ -158,9 +158,6 @@ public static class WebApplicationExtensions
             appBuilder.UseAuthorization();
         });
 
-        // Maintenance mode middleware - after auth so we can check admin status
-        app.UseMiddleware<MaintenanceMiddleware>();
-
         // Map controllers
         app.MapControllers();
 

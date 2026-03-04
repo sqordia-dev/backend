@@ -79,19 +79,5 @@ public interface ISettingsService
     /// </summary>
     Task<Result> RefreshCacheAsync(string? key = null, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Create or update a system-level setting without requiring user auth.
-    /// Only allows specific system keys (e.g., System:MaintenanceStatus).
-    /// Used by background services and CI/CD webhooks.
-    /// </summary>
-    Task<Result> UpsertSystemSettingAsync(
-        string key,
-        string value,
-        string category,
-        string? description = null,
-        bool isPublic = false,
-        SettingType settingType = SettingType.Config,
-        SettingDataType dataType = SettingDataType.String,
-        CancellationToken cancellationToken = default);
 }
 

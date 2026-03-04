@@ -76,9 +76,6 @@ try
     builder.Services.AddCompressionServices();
     builder.Services.AddCachingServices();
 
-    // Background services
-    builder.Services.AddHostedService<WebAPI.BackgroundServices.MaintenanceAutoDisableService>();
-
     var app = builder.Build();
 
     await app.ApplyDatabaseMigrationsAsync();

@@ -628,31 +628,35 @@ public class QuestionnaireVersionService : IQuestionnaireVersionService
 
     private async Task<(string questionsSnapshot, string stepsSnapshot)> GetLiveDataSnapshotsAsync(CancellationToken ct)
     {
-        // Get all active questions from QuestionTemplatesV2
-        var questions = await _context.QuestionTemplatesV2
+        // Get all active questions from QuestionTemplatesV3 (STRUCTURE FINALE)
+        var questions = await _context.QuestionTemplatesV3
             .Where(q => q.IsActive)
             .OrderBy(q => q.StepNumber)
-            .ThenBy(q => q.Order)
+            .ThenBy(q => q.DisplayOrder)
             .ToListAsync(ct);
 
         var questionDtos = questions.Select(q => new QuestionTemplateDto
         {
             Id = q.Id,
-            QuestionText = q.QuestionText,
+            QuestionText = q.QuestionTextFR,
             QuestionTextEN = q.QuestionTextEN,
-            HelpText = q.HelpText,
+            HelpText = q.HelpTextFR,
             HelpTextEN = q.HelpTextEN,
             QuestionType = q.QuestionType.ToString(),
             StepNumber = q.StepNumber,
             PersonaType = q.PersonaType?.ToString(),
-            Order = q.Order,
+            Order = q.DisplayOrder,
             IsRequired = q.IsRequired,
-            Section = q.Section,
+            Section = q.SectionGroup,
             Icon = q.Icon,
-            Options = q.Options,
+            Options = q.OptionsFR,
             OptionsEN = q.OptionsEN,
             ValidationRules = q.ValidationRules,
             ConditionalLogic = q.ConditionalLogic,
+            ExpertAdviceFR = q.ExpertAdviceFR,
+            ExpertAdviceEN = q.ExpertAdviceEN,
+            CoachPromptFR = q.CoachPromptFR,
+            CoachPromptEN = q.CoachPromptEN,
             IsActive = q.IsActive,
             Created = q.Created,
             LastModified = q.LastModified
@@ -733,9 +737,10 @@ public class QuestionnaireVersionService : IQuestionnaireVersionService
             }
         }
 
-        // Sync questions to QuestionTemplatesV2 table
-        var existingQuestions = await _context.QuestionTemplatesV2.ToListAsync(ct);
+        // Sync questions to QuestionTemplatesV3 table (STRUCTURE FINALE)
+        var existingQuestions = await _context.QuestionTemplatesV3.ToListAsync(ct);
         var snapshotQuestionIds = questions.Select(q => q.Id).ToHashSet();
+        var maxQuestionNumber = existingQuestions.Any() ? existingQuestions.Max(q => q.QuestionNumber) : 0;
 
         // Update or create questions from snapshot
         foreach (var questionDto in questions)
@@ -744,27 +749,33 @@ public class QuestionnaireVersionService : IQuestionnaireVersionService
 
             if (existingQuestion != null)
             {
-                // Update existing question
+                // Update existing V3 question
                 var questionType = Enum.Parse<QuestionType>(questionDto.QuestionType);
-                var personaType = string.IsNullOrEmpty(questionDto.PersonaType)
-                    ? (PersonaType?)null
-                    : Enum.Parse<PersonaType>(questionDto.PersonaType);
 
-                existingQuestion.UpdateCoreFields(
-                    questionDto.QuestionText,
+                existingQuestion.Update(
+                    questionDto.QuestionText,       // maps to QuestionTextFR
+                    questionDto.QuestionTextEN ?? questionDto.QuestionText,
+                    questionDto.HelpText,           // maps to HelpTextFR
+                    questionDto.HelpTextEN,
                     questionType,
-                    questionDto.StepNumber,
-                    personaType,
-                    questionDto.IsRequired);
+                    questionDto.Options,            // maps to OptionsFR
+                    questionDto.OptionsEN,
+                    questionDto.ValidationRules,
+                    questionDto.ConditionalLogic,
+                    questionDto.ExpertAdviceFR,
+                    questionDto.ExpertAdviceEN,
+                    questionDto.Order,              // maps to DisplayOrder
+                    questionDto.IsRequired,
+                    questionDto.Icon);
 
-                existingQuestion.SetEnglishText(questionDto.QuestionTextEN, questionDto.HelpTextEN, questionDto.OptionsEN);
-                existingQuestion.SetHelpText(questionDto.HelpText, questionDto.HelpTextEN);
-                existingQuestion.SetOptions(questionDto.Options, questionDto.OptionsEN);
-                existingQuestion.SetValidationRules(questionDto.ValidationRules);
-                existingQuestion.SetConditionalLogic(questionDto.ConditionalLogic);
-                existingQuestion.SetIcon(questionDto.Icon);
-                existingQuestion.UpdateOrder(questionDto.Order);
-                existingQuestion.UpdateSection(questionDto.Section);
+                existingQuestion.SetCoachPrompts(questionDto.CoachPromptFR, questionDto.CoachPromptEN);
+                existingQuestion.SetSectionGroup(questionDto.Section);
+                existingQuestion.UpdateStepNumber(questionDto.StepNumber);
+
+                if (!string.IsNullOrEmpty(questionDto.PersonaType))
+                    existingQuestion.SetPersonaType(Enum.Parse<PersonaType>(questionDto.PersonaType));
+                else
+                    existingQuestion.SetPersonaType(null);
 
                 if (questionDto.IsActive)
                     existingQuestion.Activate();
@@ -773,32 +784,40 @@ public class QuestionnaireVersionService : IQuestionnaireVersionService
             }
             else
             {
-                // Create new question
+                // Create new V3 question
                 var questionType = Enum.Parse<QuestionType>(questionDto.QuestionType);
                 var personaType = string.IsNullOrEmpty(questionDto.PersonaType)
                     ? (PersonaType?)null
                     : Enum.Parse<PersonaType>(questionDto.PersonaType);
 
-                var newQuestion = new QuestionTemplateV2(
+                maxQuestionNumber++;
+                var newQuestion = QuestionTemplateV3.Create(
+                    maxQuestionNumber,
+                    personaType,
                     questionDto.StepNumber,
-                    questionDto.QuestionText,
+                    questionDto.QuestionText,       // QuestionTextFR
+                    questionDto.QuestionTextEN ?? questionDto.QuestionText,
+                    questionDto.HelpText,           // HelpTextFR
+                    questionDto.HelpTextEN,
                     questionType,
-                    questionDto.Order,
+                    questionDto.Options,            // OptionsFR
+                    questionDto.OptionsEN,
+                    questionDto.ValidationRules,
+                    questionDto.ConditionalLogic,
+                    questionDto.CoachPromptFR,
+                    questionDto.CoachPromptEN,
+                    questionDto.ExpertAdviceFR,
+                    questionDto.ExpertAdviceEN,
+                    questionDto.Order,              // DisplayOrder
                     questionDto.IsRequired,
-                    questionDto.Section,
-                    personaType);
+                    questionDto.Icon);
 
-                newQuestion.SetEnglishText(questionDto.QuestionTextEN, questionDto.HelpTextEN, questionDto.OptionsEN);
-                newQuestion.SetHelpText(questionDto.HelpText, questionDto.HelpTextEN);
-                newQuestion.SetOptions(questionDto.Options, questionDto.OptionsEN);
-                newQuestion.SetValidationRules(questionDto.ValidationRules);
-                newQuestion.SetConditionalLogic(questionDto.ConditionalLogic);
-                newQuestion.SetIcon(questionDto.Icon);
+                newQuestion.SetSectionGroup(questionDto.Section);
 
                 if (!questionDto.IsActive)
                     newQuestion.Deactivate();
 
-                _context.QuestionTemplatesV2.Add(newQuestion);
+                _context.QuestionTemplatesV3.Add(newQuestion);
             }
         }
 

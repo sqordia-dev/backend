@@ -34,6 +34,14 @@ public static class CmsPageRegistry
             new CmsSectionDefinition("questionnaire.labels", "Labels & Buttons", 1),
             new CmsSectionDefinition("questionnaire.tips", "Generation Tips", 2),
         }),
+        new("question_templates", "Questions", new[]
+        {
+            new CmsSectionDefinition("question_templates.step1", "Step 1: Vision & Mission", 0),
+            new CmsSectionDefinition("question_templates.step2", "Step 2: Market & Customers", 1),
+            new CmsSectionDefinition("question_templates.step3", "Step 3: Products & Services", 2),
+            new CmsSectionDefinition("question_templates.step4", "Step 4: Strategy & Operations", 3),
+            new CmsSectionDefinition("question_templates.step5", "Step 5: Financials & Growth", 4),
+        }),
         new("create_plan", "Create Plan", new[]
         {
             new CmsSectionDefinition("create_plan.labels", "Labels & Titles", 0),

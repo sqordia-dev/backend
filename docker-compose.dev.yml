@@ -34,11 +34,14 @@ services:
       - AI__OpenAI__Model=${OPENAI_MODEL:-gpt-4o}
       
       # AI Provider Configuration
-      - AI__DefaultProvider=OpenAI
-      - AI__FallbackProviders=
+      - AI__DefaultProvider=Claude
+      - AI__FallbackProviders=["OpenAI"]
 
-      # Alternative AI Providers (disabled for now)
-      # - AI__Claude__ApiKey=${CLAUDE_API_KEY:-}
+      # Claude API Configuration
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
+      - AI__Claude__ApiKey=${CLAUDE_API_KEY:-}
+
+      # Alternative AI Providers
       # - AI__Gemini__ApiKey=${GEMINI_API_KEY:-}
       
       # Resend Email Configuration (preferred - set RESEND_API_KEY in .env file)

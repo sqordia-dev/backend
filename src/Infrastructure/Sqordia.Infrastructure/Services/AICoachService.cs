@@ -202,6 +202,7 @@ public class AICoachService : IAICoachService
                 0, // User messages don't count towards token usage
                 conversation.Messages.Count + 1);
             conversation.AddMessage(userMessage);
+            _dbContext.AICoachMessages.Add(userMessage);
 
             // Build conversation history
             var conversationHistory = conversation.Messages
@@ -228,6 +229,7 @@ public class AICoachService : IAICoachService
                 tokenCount,
                 conversation.Messages.Count + 1);
             conversation.AddMessage(assistantMessage);
+            _dbContext.AICoachMessages.Add(assistantMessage);
 
             // Update token usage
             await UpdateTokenUsageAsync(userId, null, tokenCount, cancellationToken);

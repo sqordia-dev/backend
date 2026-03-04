@@ -716,6 +716,139 @@ BEGIN
 END $$;
 
 -- ============================================================================
+-- Part 7: Feature Flags
+-- ============================================================================
+DO $$
+DECLARE
+    v_now TIMESTAMP := NOW();
+BEGIN
+    RAISE NOTICE 'Seeding feature flags...';
+
+    -- AI Features
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:AIGenerationEnabled',
+        '{"isEnabled":true,"description":"Enable AI-powered content generation","category":"AI","tags":["ai","core"],"type":1,"state":0}',
+        'Features', 'Enable AI-powered content generation', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:AIGenerationEnabled');
+
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:UseClaudeAsDefault',
+        '{"isEnabled":false,"description":"Use Claude as the default AI provider","category":"AI","tags":["ai","provider"],"type":1,"state":0}',
+        'Features', 'Use Claude as the default AI provider', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:UseClaudeAsDefault');
+
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:UseGeminiAsDefault',
+        '{"isEnabled":false,"description":"Use Gemini as the default AI provider","category":"AI","tags":["ai","provider"],"type":1,"state":0}',
+        'Features', 'Use Gemini as the default AI provider', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:UseGeminiAsDefault');
+
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:EnableAIFallbackMode',
+        '{"isEnabled":true,"description":"Enable fallback to alternative AI providers","category":"AI","tags":["ai","fallback"],"type":1,"state":0}',
+        'Features', 'Enable fallback to alternative AI providers', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:EnableAIFallbackMode');
+
+    -- Export Features
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:ExportToPDF',
+        '{"isEnabled":true,"description":"Enable PDF export functionality","category":"Export","tags":["export","pdf"],"type":1,"state":0}',
+        'Features', 'Enable PDF export functionality', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:ExportToPDF');
+
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:ExportToWord',
+        '{"isEnabled":true,"description":"Enable Word document export","category":"Export","tags":["export","word"],"type":1,"state":0}',
+        'Features', 'Enable Word document export', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:ExportToWord');
+
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:ExportToExcel',
+        '{"isEnabled":false,"description":"Enable Excel spreadsheet export","category":"Export","tags":["export","excel"],"type":1,"state":0}',
+        'Features', 'Enable Excel spreadsheet export', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:ExportToExcel');
+
+    -- Premium Features
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:AdvancedAnalytics',
+        '{"isEnabled":false,"description":"Enable advanced analytics dashboard","category":"Premium","tags":["premium","analytics"],"type":1,"state":0}',
+        'Features', 'Enable advanced analytics dashboard', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:AdvancedAnalytics');
+
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:CollaborativeEditing',
+        '{"isEnabled":false,"description":"Enable real-time collaborative editing","category":"Premium","tags":["premium","collaboration"],"type":1,"state":0}',
+        'Features', 'Enable real-time collaborative editing', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:CollaborativeEditing');
+
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:MultipleBusinessPlans',
+        '{"isEnabled":true,"description":"Allow multiple business plans per user","category":"Premium","tags":["premium","plans"],"type":1,"state":0}',
+        'Features', 'Allow multiple business plans per user', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:MultipleBusinessPlans');
+
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:UnlimitedRevisions',
+        '{"isEnabled":false,"description":"Enable unlimited document revisions","category":"Premium","tags":["premium","revisions"],"type":1,"state":0}',
+        'Features', 'Enable unlimited document revisions', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:UnlimitedRevisions');
+
+    RAISE NOTICE '✓ Feature flags seeded (11 flags)';
+END $$;
+
+-- ============================================================================
+-- Part 8: Questionnaire Steps (7 steps for STRUCTURE FINALE)
+-- ============================================================================
+DO $$
+BEGIN
+    RAISE NOTICE 'Seeding questionnaire steps (7 steps)...';
+
+    INSERT INTO "QuestionnaireSteps" ("Id", "StepNumber", "TitleFR", "TitleEN", "DescriptionFR", "DescriptionEN", "Icon", "IsActive", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 1, 'Identité & Vision', 'Identity & Vision',
+        'Définissez votre identité et votre vision', 'Define your identity and vision',
+        'Target', true, NOW(), false
+    WHERE NOT EXISTS (SELECT 1 FROM "QuestionnaireSteps" WHERE "StepNumber" = 1 AND "IsDeleted" = false);
+
+    INSERT INTO "QuestionnaireSteps" ("Id", "StepNumber", "TitleFR", "TitleEN", "DescriptionFR", "DescriptionEN", "Icon", "IsActive", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 2, 'L''Offre', 'The Offering',
+        'Décrivez vos produits et services', 'Describe your products and services',
+        'Package', true, NOW(), false
+    WHERE NOT EXISTS (SELECT 1 FROM "QuestionnaireSteps" WHERE "StepNumber" = 2 AND "IsDeleted" = false);
+
+    INSERT INTO "QuestionnaireSteps" ("Id", "StepNumber", "TitleFR", "TitleEN", "DescriptionFR", "DescriptionEN", "Icon", "IsActive", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 3, 'Analyse de marché', 'Market Analysis',
+        'Analysez votre marché et vos clients cibles', 'Analyze your market and target customers',
+        'BarChart3', true, NOW(), false
+    WHERE NOT EXISTS (SELECT 1 FROM "QuestionnaireSteps" WHERE "StepNumber" = 3 AND "IsDeleted" = false);
+
+    INSERT INTO "QuestionnaireSteps" ("Id", "StepNumber", "TitleFR", "TitleEN", "DescriptionFR", "DescriptionEN", "Icon", "IsActive", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 4, 'Opérations & Équipe', 'Operations & People',
+        'Détaillez vos opérations et votre équipe', 'Detail your operations and team',
+        'Settings', true, NOW(), false
+    WHERE NOT EXISTS (SELECT 1 FROM "QuestionnaireSteps" WHERE "StepNumber" = 4 AND "IsDeleted" = false);
+
+    INSERT INTO "QuestionnaireSteps" ("Id", "StepNumber", "TitleFR", "TitleEN", "DescriptionFR", "DescriptionEN", "Icon", "IsActive", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 5, 'Finances & Risques', 'Financials & Risks',
+        'Présentez vos finances et gestion des risques', 'Present your finances and risk management',
+        'DollarSign', true, NOW(), false
+    WHERE NOT EXISTS (SELECT 1 FROM "QuestionnaireSteps" WHERE "StepNumber" = 5 AND "IsDeleted" = false);
+
+    INSERT INTO "QuestionnaireSteps" ("Id", "StepNumber", "TitleFR", "TitleEN", "DescriptionFR", "DescriptionEN", "Icon", "IsActive", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 6, 'Équipe', 'Team',
+        'Votre équipe et vos ressources humaines', 'Your team and human resources',
+        'Users', true, NOW(), false
+    WHERE NOT EXISTS (SELECT 1 FROM "QuestionnaireSteps" WHERE "StepNumber" = 6 AND "IsDeleted" = false);
+
+    INSERT INTO "QuestionnaireSteps" ("Id", "StepNumber", "TitleFR", "TitleEN", "DescriptionFR", "DescriptionEN", "Icon", "IsActive", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 7, 'Finances', 'Finances',
+        'Détails financiers', 'Financial details',
+        'Calculator', true, NOW(), false
+    WHERE NOT EXISTS (SELECT 1 FROM "QuestionnaireSteps" WHERE "StepNumber" = 7 AND "IsDeleted" = false);
+
+    RAISE NOTICE '✓ Questionnaire steps seeded (7 steps)';
+END $$;
+
+-- ============================================================================
 -- END OF COMPLETE SEED SCRIPT
 -- ============================================================================
 -- Admin User: admin@sqordia.com / Password: Sqordia2025!
