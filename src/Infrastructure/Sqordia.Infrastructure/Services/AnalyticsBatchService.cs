@@ -74,7 +74,17 @@ public class AnalyticsBatchService : IAnalyticsBatchService
         var insights = await _context.AnalyticsInsights
             .Where(i => i.IsLatest && !i.IsDeleted)
             .OrderByDescending(i => i.Created)
-            .Select(i => MapToDto(i))
+            .Select(i => new AnalyticsInsightDto
+            {
+                Id = i.Id,
+                InsightType = i.InsightType,
+                Content = i.Content,
+                Period = i.Period,
+                ModelUsed = i.ModelUsed,
+                TokensUsed = i.TokensUsed,
+                IsLatest = i.IsLatest,
+                GeneratedAt = i.Created
+            })
             .ToListAsync(cancellationToken);
 
         return Result.Success(insights);
@@ -86,7 +96,17 @@ public class AnalyticsBatchService : IAnalyticsBatchService
             .Where(i => i.InsightType == insightType && !i.IsDeleted)
             .OrderByDescending(i => i.Created)
             .Take(count)
-            .Select(i => MapToDto(i))
+            .Select(i => new AnalyticsInsightDto
+            {
+                Id = i.Id,
+                InsightType = i.InsightType,
+                Content = i.Content,
+                Period = i.Period,
+                ModelUsed = i.ModelUsed,
+                TokensUsed = i.TokensUsed,
+                IsLatest = i.IsLatest,
+                GeneratedAt = i.Created
+            })
             .ToListAsync(cancellationToken);
 
         return Result.Success(insights);
