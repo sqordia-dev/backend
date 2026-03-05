@@ -6,6 +6,7 @@ using Sqordia.Contracts.Requests.Sections;
 using Sqordia.Contracts.Responses.Sections;
 using Sqordia.Contracts.Requests.AI;
 using Sqordia.Contracts.Responses.AI;
+using System.Runtime.CompilerServices;
 
 namespace Sqordia.Infrastructure.Services;
 
@@ -421,6 +422,54 @@ public class AIProviderWithFallback : IAIService
         throw new InvalidOperationException(
             "All configured AI providers failed to generate chat response. Please check provider configurations and API keys.",
             lastException);
+    }
+
+    public async IAsyncEnumerable<string> StreamChatResponseAsync(
+        string systemPrompt,
+        List<AIChatMessage> conversationHistory,
+        int maxTokens = 2000,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var providers = await GetProviderChainAsync();
+
+        Exception? lastException = null;
+        IAsyncEnumerable<string>? selectedStream = null;
+        string? selectedProviderName = null;
+
+        foreach (var provider in providers)
+        {
+            var providerName = provider.GetType().Name.Replace("Service", "");
+
+            try
+            {
+                _logger.LogInformation("Streaming chat response with provider: {Provider}", providerName);
+                // Obtain the IAsyncEnumerable without starting iteration — iteration happens below
+                selectedStream = provider.StreamChatResponseAsync(
+                    systemPrompt, conversationHistory, maxTokens, cancellationToken);
+                selectedProviderName = providerName;
+                break;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+                _logger.LogWarning(ex, "Provider {Provider} failed to stream chat response. Trying next provider...", providerName);
+            }
+        }
+
+        if (selectedStream == null)
+        {
+            _logger.LogError(lastException, "All AI providers failed to stream chat response");
+            throw new InvalidOperationException(
+                "All configured AI providers failed to stream chat response.",
+                lastException);
+        }
+
+        await foreach (var chunk in selectedStream.WithCancellation(cancellationToken))
+        {
+            yield return chunk;
+        }
+
+        _logger.LogInformation("Successfully streamed chat response with provider: {Provider}", selectedProviderName);
     }
 
     /// <summary>

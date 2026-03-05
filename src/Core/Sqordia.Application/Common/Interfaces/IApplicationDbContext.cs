@@ -3,6 +3,7 @@ using Sqordia.Domain.Entities;
 using Sqordia.Domain.Entities.AICoach;
 using Sqordia.Domain.Entities.BusinessPlan;
 using Sqordia.Domain.Entities.Cms;
+using Sqordia.Domain.Entities.Financial;
 using Sqordia.Domain.Entities.Identity;
 
 namespace Sqordia.Application.Common.Interfaces;
@@ -81,6 +82,19 @@ public interface IApplicationDbContext
     DbSet<LocationOverheadRate> LocationOverheadRates { get; }
     DbSet<FinancialCell> FinancialCells { get; }
 
+    // Previsio Financial Projections
+    DbSet<FinancialPlan> FinancialPlansPrevisio { get; }
+    DbSet<SalesProduct> SalesProducts { get; }
+    DbSet<SalesVolume> SalesVolumes { get; }
+    DbSet<CostOfGoodsSoldItem> CostOfGoodsSoldItems { get; }
+    DbSet<PayrollItem> PayrollItems { get; }
+    DbSet<SalesExpenseItem> SalesExpenseItems { get; }
+    DbSet<AdminExpenseItem> AdminExpenseItems { get; }
+    DbSet<CapexAsset> CapexAssets { get; }
+    DbSet<ProjectCost> ProjectCosts { get; }
+    DbSet<FinancingSource> FinancingSources { get; }
+    DbSet<AmortizationEntry> AmortizationEntries { get; }
+
     // AI Prompt Management
     DbSet<AIPrompt> AIPrompts { get; }
     DbSet<AIPromptVersion> AIPromptVersions { get; }
@@ -129,6 +143,12 @@ public interface IApplicationDbContext
     DbSet<AICoachConversation> AICoachConversations { get; }
     DbSet<AICoachMessage> AICoachMessages { get; }
     DbSet<AICoachUsage> AICoachUsages { get; }
+
+    // Email Templates
+    DbSet<EmailTemplate> EmailTemplates { get; }
+
+    // Analytics Insights
+    DbSet<AnalyticsInsight> AnalyticsInsights { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default);

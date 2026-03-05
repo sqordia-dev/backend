@@ -369,6 +369,69 @@ namespace Sqordia.Persistence.Migrations
                     b.ToTable("AIPromptVersions", (string)null);
                 });
 
+            modelBuilder.Entity("Sqordia.Domain.Entities.AnalyticsInsight", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("InsightType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsLatest")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MetadataJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("ModelUsed")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Period")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("TokensUsed")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InsightType", "IsLatest")
+                        .HasFilter("\"IsLatest\" = true");
+
+                    b.ToTable("analytics_insights", (string)null);
+                });
+
             modelBuilder.Entity("Sqordia.Domain.Entities.BugReport", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3025,6 +3088,79 @@ namespace Sqordia.Persistence.Migrations
                     b.ToTable("Currencies", (string)null);
                 });
 
+            modelBuilder.Entity("Sqordia.Domain.Entities.EmailTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BodyEn")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("BodyFr")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SubjectEn")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("SubjectFr")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("VariablesJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Category");
+
+                    b.HasIndex("Name", "IsActive");
+
+                    b.ToTable("email_templates", (string)null);
+                });
+
             modelBuilder.Entity("Sqordia.Domain.Entities.ExchangeRate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3089,6 +3225,737 @@ namespace Sqordia.Persistence.Migrations
                     b.HasIndex("ToCurrencyId");
 
                     b.ToTable("ExchangeRates", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.AdminExpenseItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("FinancialPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Frequency")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("IndexationRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsTaxable")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("MonthlyAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StartMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StartYear")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialPlanId")
+                        .HasDatabaseName("IX_AdminExpenseItems_FinancialPlanId");
+
+                    b.ToTable("AdminExpenseItems", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.AmortizationEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FinancingSourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("InterestPortion")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<bool>("IsMoratoire")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("PaymentAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("PaymentNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("PrincipalPortion")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("RemainingBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancingSourceId", "PaymentNumber")
+                        .IsUnique()
+                        .HasDatabaseName("IX_AmortizationEntries_Source_PaymentNumber");
+
+                    b.ToTable("AmortizationEntries", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.CapexAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AssetType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DepreciationMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("FinancialPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("PurchaseMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("PurchaseValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("PurchaseYear")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("SalvageValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UsefulLifeYears")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialPlanId")
+                        .HasDatabaseName("IX_CapexAssets_FinancialPlanId");
+
+                    b.ToTable("CapexAssets", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.CostOfGoodsSoldItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("BeginningInventory")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("CostIndexationRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("CostMode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("CostValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("FinancialPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("LinkedSalesProductId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialPlanId")
+                        .HasDatabaseName("IX_CostOfGoodsSoldItems_FinancialPlanId");
+
+                    b.HasIndex("LinkedSalesProductId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_CostOfGoodsSoldItems_LinkedSalesProductId");
+
+                    b.ToTable("CostOfGoodsSoldItems", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.FinancialPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BusinessPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("DefaultExpenseIndexationRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(2.0m);
+
+                    b.Property<decimal>("DefaultPriceIndexationRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(2.0m);
+
+                    b.Property<decimal>("DefaultSalesTaxRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(14.98m);
+
+                    b.Property<decimal>("DefaultSocialChargeRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(15.0m);
+
+                    b.Property<decimal>("DefaultVolumeGrowthRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(5.0m);
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("ProjectionYears")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(3);
+
+                    b.Property<int>("StartYear")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessPlanId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_FinancialPlans_BusinessPlanId");
+
+                    b.ToTable("FinancialPlans", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.FinancingSource", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("DisbursementMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DisbursementYear")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("FinancialPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FinancingType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("InterestRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("MoratoireMonths")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TermMonths")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialPlanId")
+                        .HasDatabaseName("IX_FinancingSources_FinancialPlanId");
+
+                    b.ToTable("FinancingSources", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.PayrollItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmploymentStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("FinancialPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("HeadCount")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PayrollType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("SalaryAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("SalaryFrequency")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("SalaryIndexationRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<decimal>("SocialChargeRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StartMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StartYear")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialPlanId")
+                        .HasDatabaseName("IX_PayrollItems_FinancialPlanId");
+
+                    b.ToTable("PayrollItems", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.ProjectCost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CapexInclusionMonths")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("FinancialPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("TotalCapex")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalProjectCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalStartupCosts")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalWorkingCapital")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("WorkingCapitalMonthsAdminExpenses")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("WorkingCapitalMonthsCOGS")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("WorkingCapitalMonthsPayroll")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("WorkingCapitalMonthsSalesExpenses")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialPlanId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ProjectCosts_FinancialPlanId");
+
+                    b.ToTable("ProjectCosts", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.SalesExpenseItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ExpenseMode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("FinancialPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Frequency")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("IndexationRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StartMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StartYear")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialPlanId")
+                        .HasDatabaseName("IX_SalesExpenseItems_FinancialPlanId");
+
+                    b.ToTable("SalesExpenseItems", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.SalesProduct", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("FinancialPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("InputMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Quantity");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PaymentDelay")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("PriceIndexationRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("TaxRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("VolumeIndexationRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialPlanId")
+                        .HasDatabaseName("IX_SalesProducts_FinancialPlanId");
+
+                    b.ToTable("SalesProducts", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.SalesVolume", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid>("SalesProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SalesProductId", "Year", "Month")
+                        .IsUnique()
+                        .HasDatabaseName("IX_SalesVolumes_Product_Year_Month");
+
+                    b.ToTable("SalesVolumes", (string)null);
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.FinancialCell", b =>
@@ -6465,6 +7332,135 @@ namespace Sqordia.Persistence.Migrations
                     b.Navigation("ToCurrency");
                 });
 
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.AdminExpenseItem", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.Financial.FinancialPlan", "FinancialPlan")
+                        .WithMany("AdminExpenseItems")
+                        .HasForeignKey("FinancialPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FinancialPlan");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.AmortizationEntry", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.Financial.FinancingSource", "FinancingSource")
+                        .WithMany("AmortizationEntries")
+                        .HasForeignKey("FinancingSourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FinancingSource");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.CapexAsset", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.Financial.FinancialPlan", "FinancialPlan")
+                        .WithMany("CapexAssets")
+                        .HasForeignKey("FinancialPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FinancialPlan");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.CostOfGoodsSoldItem", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.Financial.FinancialPlan", "FinancialPlan")
+                        .WithMany("CostOfGoodsSoldItems")
+                        .HasForeignKey("FinancialPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Sqordia.Domain.Entities.Financial.SalesProduct", "LinkedSalesProduct")
+                        .WithOne("CostOfGoodsSoldItem")
+                        .HasForeignKey("Sqordia.Domain.Entities.Financial.CostOfGoodsSoldItem", "LinkedSalesProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FinancialPlan");
+
+                    b.Navigation("LinkedSalesProduct");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.FinancialPlan", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.BusinessPlan.BusinessPlan", "BusinessPlan")
+                        .WithMany()
+                        .HasForeignKey("BusinessPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BusinessPlan");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.FinancingSource", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.Financial.FinancialPlan", "FinancialPlan")
+                        .WithMany("FinancingSources")
+                        .HasForeignKey("FinancialPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FinancialPlan");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.PayrollItem", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.Financial.FinancialPlan", "FinancialPlan")
+                        .WithMany("PayrollItems")
+                        .HasForeignKey("FinancialPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FinancialPlan");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.ProjectCost", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.Financial.FinancialPlan", "FinancialPlan")
+                        .WithMany()
+                        .HasForeignKey("FinancialPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FinancialPlan");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.SalesExpenseItem", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.Financial.FinancialPlan", "FinancialPlan")
+                        .WithMany("SalesExpenseItems")
+                        .HasForeignKey("FinancialPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FinancialPlan");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.SalesProduct", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.Financial.FinancialPlan", "FinancialPlan")
+                        .WithMany("SalesProducts")
+                        .HasForeignKey("FinancialPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FinancialPlan");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.SalesVolume", b =>
+                {
+                    b.HasOne("Sqordia.Domain.Entities.Financial.SalesProduct", "SalesProduct")
+                        .WithMany("SalesVolumes")
+                        .HasForeignKey("SalesProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SalesProduct");
+                });
+
             modelBuilder.Entity("Sqordia.Domain.Entities.FinancialCell", b =>
                 {
                     b.HasOne("Sqordia.Domain.Entities.BusinessPlan.BusinessPlan", "BusinessPlan")
@@ -7022,6 +8018,35 @@ namespace Sqordia.Persistence.Migrations
                     b.Navigation("TaxRules");
 
                     b.Navigation("ToExchangeRates");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.FinancialPlan", b =>
+                {
+                    b.Navigation("AdminExpenseItems");
+
+                    b.Navigation("CapexAssets");
+
+                    b.Navigation("CostOfGoodsSoldItems");
+
+                    b.Navigation("FinancingSources");
+
+                    b.Navigation("PayrollItems");
+
+                    b.Navigation("SalesExpenseItems");
+
+                    b.Navigation("SalesProducts");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.FinancingSource", b =>
+                {
+                    b.Navigation("AmortizationEntries");
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.Financial.SalesProduct", b =>
+                {
+                    b.Navigation("CostOfGoodsSoldItem");
+
+                    b.Navigation("SalesVolumes");
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.FinancialProjectionItem", b =>

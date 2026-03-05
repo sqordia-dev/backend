@@ -1,11 +1,13 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Sqordia.Application.Common.Interfaces;
+using Sqordia.Application.Financial.Services.Previsio;
 using Sqordia.Application.Services;
 using Sqordia.Application.Services.Implementations;
+using Sqordia.Application.Services.Implementations.Cms;
+using Sqordia.Application.Services.Implementations.Financial;
 using Sqordia.Application.OBNL.Services;
 using Sqordia.Application.Services.Cms;
-using Sqordia.Application.Services.Implementations.Cms;
 using Sqordia.Application.Services.Questionnaire;
 using Sqordia.Application.Services.V3;
 using Sqordia.Application.Services.V3.Implementations;
@@ -91,6 +93,17 @@ public static class ConfigureServices
             services.AddScoped<ISectionPromptService, SectionPromptService>();
             services.AddScoped<IQuestionnaireServiceV3, QuestionnaireServiceV3>();
             services.AddScoped<IQuestionSectionMappingService, QuestionSectionMappingService>();
+
+            // Previsio Financial Projections services
+            services.AddScoped<IFinancialPlanService, FinancialPlanServiceImpl>();
+            services.AddScoped<ISalesModuleService, SalesModuleServiceImpl>();
+            services.AddScoped<ICOGSModuleService, COGSModuleServiceImpl>();
+            services.AddScoped<IPayrollModuleService, PayrollModuleServiceImpl>();
+            services.AddScoped<IExpenseModuleService, ExpenseModuleServiceImpl>();
+            services.AddScoped<ICapexModuleService, CapexModuleServiceImpl>();
+            services.AddScoped<IFinancingModuleService, FinancingModuleServiceImpl>();
+            services.AddScoped<IProjectCostService, ProjectCostServiceImpl>();
+            services.AddScoped<IFinancialStatementsService, FinancialStatementsServiceImpl>();
 
             return services;
     }

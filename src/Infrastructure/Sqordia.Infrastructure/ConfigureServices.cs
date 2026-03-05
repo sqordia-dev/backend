@@ -505,6 +505,18 @@ public static class ConfigureServices
         // Organization membership cache - high-frequency permission checks
         services.AddScoped<IOrganizationMembershipCache, OrganizationMembershipCacheService>();
 
+        // Admin AI Assistant - tool-use agentic assistant for admin queries
+        services.AddScoped<IAdminAIAssistantService, AdminAIAssistantService>();
+
+        // Email Template service - CRUD + AI generation + rendering
+        services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+
+        // Analytics Batch service - AI-powered insights pipeline
+        services.AddScoped<IAnalyticsBatchService, AnalyticsBatchService>();
+
+        // CMS AI Content service - AI content generation for CMS
+        services.AddScoped<ICmsAiContentService, CmsAiContentService>();
+
         return services;
     }
 }

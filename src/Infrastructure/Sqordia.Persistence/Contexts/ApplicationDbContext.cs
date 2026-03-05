@@ -5,6 +5,7 @@ using Sqordia.Domain.Entities;
 using Sqordia.Domain.Entities.AICoach;
 using Sqordia.Domain.Entities.BusinessPlan;
 using Sqordia.Domain.Entities.Cms;
+using Sqordia.Domain.Entities.Financial;
 using Sqordia.Domain.Entities.Identity;
 
 namespace Sqordia.Persistence.Contexts;
@@ -83,6 +84,19 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<LocationOverheadRate> LocationOverheadRates { get; set; }
     public DbSet<FinancialCell> FinancialCells { get; set; }
 
+    // Previsio Financial Projections
+    public DbSet<FinancialPlan> FinancialPlansPrevisio { get; set; }
+    public DbSet<SalesProduct> SalesProducts { get; set; }
+    public DbSet<SalesVolume> SalesVolumes { get; set; }
+    public DbSet<CostOfGoodsSoldItem> CostOfGoodsSoldItems { get; set; }
+    public DbSet<PayrollItem> PayrollItems { get; set; }
+    public DbSet<SalesExpenseItem> SalesExpenseItems { get; set; }
+    public DbSet<AdminExpenseItem> AdminExpenseItems { get; set; }
+    public DbSet<CapexAsset> CapexAssets { get; set; }
+    public DbSet<ProjectCost> ProjectCosts { get; set; }
+    public DbSet<FinancingSource> FinancingSources { get; set; }
+    public DbSet<AmortizationEntry> AmortizationEntries { get; set; }
+
     // AI Prompt Management
     public DbSet<AIPrompt> AIPrompts { get; set; }
     public DbSet<AIPromptVersion> AIPromptVersions { get; set; }
@@ -131,6 +145,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<AICoachConversation> AICoachConversations { get; set; }
     public DbSet<AICoachMessage> AICoachMessages { get; set; }
     public DbSet<AICoachUsage> AICoachUsages { get; set; }
+
+    // Email Templates
+    public DbSet<EmailTemplate> EmailTemplates { get; set; }
+
+    // Analytics Insights
+    public DbSet<AnalyticsInsight> AnalyticsInsights { get; set; }
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {

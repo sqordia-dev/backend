@@ -395,7 +395,7 @@ public class AIConfigController : BaseApiController
         var models = provider.ToLower() switch
         {
             "openai" => new[] { "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo" },
-            "claude" => new[] { "claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307" },
+            "claude" => new[] { "claude-opus-4-6", "claude-sonnet-4-6", "claude-sonnet-4-5", "claude-opus-4-5", "claude-haiku-4-5" },
             "gemini" => new[] { "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro" },
             _ => Array.Empty<string>()
         };
@@ -531,24 +531,17 @@ public class AIConfigController : BaseApiController
 
                 case "claude":
                     {
-                        var client = new Anthropic.SDK.AnthropicClient(apiKey);
-                        var parameters = new Anthropic.SDK.Messaging.MessageParameters
+                        var client = new Anthropic.AnthropicClient(new Anthropic.Core.ClientOptions { ApiKey = apiKey });
+                        var parameters = new Anthropic.Models.Messages.MessageCreateParams
                         {
                             Model = model,
-                            Messages = new List<Anthropic.SDK.Messaging.Message>
+                            Messages = new List<Anthropic.Models.Messages.MessageParam>
                             {
-                                new Anthropic.SDK.Messaging.Message
-                                {
-                                    Role = Anthropic.SDK.Messaging.RoleType.User,
-                                    Content = new List<Anthropic.SDK.Messaging.ContentBase>
-                                    {
-                                        new Anthropic.SDK.Messaging.TextContent { Text = testPrompt }
-                                    }
-                                }
+                                new() { Role = Anthropic.Models.Messages.Role.User, Content = testPrompt }
                             },
                             MaxTokens = 10
                         };
-                        var response = await client.Messages.GetClaudeMessageAsync(parameters, cancellationToken);
+                        await client.Messages.Create(parameters);
                         return (true, "Connection successful", null);
                     }
 

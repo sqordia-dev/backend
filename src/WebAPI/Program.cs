@@ -75,6 +75,7 @@ try
     builder.Services.AddHealthCheckServices();
     builder.Services.AddCompressionServices();
     builder.Services.AddCachingServices();
+    builder.Services.AddHostedService<WebAPI.BackgroundServices.AnalyticsBatchBackgroundService>();
 
     var app = builder.Build();
 

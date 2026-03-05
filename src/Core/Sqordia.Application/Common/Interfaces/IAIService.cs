@@ -133,6 +133,20 @@ public interface IAIService
         List<AIChatMessage> conversationHistory,
         int maxTokens = 2000,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Streams a chat response for real-time display (SSE)
+    /// </summary>
+    /// <param name="systemPrompt">The system instructions for the AI</param>
+    /// <param name="conversationHistory">List of previous messages in the conversation</param>
+    /// <param name="maxTokens">Maximum number of tokens to generate</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Async enumerable of text chunks</returns>
+    IAsyncEnumerable<string> StreamChatResponseAsync(
+        string systemPrompt,
+        List<AIChatMessage> conversationHistory,
+        int maxTokens = 2000,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

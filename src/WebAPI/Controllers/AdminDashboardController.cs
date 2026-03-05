@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sqordia.Application.Services;
+using Sqordia.Application.Services.Cms;
 
 namespace WebAPI.Controllers;
 
@@ -13,13 +14,16 @@ namespace WebAPI.Controllers;
 public class AdminDashboardController : BaseApiController
 {
     private readonly IAdminDashboardService _adminDashboardService;
+    private readonly IAnalyticsBatchService _analyticsBatchService;
     private readonly ILogger<AdminDashboardController> _logger;
 
     public AdminDashboardController(
         IAdminDashboardService adminDashboardService,
+        IAnalyticsBatchService analyticsBatchService,
         ILogger<AdminDashboardController> logger)
     {
         _adminDashboardService = adminDashboardService;
+        _analyticsBatchService = analyticsBatchService;
         _logger = logger;
     }
 
@@ -499,6 +503,26 @@ public class AdminDashboardController : BaseApiController
         }
 
         var result = await _adminDashboardService.BulkUpdateUserStatusAsync(request.UserIds, request.Status, request.Reason, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get latest AI-generated analytics insights
+    /// </summary>
+    [HttpGet("ai-insights")]
+    public async Task<IActionResult> GetAiInsights(CancellationToken cancellationToken = default)
+    {
+        var result = await _analyticsBatchService.GetLatestInsightsAsync(cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Manually trigger batch AI analytics
+    /// </summary>
+    [HttpPost("analytics/run-batch")]
+    public async Task<IActionResult> RunBatchAnalysis(CancellationToken cancellationToken = default)
+    {
+        var result = await _analyticsBatchService.RunBatchAnalysisAsync(cancellationToken);
         return HandleResult(result);
     }
 }

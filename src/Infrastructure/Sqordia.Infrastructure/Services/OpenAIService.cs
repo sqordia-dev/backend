@@ -10,6 +10,7 @@ using Sqordia.Contracts.Responses.Sections;
 using Sqordia.Contracts.Requests.AI;
 using Sqordia.Contracts.Responses.AI;
 using System.ClientModel;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace Sqordia.Infrastructure.Services;
@@ -1402,6 +1403,17 @@ Guidelines:
             _logger.LogError(ex, "Error generating chat response with OpenAI");
             throw;
         }
+    }
+
+    public async IAsyncEnumerable<string> StreamChatResponseAsync(
+        string systemPrompt,
+        List<AIChatMessage> conversationHistory,
+        int maxTokens = 2000,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        // Stub: yield full response as single chunk
+        var (content, _) = await GenerateChatResponseAsync(systemPrompt, conversationHistory, maxTokens, cancellationToken);
+        yield return content;
     }
 
     private static int EstimateTokenCount(string text)
