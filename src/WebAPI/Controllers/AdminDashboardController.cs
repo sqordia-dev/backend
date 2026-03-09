@@ -27,6 +27,9 @@ public class AdminDashboardController : BaseApiController
         _logger = logger;
     }
 
+    private static DateTime? ToUtc(DateTime? dt) =>
+        dt.HasValue ? DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc) : null;
+
     /// <summary>
     /// Get comprehensive system overview and key metrics
     /// </summary>
@@ -65,8 +68,8 @@ public class AdminDashboardController : BaseApiController
             SearchTerm = searchTerm,
             Status = status,
             UserType = userType,
-            CreatedAfter = createdAfter,
-            CreatedBefore = createdBefore,
+            CreatedAfter = ToUtc(createdAfter),
+            CreatedBefore = ToUtc(createdBefore),
             EmailVerified = emailVerified,
             SortBy = sortBy,
             SortDescending = sortDescending,
@@ -104,8 +107,8 @@ public class AdminDashboardController : BaseApiController
             SearchTerm = searchTerm,
             OrganizationType = organizationType,
             IsActive = isActive,
-            CreatedAfter = createdAfter,
-            CreatedBefore = createdBefore,
+            CreatedAfter = ToUtc(createdAfter),
+            CreatedBefore = ToUtc(createdBefore),
             SortBy = sortBy,
             SortDescending = sortDescending,
             Page = page,
@@ -144,8 +147,8 @@ public class AdminDashboardController : BaseApiController
             SearchTerm = searchTerm,
             PlanType = planType,
             Status = status,
-            CreatedAfter = createdAfter,
-            CreatedBefore = createdBefore,
+            CreatedAfter = ToUtc(createdAfter),
+            CreatedBefore = ToUtc(createdBefore),
             OrganizationId = organizationId,
             UserId = userId,
             SortBy = sortBy,
@@ -230,8 +233,8 @@ public class AdminDashboardController : BaseApiController
             Action = action,
             Entity = entity,
             UserId = userId,
-            StartDate = startDate,
-            EndDate = endDate,
+            StartDate = ToUtc(startDate),
+            EndDate = ToUtc(endDate),
             IsSuccess = isSuccess,
             IPAddress = ipAddress,
             Page = page,
@@ -266,10 +269,10 @@ public class AdminDashboardController : BaseApiController
         var parameters = new Dictionary<string, object>();
 
         if (startDate.HasValue)
-            parameters["startDate"] = startDate.Value;
+            parameters["startDate"] = ToUtc(startDate)!.Value;
 
         if (endDate.HasValue)
-            parameters["endDate"] = endDate.Value;
+            parameters["endDate"] = ToUtc(endDate)!.Value;
 
         parameters["format"] = format;
 
@@ -293,8 +296,8 @@ public class AdminDashboardController : BaseApiController
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        var start = startDate ?? DateTime.UtcNow.AddDays(-30);
-        var end = endDate ?? DateTime.UtcNow;
+        var start = ToUtc(startDate) ?? DateTime.UtcNow.AddDays(-30);
+        var end = ToUtc(endDate) ?? DateTime.UtcNow;
 
         if (start > end)
         {
