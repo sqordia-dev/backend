@@ -288,25 +288,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddHealthCheckServices(this IServiceCollection services)
     {
         services.AddHealthChecks()
-            .AddAsyncCheck("python-ai-service", async (ct) =>
-            {
-                try
-                {
-                    using var scope = services.BuildServiceProvider().CreateScope();
-                    var pythonService = scope.ServiceProvider.GetService<Sqordia.Application.Common.Interfaces.IAIPythonService>();
-                    if (pythonService == null)
-                        return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Degraded("Python AI service not registered");
-
-                    var available = await pythonService.IsAvailableAsync(ct);
-                    return available
-                        ? Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("Python AI service is available")
-                        : Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Degraded("Python AI service is not reachable");
-                }
-                catch (Exception ex)
-                {
-                    return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Degraded("Python AI service check failed", ex);
-                }
-            }, tags: new[] { "ai", "external" });
+            .AddCheck<PythonAIServiceHealthCheck>("python-ai-service", tags: new[] { "ai", "external" });
         return services;
     }
 
@@ -396,3 +378,32 @@ public static class ServiceCollectionExtensions
     }
 }
 
+public class PythonAIServiceHealthCheck : Microsoft.Extensions.Diagnostics.HealthChecks.IHealthCheck
+{
+    private readonly Sqordia.Application.Common.Interfaces.IAIPythonService? _pythonService;
+
+    public PythonAIServiceHealthCheck(Sqordia.Application.Common.Interfaces.IAIPythonService? pythonService = null)
+    {
+        _pythonService = pythonService;
+    }
+
+    public async Task<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult> CheckHealthAsync(
+        Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext context,
+        CancellationToken cancellationToken = default)
+    {
+        if (_pythonService == null)
+            return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Degraded("Python AI service not registered");
+
+        try
+        {
+            var available = await _pythonService.IsAvailableAsync(cancellationToken);
+            return available
+                ? Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("Python AI service is available")
+                : Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Degraded("Python AI service is not reachable");
+        }
+        catch (Exception ex)
+        {
+            return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Degraded("Python AI service check failed", ex);
+        }
+    }
+}
