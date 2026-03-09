@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Sqordia.Application.Common.Interfaces;
+using Sqordia.Application.Common.Models;
+using Sqordia.Application.Models.Export;
 using Sqordia.Application.Services;
 using Sqordia.Domain.Entities;
 using Sqordia.Domain.Entities.BusinessPlan;
@@ -49,6 +51,31 @@ public class DocumentExportServiceTests : IDisposable
         _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
         _httpContextMock = new Mock<HttpContext>();
         _themeServiceMock = new Mock<IExportThemeService>();
+
+        // Setup theme service mock — return classic theme by default
+        var classicTheme = ExportThemeRegistry.GetTheme("classic");
+        _themeServiceMock
+            .Setup(x => x.ResolveThemeAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(classicTheme));
+
+        var defaultTemplates = new List<ExportTemplate>
+        {
+            new ExportTemplate
+            {
+                Id = "default", Name = "Default", Description = "Default template",
+                IsDefault = true, SupportedFormats = new() { "pdf", "docx" },
+                SupportedLanguages = new() { "en", "fr" }
+            },
+            new ExportTemplate
+            {
+                Id = "executive", Name = "Executive", Description = "Executive template",
+                IsDefault = false, SupportedFormats = new() { "pdf", "docx" },
+                SupportedLanguages = new() { "en", "fr" }
+            },
+        };
+        _themeServiceMock
+            .Setup(x => x.GetAvailableThemesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(defaultTemplates));
 
         // Setup HTTP context with authenticated user
         var claims = new List<Claim>
