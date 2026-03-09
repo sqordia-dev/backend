@@ -212,7 +212,7 @@ public class AdminQuestionnaireV3Controller : BaseApiController
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> ReorderQuestions(
         int stepNumber,
-        [FromBody] ReorderQuestionsRequest request,
+        [FromBody] ReorderQuestionsV3Request request,
         CancellationToken cancellationToken)
     {
         var result = await _service.ReorderQuestionsAsync(stepNumber, request, cancellationToken);

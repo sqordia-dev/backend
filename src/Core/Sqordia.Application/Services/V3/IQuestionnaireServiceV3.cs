@@ -48,18 +48,18 @@ public interface IQuestionnaireServiceV3
 
     // Utilities
     Task<Result<int>> GetNextQuestionNumberAsync(CancellationToken cancellationToken = default);
-    Task<Result> ReorderQuestionsAsync(int stepNumber, ReorderQuestionsRequest request, CancellationToken cancellationToken = default);
+    Task<Result> ReorderQuestionsAsync(int stepNumber, ReorderQuestionsV3Request request, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Request to reorder questions within a step
+/// Request to reorder questions within a step (V3)
 /// </summary>
-public record ReorderQuestionsRequest
+public record ReorderQuestionsV3Request
 {
-    public List<QuestionOrderItem> Items { get; init; } = new();
+    public List<QuestionOrderV3Item> Items { get; init; } = new();
 }
 
-public record QuestionOrderItem
+public record QuestionOrderV3Item
 {
     public Guid Id { get; init; }
     public int DisplayOrder { get; init; }

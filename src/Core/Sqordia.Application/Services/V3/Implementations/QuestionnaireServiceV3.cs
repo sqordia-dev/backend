@@ -505,7 +505,7 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
         }
     }
 
-    public async Task<Result> ReorderQuestionsAsync(int stepNumber, ReorderQuestionsRequest request, CancellationToken cancellationToken = default)
+    public async Task<Result> ReorderQuestionsAsync(int stepNumber, ReorderQuestionsV3Request request, CancellationToken cancellationToken = default)
     {
         try
         {
