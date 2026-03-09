@@ -295,6 +295,85 @@ variable "security_lockout_duration_minutes" {
   default     = 0 # 0 means use default from appsettings.json
 }
 
+# =============================================================================
+# Python AI Service Configuration
+# =============================================================================
+
+variable "anthropic_api_key" {
+  description = "Anthropic API key for Claude (set via terraform.tfvars or TF_VAR_anthropic_api_key)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "google_ai_api_key" {
+  description = "Google AI API key for Gemini (set via terraform.tfvars or TF_VAR_google_ai_api_key)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "ai_service_key" {
+  description = "Shared secret for .NET ↔ Python service-to-service authentication"
+  type        = string
+  sensitive   = true
+}
+
+variable "ai_active_provider" {
+  description = "Active AI provider: claude | gemini | openai"
+  type        = string
+  default     = "claude"
+}
+
+variable "ai_fallback_providers" {
+  description = "Fallback AI providers (ordered list)"
+  type        = list(string)
+  default     = ["gemini", "openai"]
+}
+
+variable "ai_anthropic_model" {
+  description = "Anthropic model to use"
+  type        = string
+  default     = "claude-sonnet-4-6"
+}
+
+variable "ai_google_model" {
+  description = "Google AI model to use"
+  type        = string
+  default     = "gemini-2.0-flash"
+}
+
+variable "ai_service_log_level" {
+  description = "Log level for the Python AI service"
+  type        = string
+  default     = "WARNING"
+}
+
+# MLflow Configuration
+variable "mlflow_cpu" {
+  description = "MLflow Container App CPU allocation"
+  type        = number
+  default     = 0.25
+}
+
+variable "mlflow_memory" {
+  description = "MLflow Container App memory in GB"
+  type        = string
+  default     = "0.5"
+}
+
+variable "mlflow_min_replicas" {
+  description = "MLflow minimum replicas (0 = scale to zero, 1 = always on)"
+  type        = number
+  default     = 1
+}
+
+variable "mlflow_public_access" {
+  description = "Whether MLflow UI is publicly accessible (set false for internal-only)"
+  type        = bool
+  default     = false
+}
+
 # Tags
 variable "common_tags" {
   description = "Common tags to apply to all resources"

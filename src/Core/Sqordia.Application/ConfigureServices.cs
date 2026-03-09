@@ -38,6 +38,8 @@ public static class ConfigureServices
             // Business Plan services
             services.AddScoped<IBusinessPlanService, BusinessPlanService>();
             services.AddScoped<IQuestionnaireService, QuestionnaireService>();
+            services.AddScoped<IBusinessBriefService, BusinessBriefService>();
+            services.AddScoped<IGenerationPipelineService, GenerationPipelineService>();
             services.AddScoped<IBusinessPlanGenerationService, BusinessPlanGenerationService>();
             services.AddScoped<ISectionService, SectionService>();
             services.AddScoped<IBusinessPlanShareService, BusinessPlanShareService>();
@@ -77,11 +79,17 @@ public static class ConfigureServices
             // Feature flags service
             services.AddScoped<IFeatureFlagsService, FeatureFlagsService>();
 
+            // Export theme service
+            services.AddScoped<IExportThemeService, ExportThemeService>();
+
             // OAuth service
             services.AddScoped<IOAuthService, OAuthService>();
 
             // Onboarding service
             services.AddScoped<IOnboardingService, OnboardingService>();
+
+            // Adaptive Interview service
+            services.AddScoped<IAdaptiveInterviewService, AdaptiveInterviewService>();
 
             // CMS services
             services.AddScoped<ICmsRegistryService, CmsRegistryService>();

@@ -231,6 +231,7 @@ public class SectionService : ISectionService
             {
                 Name = "executive-summary",
                 Title = "Executive Summary",
+                TitleFR = "Résumé exécutif",
                 Description = "Brief overview of the business",
                 IsRequired = true,
                 Order = 1,
@@ -241,6 +242,7 @@ public class SectionService : ISectionService
             {
                 Name = "market-analysis",
                 Title = "Market Analysis",
+                TitleFR = "Analyse de marché",
                 Description = "Analysis of target market and competition",
                 IsRequired = true,
                 Order = 2,
@@ -251,6 +253,7 @@ public class SectionService : ISectionService
             {
                 Name = "competitive-analysis",
                 Title = "Competitive Analysis",
+                TitleFR = "Analyse concurrentielle",
                 Description = "Analysis of competitors and competitive advantages",
                 IsRequired = true,
                 Order = 3,
@@ -261,6 +264,7 @@ public class SectionService : ISectionService
             {
                 Name = "business-model",
                 Title = "Business Model",
+                TitleFR = "Modèle d'affaires",
                 Description = "How the business generates revenue",
                 IsRequired = true,
                 Order = 4,
@@ -271,6 +275,7 @@ public class SectionService : ISectionService
             {
                 Name = "marketing-strategy",
                 Title = "Marketing Strategy",
+                TitleFR = "Stratégie marketing",
                 Description = "How the business will reach customers",
                 IsRequired = true,
                 Order = 5,
@@ -281,6 +286,7 @@ public class SectionService : ISectionService
             {
                 Name = "operations-plan",
                 Title = "Operations Plan",
+                TitleFR = "Plan des opérations",
                 Description = "How the business will operate day-to-day",
                 IsRequired = true,
                 Order = 6,
@@ -291,6 +297,7 @@ public class SectionService : ISectionService
             {
                 Name = "management-team",
                 Title = "Management Team",
+                TitleFR = "Équipe de direction",
                 Description = "Key team members and their roles",
                 IsRequired = true,
                 Order = 7,
@@ -301,6 +308,7 @@ public class SectionService : ISectionService
             {
                 Name = "financial-projections",
                 Title = "Financial Projections",
+                TitleFR = "Projections financières",
                 Description = "Financial forecasts and projections",
                 IsRequired = true,
                 Order = 8,
@@ -311,6 +319,7 @@ public class SectionService : ISectionService
             {
                 Name = "funding-requirements",
                 Title = "Funding Requirements",
+                TitleFR = "Besoins de financement",
                 Description = "Funding needs and use of funds",
                 IsRequired = true,
                 Order = 9,
@@ -321,6 +330,7 @@ public class SectionService : ISectionService
             {
                 Name = "risk-analysis",
                 Title = "Risk Analysis",
+                TitleFR = "Analyse des risques",
                 Description = "Potential risks and mitigation strategies",
                 IsRequired = true,
                 Order = 10,
@@ -338,6 +348,7 @@ public class SectionService : ISectionService
             {
                 Name = "mission-statement",
                 Title = "Mission Statement",
+                TitleFR = "Énoncé de mission",
                 Description = "Organization's mission and purpose",
                 IsRequired = true,
                 Order = 1,
@@ -348,6 +359,7 @@ public class SectionService : ISectionService
             {
                 Name = "vision-statement",
                 Title = "Vision Statement",
+                TitleFR = "Énoncé de vision",
                 Description = "Organization's vision for the future",
                 IsRequired = true,
                 Order = 2,
@@ -358,6 +370,7 @@ public class SectionService : ISectionService
             {
                 Name = "social-impact",
                 Title = "Social Impact",
+                TitleFR = "Impact social",
                 Description = "Social impact goals and measurements",
                 IsRequired = true,
                 Order = 3,
@@ -368,6 +381,7 @@ public class SectionService : ISectionService
             {
                 Name = "beneficiary-profile",
                 Title = "Beneficiary Profile",
+                TitleFR = "Profil des bénéficiaires",
                 Description = "Description of beneficiaries and their needs",
                 IsRequired = true,
                 Order = 4,
@@ -378,6 +392,7 @@ public class SectionService : ISectionService
             {
                 Name = "grant-strategy",
                 Title = "Grant Strategy",
+                TitleFR = "Stratégie de subventions",
                 Description = "Grant application and funding strategy",
                 IsRequired = true,
                 Order = 5,
@@ -388,6 +403,7 @@ public class SectionService : ISectionService
             {
                 Name = "sustainability-plan",
                 Title = "Sustainability Plan",
+                TitleFR = "Plan de pérennité",
                 Description = "Long-term sustainability and viability",
                 IsRequired = true,
                 Order = 6,

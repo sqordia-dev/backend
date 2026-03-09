@@ -25,6 +25,7 @@ public class DocumentExportServiceTests : IDisposable
     private readonly Mock<ILogger<DocumentExportService>> _loggerMock;
     private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
     private readonly Mock<HttpContext> _httpContextMock;
+    private readonly Mock<IExportThemeService> _themeServiceMock;
     private readonly DocumentExportService _sut;
     private readonly User _testUser;
     private readonly Organization _testOrganization;
@@ -47,6 +48,7 @@ public class DocumentExportServiceTests : IDisposable
         _loggerMock = new Mock<ILogger<DocumentExportService>>();
         _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
         _httpContextMock = new Mock<HttpContext>();
+        _themeServiceMock = new Mock<IExportThemeService>();
 
         // Setup HTTP context with authenticated user
         var claims = new List<Claim>
@@ -114,7 +116,8 @@ public class DocumentExportServiceTests : IDisposable
         _sut = new DocumentExportService(
             _context,
             _loggerMock.Object,
-            _httpContextAccessorMock.Object);
+            _httpContextAccessorMock.Object,
+            _themeServiceMock.Object);
     }
 
     [Fact]

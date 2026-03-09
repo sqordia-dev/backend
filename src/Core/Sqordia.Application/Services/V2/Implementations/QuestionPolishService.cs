@@ -6,6 +6,7 @@ using Sqordia.Contracts.Requests.AI;
 using Sqordia.Contracts.Requests.V2.Questionnaire;
 using Sqordia.Contracts.Responses.V2.Questionnaire;
 using System.Text.Json;
+// Feature flag + Python service support
 
 namespace Sqordia.Application.Services.V2.Implementations;
 
@@ -16,13 +17,19 @@ namespace Sqordia.Application.Services.V2.Implementations;
 public class QuestionPolishService : IQuestionPolishService
 {
     private readonly IAIService _aiService;
+    private readonly IAIPythonService _pythonService;
+    private readonly IFeatureFlagsService _featureFlags;
     private readonly ILogger<QuestionPolishService> _logger;
 
     public QuestionPolishService(
         IAIService aiService,
+        IAIPythonService pythonService,
+        IFeatureFlagsService featureFlags,
         ILogger<QuestionPolishService> logger)
     {
         _aiService = aiService;
+        _pythonService = pythonService;
+        _featureFlags = featureFlags;
         _logger = logger;
     }
 
@@ -72,6 +79,13 @@ public class QuestionPolishService : IQuestionPolishService
                     Error.Validation("Transform.InvalidAction", $"Invalid action type: {request.Action}. Valid actions are: {string.Join(", ", TransformActionTypes.AllActions)}"));
             }
 
+            // Feature flag: delegate to Python LangChain pipeline if enabled
+            var useLangChain = await _featureFlags.IsEnabledAsync("AI.UseLangChainPipeline", cancellationToken);
+            if (useLangChain.IsSuccess && useLangChain.Value)
+            {
+                return await TransformViaPythonAsync(request, cancellationToken);
+            }
+
             // Build business context from previous answers
             var businessContext = BuildBusinessContext(request);
             var hasContext = !string.IsNullOrWhiteSpace(businessContext);
@@ -106,11 +120,93 @@ public class QuestionPolishService : IQuestionPolishService
     }
 
     /// <summary>
-    /// Builds business context from previous answers using the QuestionContextMapper
+    /// Delegates text transformation to the Python LangChain service.
+    /// Falls back to the .NET pipeline on failure.
+    /// </summary>
+    private async Task<Result<PolishedTextResponse>> TransformViaPythonAsync(
+        TransformAnswerRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await _pythonService.IsAvailableAsync(cancellationToken))
+            {
+                _logger.LogWarning("Python AI service unavailable, falling back to .NET pipeline");
+                return await TransformViaLegacyAsync(request, cancellationToken);
+            }
+
+            var pythonRequest = new TransformAnswerPythonRequest(
+                Action: request.Action,
+                QuestionNumber: request.QuestionNumber ?? 0,
+                QuestionText: request.Context ?? "",
+                CurrentAnswer: request.Answer,
+                PreviousAnswers: request.PreviousAnswers,
+                OrganizationContext: request.OrganizationContext,
+                Language: request.Language
+            );
+
+            var pythonResponse = await _pythonService.TransformAnswerAsync(pythonRequest, cancellationToken);
+
+            return Result.Success(new PolishedTextResponse
+            {
+                OriginalText = request.Answer,
+                PolishedText = pythonResponse.TransformedAnswer,
+                Confidence = 0.9m,
+                Improvements = new List<string> { $"Transformed via LangChain ({pythonResponse.Action})" },
+                GeneratedAt = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Python AI service call failed, falling back to .NET pipeline");
+            return await TransformViaLegacyAsync(request, cancellationToken);
+        }
+    }
+
+    private async Task<Result<PolishedTextResponse>> TransformViaLegacyAsync(
+        TransformAnswerRequest request,
+        CancellationToken cancellationToken)
+    {
+        var businessContext = BuildBusinessContext(request);
+        var systemPrompt = BuildTransformPrompt(request.Action, request.Language, request.Persona, businessContext);
+        var userPrompt = BuildTransformUserPrompt(request, businessContext);
+
+        var aiResponse = await _aiService.GenerateContentWithRetryAsync(
+            systemPrompt, userPrompt,
+            maxTokens: 2500,
+            temperature: GetTemperatureForAction(request.Action),
+            cancellationToken: cancellationToken);
+
+        return Result.Success(ParsePolishResponse(aiResponse, request.Answer));
+    }
+
+    /// <summary>
+    /// Builds business context from organization profile + previous answers.
+    /// Organization profile provides structured metadata from onboarding;
+    /// previous answers provide questionnaire-level detail.
     /// </summary>
     private static string BuildBusinessContext(TransformAnswerRequest request)
     {
-        if (request.PreviousAnswers == null || request.PreviousAnswers.Count == 0)
+        var parts = new List<string>();
+        var isFrench = request.Language.Equals("fr", StringComparison.OrdinalIgnoreCase);
+
+        // 1. Organization profile context (from onboarding)
+        var orgContext = BuildOrganizationProfileContext(request.OrganizationContext, isFrench);
+        if (!string.IsNullOrWhiteSpace(orgContext))
+            parts.Add(orgContext);
+
+        // 2. Questionnaire answers context
+        if (request.PreviousAnswers != null && request.PreviousAnswers.Count > 0)
+        {
+            var questionNumber = request.QuestionNumber ?? 0;
+            var answersContext = QuestionContextMapper.BuildBusinessContextSummary(
+                request.PreviousAnswers,
+                questionNumber,
+                request.Language);
+            if (!string.IsNullOrWhiteSpace(answersContext))
+                parts.Add(answersContext);
+        }
+        else
         {
             // Fallback: use business name and sector if provided directly
             var fallbackParts = new List<string>();
@@ -118,14 +214,54 @@ public class QuestionPolishService : IQuestionPolishService
                 fallbackParts.Add($"Business: {request.BusinessName}");
             if (!string.IsNullOrWhiteSpace(request.BusinessSector))
                 fallbackParts.Add($"Sector: {request.BusinessSector}");
-            return string.Join(". ", fallbackParts);
+            var fallback = string.Join(". ", fallbackParts);
+            if (!string.IsNullOrWhiteSpace(fallback))
+                parts.Add(fallback);
         }
 
-        var questionNumber = request.QuestionNumber ?? 0;
-        return QuestionContextMapper.BuildBusinessContextSummary(
-            request.PreviousAnswers,
-            questionNumber,
-            request.Language);
+        return string.Join("\n\n", parts);
+    }
+
+    /// <summary>
+    /// Builds a structured context block from the organization profile collected during onboarding.
+    /// </summary>
+    private static string BuildOrganizationProfileContext(OrganizationContextDto? org, bool isFrench)
+    {
+        if (org == null)
+            return string.Empty;
+
+        var header = isFrench
+            ? "PROFIL DE L'ORGANISATION (collecté lors de l'inscription):"
+            : "ORGANIZATION PROFILE (collected during onboarding):";
+
+        var lines = new List<string> { header };
+
+        void Add(string labelFr, string labelEn, string? value)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                lines.Add($"  - {(isFrench ? labelFr : labelEn)}: {value}");
+        }
+
+        Add("Entreprise", "Company", org.CompanyName);
+        Add("Industrie", "Industry", org.Industry);
+        Add("Secteur", "Sector", org.Sector);
+        Add("Stade de l'entreprise", "Business Stage", org.BusinessStage);
+        Add("Taille de l'équipe", "Team Size", org.TeamSize);
+        Add("Statut de financement", "Funding Status", org.FundingStatus);
+        Add("Marché cible", "Target Market", org.TargetMarket);
+
+        // Location
+        var locationParts = new[] { org.City, org.Province, org.Country }
+            .Where(p => !string.IsNullOrWhiteSpace(p));
+        var location = string.Join(", ", locationParts);
+        if (!string.IsNullOrWhiteSpace(location))
+            Add("Localisation", "Location", location);
+
+        // Goals
+        if (!string.IsNullOrWhiteSpace(org.Goals))
+            Add("Objectifs", "Goals", org.Goals);
+
+        return lines.Count <= 1 ? string.Empty : string.Join("\n", lines);
     }
 
     private static float GetTemperatureForAction(string action)

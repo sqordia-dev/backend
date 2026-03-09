@@ -82,7 +82,7 @@ public class AdminDashboardService : IAdminDashboardService
                 { "Organization", "Organization Management" }
             };
 
-            var featureStats = await _context.AuditLogs
+            var featureStats = await _context.AuditLogs.AsNoTracking()
                 .Where(log => featureEntityTypes.Contains(log.EntityType) && log.Success)
                 .GroupBy(log => log.EntityType)
                 .Select(g => new
@@ -118,7 +118,7 @@ public class AdminDashboardService : IAdminDashboardService
             }
 
             // Get real recent activities from audit logs
-            var recentAuditLogs = await _context.AuditLogs
+            var recentAuditLogs = await _context.AuditLogs.AsNoTracking()
                 .Where(log => log.Success && log.Timestamp >= now.AddDays(-7))
                 .OrderByDescending(log => log.Timestamp)
                 .Take(10)
@@ -211,7 +211,7 @@ public class AdminDashboardService : IAdminDashboardService
         {
             _logger.LogInformation("Retrieving users for admin dashboard with filters");
 
-            var query = _context.Users.AsQueryable();
+            var query = _context.Users.AsNoTracking().AsQueryable();
 
             // Apply filters
             if (!string.IsNullOrEmpty(request.SearchTerm))
@@ -303,7 +303,7 @@ public class AdminDashboardService : IAdminDashboardService
         {
             _logger.LogInformation("Retrieving organizations for admin dashboard");
 
-            var query = _context.Organizations.AsQueryable();
+            var query = _context.Organizations.AsNoTracking().AsQueryable();
 
             // Apply filters
             if (!string.IsNullOrEmpty(request.SearchTerm))
@@ -392,7 +392,7 @@ public class AdminDashboardService : IAdminDashboardService
         {
             _logger.LogInformation("Retrieving business plans for admin dashboard");
 
-            var query = _context.BusinessPlans.AsQueryable();
+            var query = _context.BusinessPlans.AsNoTracking().AsQueryable();
 
             // Apply filters
             if (!string.IsNullOrEmpty(request.SearchTerm))
@@ -555,7 +555,7 @@ public class AdminDashboardService : IAdminDashboardService
         {
             _logger.LogInformation("Retrieving activity logs for admin dashboard");
 
-            var query = _context.AuditLogs.AsQueryable();
+            var query = _context.AuditLogs.AsNoTracking().AsQueryable();
 
             // Apply basic filtering
             if (!string.IsNullOrEmpty(request.Action))

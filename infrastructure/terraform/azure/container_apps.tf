@@ -270,6 +270,17 @@ resource "azurerm_container_app" "api" {
         name  = "Security__LockoutDurationMinutes"
         value = var.security_lockout_duration_minutes > 0 ? tostring(var.security_lockout_duration_minutes) : ""
       }
+
+      # Python AI Service — .NET calls this via HTTP
+      env {
+        name  = "AI__PythonService__BaseUrl"
+        value = "https://${azurerm_linux_function_app.ai_service.default_hostname}"
+      }
+
+      env {
+        name  = "AI__PythonService__ServiceKey"
+        value = var.ai_service_key
+      }
     }
   }
 

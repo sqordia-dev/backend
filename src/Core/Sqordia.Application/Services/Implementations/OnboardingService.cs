@@ -4,6 +4,7 @@ using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Models;
 using Sqordia.Contracts.Requests.Onboarding;
 using Sqordia.Contracts.Responses.Onboarding;
+using Sqordia.Domain.Entities;
 using Sqordia.Domain.Enums;
 
 namespace Sqordia.Application.Services.Implementations;
@@ -193,6 +194,111 @@ public class OnboardingService : IOnboardingService
             return Result.Failure<OnboardingCompleteResponse>(Error.InternalServerError(
                 "Onboarding.Error.CompleteFailed",
                 "Failed to complete onboarding"));
+        }
+    }
+
+    public async Task<Result<OnboardingProfileCompleteResponse>> CompleteProfileAsync(
+        Guid userId,
+        OnboardingProfileCompleteRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+            if (user == null)
+                return Result.Failure<OnboardingProfileCompleteResponse>(
+                    Error.NotFound("Onboarding.Error.UserNotFound", "User not found"));
+
+            // Set persona
+            if (Enum.TryParse<PersonaType>(request.Persona, true, out var persona))
+                user.SetPersona(persona);
+
+            // Find or create organization
+            var orgMember = await _context.OrganizationMembers
+                .Include(m => m.Organization)
+                .FirstOrDefaultAsync(m => m.UserId == userId && m.IsActive, cancellationToken);
+
+            Organization organization;
+            if (orgMember != null)
+            {
+                organization = orgMember.Organization;
+                organization.UpdateDetails(request.CompanyName, organization.Description, organization.Website);
+            }
+            else
+            {
+                var orgType = persona == PersonaType.OBNL ? OrganizationType.OBNL : OrganizationType.Company;
+                organization = new Organization(request.CompanyName, orgType);
+                _context.Organizations.Add(organization);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                // Add user as owner
+                var member = new OrganizationMember(organization.Id, userId, OrganizationRole.Owner);
+                _context.OrganizationMembers.Add(member);
+            }
+
+            // Update business context on organization
+            organization.UpdateBusinessContext(
+                request.Industry,
+                request.Sector,
+                request.TeamSize,
+                request.FundingStatus,
+                request.TargetMarket,
+                request.BusinessStage,
+                request.GoalsJson,
+                request.City,
+                request.Province,
+                request.Country);
+
+            // Mark onboarding complete
+            user.CompleteOnboarding();
+            await _context.SaveChangesAsync(cancellationToken);
+
+            Guid? businessPlanId = null;
+
+            if (request.CreateBusinessPlan)
+            {
+                try
+                {
+                    var planType = persona == PersonaType.OBNL
+                        ? Domain.Enums.BusinessPlanType.StrategicPlan
+                        : Domain.Enums.BusinessPlanType.BusinessPlan;
+
+                    var plan = new Domain.Entities.BusinessPlan.BusinessPlan(
+                        $"Plan d'affaires - {request.CompanyName}",
+                        planType,
+                        organization.Id,
+                        $"Plan created during onboarding for {request.CompanyName}");
+
+                    if (persona != default)
+                        plan.SetPersona(persona);
+
+                    _context.BusinessPlans.Add(plan);
+                    await _context.SaveChangesAsync(cancellationToken);
+                    businessPlanId = plan.Id;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to create business plan during profile onboarding for user {UserId}", userId);
+                }
+            }
+
+            _logger.LogInformation("Completed profile onboarding for user {UserId}, org {OrgId}", userId, organization.Id);
+
+            return Result.Success(new OnboardingProfileCompleteResponse
+            {
+                Success = true,
+                OrganizationId = organization.Id,
+                BusinessPlanId = businessPlanId,
+                Message = "Onboarding completed successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to complete profile onboarding for user {UserId}", userId);
+            return Result.Failure<OnboardingProfileCompleteResponse>(
+                Error.InternalServerError("Onboarding.Error.CompleteFailed", "Failed to complete onboarding"));
         }
     }
 

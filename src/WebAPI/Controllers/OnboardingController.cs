@@ -171,4 +171,20 @@ public class OnboardingController : BaseApiController
         var result = await _onboardingService.CompleteAsync(userId.Value, request, cancellationToken);
         return HandleResult(result);
     }
+
+    [HttpPost("v2/complete")]
+    [ProducesResponseType(typeof(OnboardingProfileCompleteResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> CompleteV2(
+        [FromBody] OnboardingProfileCompleteRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized();
+
+        var result = await _onboardingService.CompleteProfileAsync(userId.Value, request, cancellationToken);
+        return HandleResult(result);
+    }
 }

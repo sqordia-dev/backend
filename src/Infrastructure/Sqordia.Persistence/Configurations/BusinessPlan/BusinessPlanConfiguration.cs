@@ -111,6 +111,23 @@ public class BusinessPlanConfiguration : IEntityTypeConfiguration<Domain.Entitie
         builder.Property(bp => bp.OnboardingContextJson)
             .HasColumnType("jsonb");
 
+        // Business Brief (unified AI generation context)
+        builder.Property(bp => bp.BusinessBriefJson)
+            .HasColumnType("jsonb");
+
+        // Multi-pass generation pipeline
+        builder.Property(bp => bp.GenerationPlanJson)
+            .HasColumnType("jsonb");
+
+        builder.Property(bp => bp.QualityReportJson)
+            .HasColumnType("jsonb");
+
+        builder.Property(bp => bp.BankReadinessScore)
+            .HasPrecision(5, 2);
+
+        builder.Property(bp => bp.QualityScore)
+            .HasPrecision(5, 2);
+
         builder.Property(bp => bp.ReadinessScore)
             .HasPrecision(5, 2);
 

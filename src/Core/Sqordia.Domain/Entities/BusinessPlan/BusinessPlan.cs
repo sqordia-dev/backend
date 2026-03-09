@@ -67,6 +67,16 @@ public class BusinessPlan : BaseAuditableEntity
     // Onboarding context (JSON containing industry, goals, business stage, team size, etc.)
     public string? OnboardingContextJson { get; private set; }
 
+    // Business Brief (unified context for AI generation)
+    public string? BusinessBriefJson { get; private set; }
+    public DateTime? BusinessBriefGeneratedAt { get; private set; }
+
+    // Multi-pass generation pipeline (Phase 2)
+    public string? GenerationPlanJson { get; private set; }
+    public string? QualityReportJson { get; private set; }
+    public decimal? BankReadinessScore { get; private set; }
+    public decimal? QualityScore { get; private set; }
+
     // Generation progress tracking
     public string? CurrentGenerationSection { get; private set; }
     public int GenerationProgress { get; private set; }
@@ -235,6 +245,24 @@ public class BusinessPlan : BaseAuditableEntity
     public void SetOnboardingContext(string? contextJson)
     {
         OnboardingContextJson = contextJson;
+    }
+
+    public void SetBusinessBrief(string? briefJson)
+    {
+        BusinessBriefJson = briefJson;
+        BusinessBriefGeneratedAt = briefJson != null ? DateTime.UtcNow : null;
+    }
+
+    public void SetGenerationPlan(string? planJson)
+    {
+        GenerationPlanJson = planJson;
+    }
+
+    public void SetQualityReport(string? reportJson, decimal? bankReadinessScore, decimal? qualityScore)
+    {
+        QualityReportJson = reportJson;
+        BankReadinessScore = bankReadinessScore;
+        QualityScore = qualityScore;
     }
 
     public void UpdateGenerationProgress(string? currentSection, int progress)

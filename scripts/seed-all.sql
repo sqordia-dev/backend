@@ -793,7 +793,26 @@ BEGIN
         'Features', 'Enable unlimited document revisions', true, 3, 3, false, false, v_now, false
     WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:UnlimitedRevisions');
 
-    RAISE NOTICE '✓ Feature flags seeded (11 flags)';
+    -- Onboarding V2 & Adaptive Interview flags (default: disabled for gradual rollout)
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:onboarding-v2',
+        '{"isEnabled":true,"description":"Enable redesigned onboarding wizard V2 with structured org profile","category":"General","tags":["onboarding","v2"],"type":0,"state":0}',
+        'Features', 'Enable redesigned onboarding wizard V2', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:onboarding-v2');
+
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:adaptive-interview',
+        '{"isEnabled":true,"description":"Enable adaptive interview that skips questions already answered via org profile","category":"General","tags":["interview","adaptive"],"type":0,"state":0}',
+        'Features', 'Enable adaptive interview filtering', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:adaptive-interview');
+
+    INSERT INTO "Settings" ("Id", "Key", "Value", "Category", "Description", "IsPublic", "SettingType", "DataType", "IsEncrypted", "IsCritical", "Created", "IsDeleted")
+    SELECT gen_random_uuid(), 'Features:profile-org-tab',
+        '{"isEnabled":true,"description":"Show Organization tab in user profile page","category":"General","tags":["profile","organization"],"type":0,"state":0}',
+        'Features', 'Show Organization tab in profile', true, 3, 3, false, false, v_now, false
+    WHERE NOT EXISTS (SELECT 1 FROM "Settings" WHERE "Key" = 'Features:profile-org-tab');
+
+    RAISE NOTICE '✓ Feature flags seeded (14 flags)';
 END $$;
 
 -- ============================================================================

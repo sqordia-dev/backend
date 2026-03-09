@@ -49,4 +49,9 @@ public class AnalyzeAnswerRequest
     /// Language for the polished output: en, fr
     /// </summary>
     public string Language { get; set; } = "en";
+
+    /// <summary>
+    /// Organization profile context from onboarding for AI personalization
+    /// </summary>
+    public OrganizationContextDto? OrganizationContext { get; set; }
 }

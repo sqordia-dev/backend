@@ -34,6 +34,11 @@ public class AnalyzeStepRequest
     /// Language for the analysis output: en, fr
     /// </summary>
     public string Language { get; set; } = "en";
+
+    /// <summary>
+    /// Organization profile context from onboarding for AI personalization
+    /// </summary>
+    public OrganizationContextDto? OrganizationContext { get; set; }
 }
 
 /// <summary>

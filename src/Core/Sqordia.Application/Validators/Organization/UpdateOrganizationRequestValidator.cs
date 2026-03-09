@@ -21,5 +21,15 @@ public class UpdateOrganizationRequestValidator : AbstractValidator<UpdateOrgani
             .Must(url => Uri.TryCreate(url, UriKind.Absolute, out _))
             .WithMessage("Website must be a valid URL")
             .When(x => !string.IsNullOrEmpty(x.Website));
+
+        RuleFor(x => x.Industry).MaximumLength(100).When(x => x.Industry != null);
+        RuleFor(x => x.Sector).MaximumLength(100).When(x => x.Sector != null);
+        RuleFor(x => x.TeamSize).MaximumLength(50).When(x => x.TeamSize != null);
+        RuleFor(x => x.FundingStatus).MaximumLength(50).When(x => x.FundingStatus != null);
+        RuleFor(x => x.TargetMarket).MaximumLength(100).When(x => x.TargetMarket != null);
+        RuleFor(x => x.BusinessStage).MaximumLength(50).When(x => x.BusinessStage != null);
+        RuleFor(x => x.City).MaximumLength(100).When(x => x.City != null);
+        RuleFor(x => x.Province).MaximumLength(100).When(x => x.Province != null);
+        RuleFor(x => x.Country).MaximumLength(100).When(x => x.Country != null);
     }
 }

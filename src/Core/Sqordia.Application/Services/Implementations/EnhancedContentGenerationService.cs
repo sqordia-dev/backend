@@ -631,46 +631,59 @@ Generate realistic data that matches the business context.");
 2. Relevant visual elements (charts, tables, metrics) where appropriate
 3. Data-driven insights and actionable recommendations
 
-Always aim for clarity, professionalism, and persuasiveness."
+Write ONLY in English. Always aim for clarity, professionalism, and persuasiveness."
             : @"Vous êtes un consultant expert en plans d'affaires avec 20 ans d'expérience. Générez un contenu de plan d'affaires professionnel et complet avec :
 1. Une prose claire et convaincante au format HTML
 2. Des éléments visuels pertinents (graphiques, tableaux, métriques) le cas échéant
 3. Des informations basées sur les données et des recommandations actionnables
 
-Visez toujours la clarté, le professionnalisme et la persuasion.";
+Rédigez UNIQUEMENT en français. Ne produisez JAMAIS de contenu en anglais. Visez toujours la clarté, le professionnalisme et la persuasion.";
     }
 
     private string GetFallbackUserPrompt(SectionType sectionType, Dictionary<string, string> variables, GenerationOptionsDto options)
     {
+        var isFrench = options.Language?.Equals("fr", StringComparison.OrdinalIgnoreCase) ?? true;
         var sb = new StringBuilder();
-        sb.AppendLine($"Generate a {sectionType} section for the following business plan:");
+
+        if (isFrench)
+            sb.AppendLine($"Rédigez la section « {sectionType} » pour le plan d'affaires suivant :");
+        else
+            sb.AppendLine($"Generate a {sectionType} section for the following business plan:");
         sb.AppendLine();
 
         if (variables.TryGetValue("companyName", out var companyName))
-            sb.AppendLine($"Company: {companyName}");
+            sb.AppendLine($"{(isFrench ? "Entreprise" : "Company")}: {companyName}");
 
         if (variables.TryGetValue("industry", out var industry))
-            sb.AppendLine($"Industry: {industry}");
+            sb.AppendLine($"{(isFrench ? "Industrie" : "Industry")}: {industry}");
 
         if (variables.TryGetValue("description", out var description) && !string.IsNullOrEmpty(description))
             sb.AppendLine($"Description: {description}");
 
         if (variables.TryGetValue("targetMarket", out var targetMarket) && !string.IsNullOrEmpty(targetMarket))
-            sb.AppendLine($"Target Market: {targetMarket}");
+            sb.AppendLine($"{(isFrench ? "Marché cible" : "Target Market")}: {targetMarket}");
 
         if (variables.TryGetValue("products", out var products) && !string.IsNullOrEmpty(products))
-            sb.AppendLine($"Products/Services: {products}");
+            sb.AppendLine($"{(isFrench ? "Produits/Services" : "Products/Services")}: {products}");
 
         if (variables.TryGetValue("questionnaireContext", out var context) && !string.IsNullOrEmpty(context))
         {
             sb.AppendLine();
-            sb.AppendLine("=== QUESTIONNAIRE RESPONSES ===");
+            sb.AppendLine(isFrench ? "=== RÉPONSES AU QUESTIONNAIRE ===" : "=== QUESTIONNAIRE RESPONSES ===");
             sb.AppendLine(context);
         }
 
         sb.AppendLine();
-        sb.AppendLine($"Generate a comprehensive, professional {sectionType} section.");
-        sb.AppendLine("Aim for 500-700 words of engaging prose with relevant data points.");
+        if (isFrench)
+        {
+            sb.AppendLine($"Rédigez une section « {sectionType} » complète et professionnelle.");
+            sb.AppendLine("Visez 500 à 700 mots de prose engageante avec des données pertinentes. Rédigez UNIQUEMENT en français.");
+        }
+        else
+        {
+            sb.AppendLine($"Generate a comprehensive, professional {sectionType} section.");
+            sb.AppendLine("Aim for 500-700 words of engaging prose with relevant data points.");
+        }
 
         return sb.ToString();
     }

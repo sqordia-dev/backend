@@ -304,7 +304,61 @@ public class QuestionnaireService : IQuestionnaireService
                     Error.Validation("Questionnaire.EmptyResponse", "At least one response field must be populated."));
             }
 
-            await _context.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException?.Message?.Contains("23505") == true || ex.InnerException?.Message?.Contains("duplicate key") == true)
+            {
+                // Race condition: another request inserted the same response concurrently.
+                // Reload from DB and update instead.
+                _logger.LogWarning("Duplicate key on questionnaire response for plan {PlanId}, question {QuestionId}. Retrying as update.",
+                    businessPlanId, request.QuestionTemplateId);
+
+                // Use a fresh query to find the concurrently-inserted record
+                QuestionnaireResponse? retryResponse;
+                if (questionTemplate != null)
+                    retryResponse = await _context.QuestionnaireResponses.AsNoTracking()
+                        .FirstOrDefaultAsync(qr => qr.BusinessPlanId == businessPlanId && qr.QuestionTemplateId == request.QuestionTemplateId, cancellationToken);
+                else if (questionTemplateV2 != null)
+                    retryResponse = await _context.QuestionnaireResponses.AsNoTracking()
+                        .FirstOrDefaultAsync(qr => qr.BusinessPlanId == businessPlanId && qr.QuestionTemplateV2Id == request.QuestionTemplateId, cancellationToken);
+                else
+                    retryResponse = await _context.QuestionnaireResponses.AsNoTracking()
+                        .FirstOrDefaultAsync(qr => qr.BusinessPlanId == businessPlanId && qr.QuestionTemplateV3Id == request.QuestionTemplateId, cancellationToken);
+
+                if (retryResponse != null)
+                {
+                    // Use ExecuteUpdateAsync to bypass the corrupted change tracker
+                    if (questionTemplate != null)
+                        await _context.QuestionnaireResponses
+                            .Where(qr => qr.BusinessPlanId == businessPlanId && qr.QuestionTemplateId == request.QuestionTemplateId)
+                            .ExecuteUpdateAsync(s => s
+                                .SetProperty(qr => qr.ResponseText, request.ResponseText)
+                                .SetProperty(qr => qr.LastModified, DateTime.UtcNow)
+                                .SetProperty(qr => qr.LastModifiedBy, currentUserId.Value.ToString()), cancellationToken);
+                    else if (questionTemplateV2 != null)
+                        await _context.QuestionnaireResponses
+                            .Where(qr => qr.BusinessPlanId == businessPlanId && qr.QuestionTemplateV2Id == request.QuestionTemplateId)
+                            .ExecuteUpdateAsync(s => s
+                                .SetProperty(qr => qr.ResponseText, request.ResponseText)
+                                .SetProperty(qr => qr.LastModified, DateTime.UtcNow)
+                                .SetProperty(qr => qr.LastModifiedBy, currentUserId.Value.ToString()), cancellationToken);
+                    else
+                        await _context.QuestionnaireResponses
+                            .Where(qr => qr.BusinessPlanId == businessPlanId && qr.QuestionTemplateV3Id == request.QuestionTemplateId)
+                            .ExecuteUpdateAsync(s => s
+                                .SetProperty(qr => qr.ResponseText, request.ResponseText)
+                                .SetProperty(qr => qr.LastModified, DateTime.UtcNow)
+                                .SetProperty(qr => qr.LastModifiedBy, currentUserId.Value.ToString()), cancellationToken);
+
+                    existingResponse = retryResponse;
+                }
+                else
+                {
+                    throw; // Unexpected — rethrow if we can't find it
+                }
+            }
 
             // Update completion percentage
             await UpdateCompletionInternalAsync(businessPlanId, cancellationToken);
@@ -327,7 +381,7 @@ public class QuestionnaireService : IQuestionnaireService
                 {
                     options = JsonConvert.DeserializeObject<List<string>>(optionsJson);
                 }
-                catch { }
+                catch (JsonException ex) { _logger.LogWarning(ex, "Failed to deserialize options JSON: {Json}", optionsJson); }
             }
 
             List<string>? selectedOptions = null;
@@ -337,7 +391,7 @@ public class QuestionnaireService : IQuestionnaireService
                 {
                     selectedOptions = JsonConvert.DeserializeObject<List<string>>(existingResponse.SelectedOptions);
                 }
-                catch { }
+                catch (JsonException ex) { _logger.LogWarning(ex, "Failed to deserialize selectedOptions JSON"); }
             }
 
             // Build response using V1, V2, or V3 template data
@@ -483,7 +537,7 @@ public class QuestionnaireService : IQuestionnaireService
                     {
                         selectedOptions = JsonConvert.DeserializeObject<List<string>>(r.SelectedOptions);
                     }
-                    catch { }
+                    catch (JsonException ex) { _logger.LogWarning(ex, "Failed to deserialize selectedOptions JSON"); }
                 }
 
                 // Try V1 template first
@@ -492,7 +546,7 @@ public class QuestionnaireService : IQuestionnaireService
                     List<string>? options = null;
                     if (!string.IsNullOrWhiteSpace(v1Template.Options))
                     {
-                        try { options = JsonConvert.DeserializeObject<List<string>>(v1Template.Options); } catch { }
+                        try { options = JsonConvert.DeserializeObject<List<string>>(v1Template.Options); } catch (JsonException) { /* malformed options JSON */ }
                     }
 
                     return new QuestionnaireQuestionResponse
@@ -529,7 +583,7 @@ public class QuestionnaireService : IQuestionnaireService
                         : v2Template.Options;
                     if (optionsJson != null)
                     {
-                        try { options = JsonConvert.DeserializeObject<List<string>>(optionsJson); } catch { }
+                        try { options = JsonConvert.DeserializeObject<List<string>>(optionsJson); } catch (JsonException) { /* malformed options JSON */ }
                     }
 
                     return new QuestionnaireQuestionResponse
@@ -560,7 +614,7 @@ public class QuestionnaireService : IQuestionnaireService
                     var optionsJson = isEnglish ? v3Template.OptionsEN : v3Template.OptionsFR;
                     if (!string.IsNullOrWhiteSpace(optionsJson))
                     {
-                        try { options = JsonConvert.DeserializeObject<List<string>>(optionsJson); } catch { }
+                        try { options = JsonConvert.DeserializeObject<List<string>>(optionsJson); } catch (JsonException) { /* malformed options JSON */ }
                     }
 
                     return new QuestionnaireQuestionResponse
@@ -643,15 +697,25 @@ public class QuestionnaireService : IQuestionnaireService
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
-        if (template == null) return;
+        // Count questions from the legacy template (V1)
+        var v1QuestionCount = template?.Questions.Count ?? 0;
+        var requiredQuestions = template?.Questions.Where(q => q.IsRequired).Select(q => q.Id).ToList() ?? new List<Guid>();
 
-        var totalQuestions = template.Questions.Count;
-        var requiredQuestions = template.Questions.Where(q => q.IsRequired).Select(q => q.Id).ToList();
+        // Count active V3 (STRUCTURE FINALE) questions for this plan type
+        var v3QuestionCount = await _context.QuestionTemplatesV3
+            .Where(qt => qt.IsActive)
+            .CountAsync(cancellationToken);
 
-        // Get completed responses (at least for required questions)
+        var totalQuestions = Math.Max(v1QuestionCount, v3QuestionCount);
+        if (totalQuestions == 0) return;
+
+        // Get completed responses
         var completedResponses = await _context.QuestionnaireResponses
             .Where(qr => qr.BusinessPlanId == businessPlanId)
             .CountAsync(cancellationToken);
+
+        // Cap to avoid domain validation error (responses may span multiple template versions)
+        completedResponses = Math.Min(completedResponses, totalQuestions);
 
         // Check if all required questions are answered
         var answeredRequiredQuestions = await _context.QuestionnaireResponses

@@ -401,19 +401,18 @@ public class AICoachService : IAICoachService
                 tierName = subscriptionResult.Value.Plan?.PlanType;
             }
 
-            // TODO: Re-enable subscription check later
             // AI Coach is available for Pro and Enterprise only
-            // if (subscriptionTier == SubscriptionPlanType.Free)
-            // {
-            //     return Result.Success(new AICoachAccessResponse
-            //     {
-            //         HasAccess = false,
-            //         FeatureEnabled = true,
-            //         SubscriptionTier = tierName,
-            //         DenialReason = "AI Coach is available for Pro and Enterprise subscribers. Upgrade your plan to access this feature.",
-            //         UpgradeUrl = "/pricing"
-            //     });
-            // }
+            if (subscriptionTier == SubscriptionPlanType.Free)
+            {
+                return Result.Success(new AICoachAccessResponse
+                {
+                    HasAccess = false,
+                    FeatureEnabled = true,
+                    SubscriptionTier = tierName,
+                    DenialReason = "AI Coach is available for Pro and Enterprise subscribers. Upgrade your plan to access this feature.",
+                    UpgradeUrl = "/pricing"
+                });
+            }
 
             // Check token limits
             var usageResult = await GetTokenUsageAsync(userId, null, cancellationToken);
@@ -561,7 +560,8 @@ Remember: You are a coach, not just an answer generator. Guide the user to devel
         {
             SubscriptionPlanType.Enterprise => config.MaxMonthlyTokensEnterprise,
             SubscriptionPlanType.Pro => config.MaxMonthlyTokensPro,
-            _ => config.MaxMonthlyTokensPro // TODO: Restrict Free users later
+            SubscriptionPlanType.Free => config.MaxMonthlyTokensPro / 10, // Free tier gets 10% of Pro limit
+            _ => config.MaxMonthlyTokensPro
         };
     }
 

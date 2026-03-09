@@ -16,5 +16,18 @@ public class OrganizationResponse
     public int MemberCount { get; set; }
     public DateTime Created { get; set; }
     public string? CreatedBy { get; set; }
+
+    // Business context
+    public string? Industry { get; set; }
+    public string? Sector { get; set; }
+    public string? TeamSize { get; set; }
+    public string? FundingStatus { get; set; }
+    public string? TargetMarket { get; set; }
+    public string? BusinessStage { get; set; }
+    public string? GoalsJson { get; set; }
+    public string? City { get; set; }
+    public string? Province { get; set; }
+    public string? Country { get; set; }
+    public int ProfileCompletenessScore { get; set; }
 }
 

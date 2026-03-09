@@ -43,6 +43,7 @@ using WordInsideVerticalBorder = DocumentFormat.OpenXml.Wordprocessing.InsideVer
 using SpreadsheetColors = DocumentFormat.OpenXml.Spreadsheet.Colors;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
+using Sqordia.Application.Models.Export;
 
 namespace Sqordia.Infrastructure.Services;
 
@@ -54,19 +55,39 @@ public class DocumentExportService : IDocumentExportService
     private readonly IApplicationDbContext _context;
     private readonly ILogger<DocumentExportService> _logger;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IExportThemeService _themeService;
 
     public DocumentExportService(
         IApplicationDbContext context,
         ILogger<DocumentExportService> logger,
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        IExportThemeService themeService)
     {
         _context = context;
         _logger = logger;
         _httpContextAccessor = httpContextAccessor;
+        _themeService = themeService;
 
         // Configure QuestPDF license
         QuestPDF.Settings.License = LicenseType.Community;
     }
+
+    /// <summary>
+    /// Converts a hex color string (e.g. "#1E3A5F") to a QuestPDF Color.
+    /// QuestPDF supports implicit string-to-Color conversion for hex values.
+    /// </summary>
+    private static QuestPDF.Infrastructure.Color HexToColor(string hex)
+    {
+        // Ensure the hex string starts with '#' for QuestPDF
+        if (!hex.StartsWith('#'))
+            hex = "#" + hex;
+        return QuestPDF.Infrastructure.Color.FromHex(hex);
+    }
+
+    /// <summary>
+    /// Strips '#' prefix from a hex color for OpenXml usage.
+    /// </summary>
+    private static string HexForOpenXml(string hex) => hex.TrimStart('#');
 
     public async Task<Result<ExportResult>> ExportToPdfAsync(Guid businessPlanId, string language = "fr", CancellationToken cancellationToken = default)
     {
@@ -80,8 +101,12 @@ public class DocumentExportService : IDocumentExportService
                 return Result.Failure<ExportResult>("Business plan not found or access denied");
             }
 
+            // Resolve theme
+            var themeResult = await _themeService.ResolveThemeAsync(null, null, cancellationToken);
+            var theme = themeResult.IsSuccess ? themeResult.Value! : ExportThemeRegistry.GetTheme("classic");
+
             // Generate PDF using QuestPDF
-            var pdfBytes = GeneratePdfWithQuestPDF(businessPlan, language);
+            var pdfBytes = GeneratePdfWithQuestPDF(businessPlan, language, theme);
 
             var result = new ExportResult
             {
@@ -90,7 +115,7 @@ public class DocumentExportService : IDocumentExportService
                 ContentType = "application/pdf",
                 FileSizeBytes = pdfBytes.Length,
                 Language = language,
-                Template = "default"
+                Template = theme.Id
             };
 
             _logger.LogInformation("PDF export completed successfully. File size: {FileSize} bytes", pdfBytes.Length);
@@ -115,8 +140,12 @@ public class DocumentExportService : IDocumentExportService
                 return Result.Failure<ExportResult>("Business plan not found or access denied");
             }
 
+            // Resolve theme
+            var themeResult = await _themeService.ResolveThemeAsync(null, null, cancellationToken);
+            var theme = themeResult.IsSuccess ? themeResult.Value! : ExportThemeRegistry.GetTheme("classic");
+
             // Generate Word document
-            var wordBytes = GenerateWordDocument(businessPlan, language);
+            var wordBytes = GenerateWordDocument(businessPlan, language, theme);
 
             var result = new ExportResult
             {
@@ -125,7 +154,7 @@ public class DocumentExportService : IDocumentExportService
                 ContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 FileSizeBytes = wordBytes.Length,
                 Language = language,
-                Template = "default"
+                Template = theme.Id
             };
 
             _logger.LogInformation("Word export completed successfully. File size: {FileSize} bytes", wordBytes.Length);
@@ -160,31 +189,7 @@ public class DocumentExportService : IDocumentExportService
 
     public async Task<Result<List<ExportTemplate>>> GetAvailableTemplatesAsync()
     {
-        await Task.CompletedTask; // For future template expansion
-
-        var templates = new List<ExportTemplate>
-        {
-            new()
-            {
-                Id = "default",
-                Name = "Default Template",
-                Description = "Clean, professional business plan template with standard formatting",
-                IsDefault = true,
-                SupportedFormats = new List<string> { "pdf", "docx", "html" },
-                SupportedLanguages = new List<string> { "fr", "en" }
-            },
-            new()
-            {
-                Id = "executive",
-                Name = "Executive Summary",
-                Description = "Condensed template focusing on key business highlights",
-                IsDefault = false,
-                SupportedFormats = new List<string> { "pdf", "docx" },
-                SupportedLanguages = new List<string> { "fr", "en" }
-            }
-        };
-
-        return Result.Success(templates);
+        return await _themeService.GetAvailableThemesAsync();
     }
 
     private async Task<BusinessPlan?> GetBusinessPlanWithValidationAsync(Guid businessPlanId, CancellationToken cancellationToken)
@@ -196,6 +201,7 @@ public class DocumentExportService : IDocumentExportService
         }
 
         var businessPlan = await _context.BusinessPlans
+            .AsNoTracking()
             .Include(bp => bp.Organization)
                 .ThenInclude(o => o.Members)
             .Include(bp => bp.QuestionnaireResponses)
@@ -214,7 +220,7 @@ public class DocumentExportService : IDocumentExportService
         return hasAccess ? businessPlan : null;
     }
 
-    private byte[] GeneratePdfWithQuestPDF(BusinessPlan businessPlan, string language)
+    private byte[] GeneratePdfWithQuestPDF(BusinessPlan businessPlan, string language, ExportTheme theme)
     {
         return QuestPDF.Fluent.Document.Create(container =>
         {
@@ -222,12 +228,12 @@ public class DocumentExportService : IDocumentExportService
             {
                 page.Size(PageSizes.A4);
                 page.Margin(2, Unit.Centimetre);
-                page.PageColor(QuestPDF.Helpers.Colors.White);
+                page.PageColor(HexToColor(theme.PageBackgroundColor));
                 page.DefaultTextStyle(x => x.FontSize(12));
 
                 page.Header()
                     .Text($"{GetLocalizedText("Business Plan", language)}: {businessPlan.Title}")
-                    .SemiBold().FontSize(16).FontColor(QuestPDF.Helpers.Colors.Blue.Medium);
+                    .SemiBold().FontSize(16).FontColor(HexToColor(theme.HeadingColor));
 
                 page.Content()
                     .PaddingVertical(1, Unit.Centimetre)
@@ -235,60 +241,12 @@ public class DocumentExportService : IDocumentExportService
                     {
                         x.Spacing(20);
 
-                        // Executive Summary
-                        if (!string.IsNullOrEmpty(businessPlan.ExecutiveSummary))
+                        var sections = GetDefaultSections(businessPlan, language);
+                        foreach (var section in sections.Where(s => !string.IsNullOrWhiteSpace(s.Content)))
                         {
-                            x.Item().Text(GetLocalizedText("Executive Summary", language)).SemiBold().FontSize(14);
-                            x.Item().Text(businessPlan.ExecutiveSummary);
-                        }
-
-                        // Problem Statement
-                        if (!string.IsNullOrEmpty(businessPlan.ProblemStatement))
-                        {
-                            x.Item().Text(GetLocalizedText("Problem Statement", language)).SemiBold().FontSize(14);
-                            x.Item().Text(businessPlan.ProblemStatement);
-                        }
-
-                        // Solution
-                        if (!string.IsNullOrEmpty(businessPlan.Solution))
-                        {
-                            x.Item().Text(GetLocalizedText("Solution", language)).SemiBold().FontSize(14);
-                            x.Item().Text(businessPlan.Solution);
-                        }
-
-                        // Market Analysis
-                        if (!string.IsNullOrEmpty(businessPlan.MarketAnalysis))
-                        {
-                            x.Item().Text(GetLocalizedText("Market Analysis", language)).SemiBold().FontSize(14);
-                            x.Item().Text(businessPlan.MarketAnalysis);
-                        }
-
-                        // Competitive Analysis
-                        if (!string.IsNullOrEmpty(businessPlan.CompetitiveAnalysis))
-                        {
-                            x.Item().Text(GetLocalizedText("Competitive Analysis", language)).SemiBold().FontSize(14);
-                            x.Item().Text(businessPlan.CompetitiveAnalysis);
-                        }
-
-                        // Financial Projections
-                        if (!string.IsNullOrEmpty(businessPlan.FinancialProjections))
-                        {
-                            x.Item().Text(GetLocalizedText("Financial Projections", language)).SemiBold().FontSize(14);
-                            x.Item().Text(businessPlan.FinancialProjections);
-                        }
-
-                        // Marketing Strategy
-                        if (!string.IsNullOrEmpty(businessPlan.MarketingStrategy))
-                        {
-                            x.Item().Text(GetLocalizedText("Marketing Strategy", language)).SemiBold().FontSize(14);
-                            x.Item().Text(businessPlan.MarketingStrategy);
-                        }
-
-                        // Management Team
-                        if (!string.IsNullOrEmpty(businessPlan.ManagementTeam))
-                        {
-                            x.Item().Text(GetLocalizedText("Management Team", language)).SemiBold().FontSize(14);
-                            x.Item().Text(businessPlan.ManagementTeam);
+                            x.Item().Text(section.Title)
+                                .SemiBold().FontSize(14).FontColor(HexToColor(theme.HeadingColor));
+                            RenderContentToPdf(x, section.Content, theme);
                         }
                     });
 
@@ -309,8 +267,9 @@ public class DocumentExportService : IDocumentExportService
         .GeneratePdf();
     }
 
-    private byte[] GenerateWordDocument(BusinessPlan businessPlan, string language)
+    private byte[] GenerateWordDocument(BusinessPlan businessPlan, string language, ExportTheme? theme = null)
     {
+        theme ??= ExportThemeRegistry.GetTheme("classic");
         using var memoryStream = new MemoryStream();
         using var wordDocument = WordprocessingDocument.Create(memoryStream, WordprocessingDocumentType.Document);
 
@@ -327,14 +286,11 @@ public class DocumentExportService : IDocumentExportService
         body.Append(titleParagraph);
 
         // Add sections
-        AddWordSection(body, GetLocalizedText("Executive Summary", language), businessPlan.ExecutiveSummary);
-        AddWordSection(body, GetLocalizedText("Problem Statement", language), businessPlan.ProblemStatement);
-        AddWordSection(body, GetLocalizedText("Solution", language), businessPlan.Solution);
-        AddWordSection(body, GetLocalizedText("Market Analysis", language), businessPlan.MarketAnalysis);
-        AddWordSection(body, GetLocalizedText("Competitive Analysis", language), businessPlan.CompetitiveAnalysis);
-        AddWordSection(body, GetLocalizedText("Financial Projections", language), businessPlan.FinancialProjections);
-        AddWordSection(body, GetLocalizedText("Marketing Strategy", language), businessPlan.MarketingStrategy);
-        AddWordSection(body, GetLocalizedText("Management Team", language), businessPlan.ManagementTeam);
+        var sections = GetDefaultSections(businessPlan, language);
+        foreach (var section in sections.Where(s => !string.IsNullOrWhiteSpace(s.Content)))
+        {
+            AddWordSection(body, section.Title, StripHtml(section.Content));
+        }
 
         wordDocument.Save();
         return memoryStream.ToArray();
@@ -382,14 +338,11 @@ public class DocumentExportService : IDocumentExportService
         html.AppendLine("<div class='container'>");
         html.AppendLine($"<h1>{GetLocalizedText("Business Plan", language)}: {businessPlan.Title}</h1>");
 
-        AddHtmlSection(html, GetLocalizedText("Executive Summary", language), businessPlan.ExecutiveSummary);
-        AddHtmlSection(html, GetLocalizedText("Problem Statement", language), businessPlan.ProblemStatement);
-        AddHtmlSection(html, GetLocalizedText("Solution", language), businessPlan.Solution);
-        AddHtmlSection(html, GetLocalizedText("Market Analysis", language), businessPlan.MarketAnalysis);
-        AddHtmlSection(html, GetLocalizedText("Competitive Analysis", language), businessPlan.CompetitiveAnalysis);
-        AddHtmlSection(html, GetLocalizedText("Financial Projections", language), businessPlan.FinancialProjections);
-        AddHtmlSection(html, GetLocalizedText("Marketing Strategy", language), businessPlan.MarketingStrategy);
-        AddHtmlSection(html, GetLocalizedText("Management Team", language), businessPlan.ManagementTeam);
+        var sections = GetDefaultSections(businessPlan, language);
+        foreach (var section in sections.Where(s => !string.IsNullOrWhiteSpace(s.Content)))
+        {
+            AddHtmlSection(html, section.Title, section.Content);
+        }
 
         html.AppendLine("</div>");
         html.AppendLine("</body>");
@@ -434,6 +387,13 @@ public class DocumentExportService : IDocumentExportService
             ["Financial Projections"] = new() { ["fr"] = "Projections Financières", ["en"] = "Financial Projections" },
             ["Marketing Strategy"] = new() { ["fr"] = "Stratégie Marketing", ["en"] = "Marketing Strategy" },
             ["Management Team"] = new() { ["fr"] = "Équipe de Direction", ["en"] = "Management Team" },
+            ["SWOT Analysis"] = new() { ["fr"] = "Analyse SWOT", ["en"] = "SWOT Analysis" },
+            ["Business Model"] = new() { ["fr"] = "Modèle d'Affaires", ["en"] = "Business Model" },
+            ["Branding Strategy"] = new() { ["fr"] = "Stratégie de Marque", ["en"] = "Branding Strategy" },
+            ["Operations Plan"] = new() { ["fr"] = "Plan des Opérations", ["en"] = "Operations Plan" },
+            ["Funding Requirements"] = new() { ["fr"] = "Besoins de Financement", ["en"] = "Funding Requirements" },
+            ["Risk Analysis"] = new() { ["fr"] = "Analyse des Risques", ["en"] = "Risk Analysis" },
+            ["Exit Strategy"] = new() { ["fr"] = "Stratégie de Sortie", ["en"] = "Exit Strategy" },
             ["Generated on"] = new() { ["fr"] = "Généré le", ["en"] = "Generated on" },
             ["Page"] = new() { ["fr"] = "Page", ["en"] = "Page" },
             ["Table of Contents"] = new() { ["fr"] = "Table des Matières", ["en"] = "Table of Contents" },
@@ -699,8 +659,13 @@ public class DocumentExportService : IDocumentExportService
                 return Result.Failure<ExportWithVisualsResponse>("Business plan not found or access denied");
             }
 
+            // Resolve theme from templateId and cover page primary color
+            var themeResult = await _themeService.ResolveThemeAsync(
+                request.TemplateId, request.CoverPageSettings?.PrimaryColor, cancellationToken);
+            var theme = themeResult.IsSuccess ? themeResult.Value! : ExportThemeRegistry.GetTheme("classic");
+
             var statistics = new ExportStatistics();
-            var pdfBytes = GeneratePdfWithVisualsQuestPDF(businessPlan, request, statistics);
+            var pdfBytes = GeneratePdfWithVisualsQuestPDF(businessPlan, request, statistics, theme);
 
             stopwatch.Stop();
             statistics.ProcessingTimeMs = stopwatch.ElapsedMilliseconds;
@@ -713,7 +678,7 @@ public class DocumentExportService : IDocumentExportService
                 FileSizeBytes = pdfBytes.Length,
                 Format = "pdf",
                 Language = request.Language,
-                Template = request.TemplateId ?? "default",
+                Template = theme.Id,
                 Statistics = statistics
             };
 
@@ -746,8 +711,13 @@ public class DocumentExportService : IDocumentExportService
                 return Result.Failure<ExportWithVisualsResponse>("Business plan not found or access denied");
             }
 
+            // Resolve theme
+            var themeResult = await _themeService.ResolveThemeAsync(
+                request.TemplateId, request.CoverPageSettings?.PrimaryColor, cancellationToken);
+            var theme = themeResult.IsSuccess ? themeResult.Value! : ExportThemeRegistry.GetTheme("classic");
+
             var statistics = new ExportStatistics();
-            var wordBytes = GenerateWordDocumentWithVisuals(businessPlan, request, statistics);
+            var wordBytes = GenerateWordDocumentWithVisuals(businessPlan, request, statistics, theme);
 
             stopwatch.Stop();
             statistics.ProcessingTimeMs = stopwatch.ElapsedMilliseconds;
@@ -760,7 +730,7 @@ public class DocumentExportService : IDocumentExportService
                 FileSizeBytes = wordBytes.Length,
                 Format = "docx",
                 Language = request.Language,
-                Template = request.TemplateId ?? "default",
+                Template = theme.Id,
                 Statistics = statistics
             };
 
@@ -792,7 +762,12 @@ public class DocumentExportService : IDocumentExportService
                 return Result.Failure<string>("Business plan not found or access denied");
             }
 
-            var html = GenerateHtmlWithVisuals(businessPlan, request);
+            // Resolve theme
+            var themeResult = await _themeService.ResolveThemeAsync(
+                request.TemplateId, request.CoverPageSettings?.PrimaryColor, cancellationToken);
+            var theme = themeResult.IsSuccess ? themeResult.Value! : ExportThemeRegistry.GetTheme("classic");
+
+            var html = GenerateHtmlWithVisuals(businessPlan, request, theme);
             return Result.Success(html);
         }
         catch (Exception ex)
@@ -847,72 +822,147 @@ public class DocumentExportService : IDocumentExportService
     private byte[] GeneratePdfWithVisualsQuestPDF(
         BusinessPlan businessPlan,
         ExportWithVisualsRequest request,
-        ExportStatistics statistics)
+        ExportStatistics statistics,
+        ExportTheme theme)
     {
         var sections = request.Sections ?? GetDefaultSections(businessPlan, request.Language);
         statistics.SectionCount = sections.Count;
+        var contentSections = sections.Where(s => !string.IsNullOrWhiteSpace(s.Content) || (s.VisualElements != null && s.VisualElements.Any())).ToList();
 
         return QuestPDF.Fluent.Document.Create(container =>
         {
-            container.Page(page =>
+            // ── Cover Page ──
+            container.Page(coverPage =>
             {
-                page.Size(PageSizes.A4);
-                page.Margin(2, Unit.Centimetre);
-                page.PageColor(QuestPDF.Helpers.Colors.White);
-                page.DefaultTextStyle(x => x.FontSize(11));
+                coverPage.Size(PageSizes.A4);
+                coverPage.Margin(0);
 
-                // Cover page
-                if (request.CoverPageSettings != null)
+                coverPage.Content().Column(column =>
                 {
-                    page.Header().Element(c => ComposeCoverPageHeader(c, request.CoverPageSettings, businessPlan, request.Language));
-                }
-                else
-                {
-                    page.Header()
-                        .Text($"{GetLocalizedText("Business Plan", request.Language)}: {businessPlan.Title}")
-                        .SemiBold().FontSize(16).FontColor(QuestPDF.Helpers.Colors.Blue.Medium);
-                }
-
-                page.Content()
-                    .PaddingVertical(1, Unit.Centimetre)
-                    .Column(column =>
+                    // Gradient band (top 40% of page)
+                    column.Item().Height(420).Background(HexToColor(theme.PrimaryColor)).Padding(50).Column(band =>
                     {
-                        column.Spacing(15);
+                        band.Spacing(8);
+                        band.Item().PaddingTop(80);
+                        band.Item().Text(request.CoverPageSettings?.DocumentTitle ?? businessPlan.Title ?? GetLocalizedText("Business Plan", request.Language))
+                            .Bold().FontSize(32).FontColor(QuestPDF.Helpers.Colors.White);
+                        band.Item().Text(request.CoverPageSettings?.CompanyName ?? businessPlan.Organization?.Name ?? "")
+                            .FontSize(18).FontColor(QuestPDF.Helpers.Colors.White).Light();
 
-                        // Table of Contents
-                        if (request.IncludeTableOfContents)
+                        if (!string.IsNullOrWhiteSpace(request.CoverPageSettings?.Subtitle))
                         {
-                            column.Item().Text(GetLocalizedText("Table of Contents", request.Language))
-                                .Bold().FontSize(16);
-                            column.Item().PaddingBottom(10);
-
-                            var sectionNumber = 1;
-                            foreach (var section in sections.Where(s => !string.IsNullOrWhiteSpace(s.Content)))
-                            {
-                                column.Item().Text($"{sectionNumber}. {section.Title}").FontSize(11);
-                                sectionNumber++;
-                            }
-                            column.Item().PageBreak();
+                            band.Item().PaddingTop(4).Text(request.CoverPageSettings.Subtitle)
+                                .FontSize(13).FontColor(HexToColor(theme.CoverSubtitleColor));
                         }
 
-                        // Sections with visual elements
-                        foreach (var section in sections)
+                        // Chart color palette dots (small colored squares)
+                        band.Item().PaddingTop(16).Row(row =>
                         {
-                            if (string.IsNullOrWhiteSpace(section.Content) && (section.VisualElements == null || !section.VisualElements.Any()))
-                                continue;
+                            foreach (var color in theme.ChartColorPalette.Take(4))
+                            {
+                                row.ConstantItem(12).Height(12).Background(HexToColor(color));
+                                row.ConstantItem(6); // spacing
+                            }
+                        });
+                    });
 
-                            // Section title
-                            column.Item().Text(section.Title).SemiBold().FontSize(14);
-                            column.Item().PaddingBottom(5)
-                                .LineHorizontal(1)
-                                .LineColor(QuestPDF.Helpers.Colors.Grey.Lighten2);
+                    // Lower section with prepared by/for
+                    column.Item().ExtendVertical().Background(HexToColor(theme.PageBackgroundColor)).Padding(50).Column(lower =>
+                    {
+                        lower.Spacing(6);
+                        lower.Item().PaddingTop(30);
 
-                            // Section prose content
+                        if (!string.IsNullOrWhiteSpace(request.CoverPageSettings?.PreparedBy))
+                        {
+                            lower.Item().Text($"{GetLocalizedText("Prepared by", request.Language)}: {request.CoverPageSettings.PreparedBy}")
+                                .FontSize(12).FontColor(HexToColor(theme.TextColor));
+                        }
+                        if (!string.IsNullOrWhiteSpace(request.CoverPageSettings?.PreparedFor))
+                        {
+                            lower.Item().Text($"{GetLocalizedText("Prepared for", request.Language)}: {request.CoverPageSettings.PreparedFor}")
+                                .FontSize(12).FontColor(HexToColor(theme.TextColor));
+                        }
+
+                        var date = request.CoverPageSettings?.PreparedDate ?? DateTime.UtcNow;
+                        lower.Item().PaddingTop(10).Text(date.ToString("MMMM dd, yyyy"))
+                            .FontSize(11).FontColor(HexToColor(theme.MutedTextColor));
+                    });
+                });
+            });
+
+            // ── Table of Contents Page ──
+            if (request.IncludeTableOfContents)
+            {
+                container.Page(tocPage =>
+                {
+                    tocPage.Size(PageSizes.A4);
+                    tocPage.Margin(2, Unit.Centimetre);
+                    tocPage.PageColor(HexToColor(theme.TocBackgroundColor));
+                    tocPage.DefaultTextStyle(x => x.FontSize(11));
+
+                    tocPage.Content().Column(column =>
+                    {
+                        column.Item().Text(GetLocalizedText("Table of Contents", request.Language))
+                            .Bold().FontSize(20).FontColor(HexToColor(theme.HeadingColor));
+                        column.Item().PaddingBottom(16);
+
+                        var sectionNumber = 1;
+                        foreach (var section in contentSections)
+                        {
+                            column.Item().BorderBottom(1).BorderColor(HexToColor(theme.SeparatorColor))
+                                .PaddingVertical(8).Row(row =>
+                                {
+                                    row.RelativeItem().Text($"{sectionNumber}. {section.Title}")
+                                        .FontSize(12).FontColor(HexToColor(theme.TextColor));
+                                    row.ConstantItem(60).AlignRight().Text($"{GetLocalizedText("Page", request.Language)} {sectionNumber + 1}")
+                                        .FontSize(10).FontColor(HexToColor(theme.MutedTextColor));
+                                });
+                            sectionNumber++;
+                        }
+                    });
+
+                    tocPage.Footer().AlignCenter().Text(x =>
+                    {
+                        x.DefaultTextStyle(s => s.FontSize(9).FontColor(HexToColor(theme.MutedTextColor)));
+                        x.CurrentPageNumber();
+                    });
+                });
+            }
+
+            // ── Content Pages ──
+            container.Page(contentPage =>
+            {
+                contentPage.Size(PageSizes.A4);
+                contentPage.Margin(2, Unit.Centimetre);
+                contentPage.PageColor(HexToColor(theme.PageBackgroundColor));
+                contentPage.DefaultTextStyle(x => x.FontSize(11).FontColor(HexToColor(theme.TextColor)));
+
+                contentPage.Header().PaddingBottom(10).Row(row =>
+                {
+                    row.RelativeItem().Text(businessPlan.Title ?? "")
+                        .FontSize(9).FontColor(HexToColor(theme.MutedTextColor));
+                    row.ConstantItem(100).AlignRight().Text(businessPlan.Organization?.Name ?? "")
+                        .FontSize(9).FontColor(HexToColor(theme.MutedTextColor));
+                });
+
+                contentPage.Content()
+                    .Column(column =>
+                    {
+                        column.Spacing(10);
+
+                        foreach (var section in contentSections)
+                        {
+                            // Section title with accent border
+                            column.Item().BorderBottom(2).BorderColor(HexToColor(theme.AccentColor))
+                                .PaddingBottom(6).Text(section.Title)
+                                .Bold().FontSize(16).FontColor(HexToColor(theme.HeadingColor));
+
+                            // Section prose content — render markdown-aware paragraphs
                             if (!string.IsNullOrWhiteSpace(section.Content))
                             {
                                 var wordCount = section.Content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
                                 statistics.WordCount += wordCount;
-                                column.Item().Text(StripHtml(section.Content)).FontSize(11).LineHeight(1.4f);
+                                RenderContentToPdf(column, section.Content, theme);
                             }
 
                             // Visual elements
@@ -921,21 +971,22 @@ public class DocumentExportService : IDocumentExportService
                                 foreach (var visual in section.VisualElements)
                                 {
                                     column.Item().PaddingTop(10);
-                                    RenderVisualElementToPdf(column, visual, statistics, request.VisualOptions);
+                                    RenderVisualElementToPdf(column, visual, statistics, request.VisualOptions, theme);
                                 }
                             }
 
-                            column.Item().PaddingTop(15);
+                            column.Item().PaddingTop(12);
                         }
                     });
 
                 // Footer with page numbers
                 if (request.IncludePageNumbers)
                 {
-                    page.Footer()
+                    contentPage.Footer()
                         .AlignCenter()
                         .Text(x =>
                         {
+                            x.DefaultTextStyle(s => s.FontSize(9).FontColor(HexToColor(theme.MutedTextColor)));
                             x.Span($"{GetLocalizedText("Page", request.Language)} ");
                             x.CurrentPageNumber();
                             x.Span(" / ");
@@ -947,64 +998,12 @@ public class DocumentExportService : IDocumentExportService
         .GeneratePdf();
     }
 
-    private void ComposeCoverPageHeader(
-        IContainer container,
-        ExportCoverPageSettings settings,
-        BusinessPlan businessPlan,
-        string language)
-    {
-        container.Column(column =>
-        {
-            column.Item().PaddingBottom(20);
-
-            // Company name
-            column.Item().AlignCenter().Text(settings.CompanyName ?? businessPlan.Organization?.Name ?? "")
-                .Bold().FontSize(28).FontColor(QuestPDF.Helpers.Colors.Blue.Darken3);
-
-            column.Item().PaddingTop(10);
-
-            // Document title
-            column.Item().AlignCenter().Text(settings.DocumentTitle ?? GetLocalizedText("Business Plan", language))
-                .FontSize(20);
-
-            // Subtitle
-            if (!string.IsNullOrWhiteSpace(settings.Subtitle))
-            {
-                column.Item().PaddingTop(5);
-                column.Item().AlignCenter().Text(settings.Subtitle)
-                    .FontSize(14).FontColor(QuestPDF.Helpers.Colors.Grey.Darken1);
-            }
-
-            column.Item().PaddingTop(40);
-
-            // Prepared for/by
-            if (!string.IsNullOrWhiteSpace(settings.PreparedFor))
-            {
-                column.Item().AlignCenter().Text($"{GetLocalizedText("Prepared for", language)}: {settings.PreparedFor}")
-                    .FontSize(12);
-            }
-            if (!string.IsNullOrWhiteSpace(settings.PreparedBy))
-            {
-                column.Item().PaddingTop(5);
-                column.Item().AlignCenter().Text($"{GetLocalizedText("Prepared by", language)}: {settings.PreparedBy}")
-                    .FontSize(12);
-            }
-
-            // Date
-            var date = settings.PreparedDate ?? DateTime.UtcNow;
-            column.Item().PaddingTop(20);
-            column.Item().AlignCenter().Text(date.ToString("MMMM dd, yyyy"))
-                .FontSize(11).FontColor(QuestPDF.Helpers.Colors.Grey.Darken1);
-
-            column.Item().PageBreak();
-        });
-    }
-
     private void RenderVisualElementToPdf(
         ColumnDescriptor column,
         ExportVisualElement visual,
         ExportStatistics statistics,
-        VisualElementOptions? options)
+        VisualElementOptions? options,
+        ExportTheme theme)
     {
         statistics.VisualElementCount++;
 
@@ -1019,24 +1018,24 @@ public class DocumentExportService : IDocumentExportService
         {
             case "table":
                 statistics.TableCount++;
-                RenderTableToPdf(column, visual.Data, options);
+                RenderTableToPdf(column, visual.Data, options, theme);
                 break;
             case "chart":
                 statistics.ChartCount++;
-                RenderChartPlaceholderToPdf(column, visual, options);
+                RenderChartPlaceholderToPdf(column, visual, options, theme);
                 break;
             case "metric":
                 statistics.MetricCount++;
-                RenderMetricsToPdf(column, visual.Data, options);
+                RenderMetricsToPdf(column, visual.Data, options, theme);
                 break;
             case "infographic":
                 statistics.InfographicCount++;
-                RenderInfographicToPdf(column, visual.Data, options);
+                RenderInfographicToPdf(column, visual.Data, options, theme);
                 break;
         }
     }
 
-    private void RenderTableToPdf(ColumnDescriptor column, object data, VisualElementOptions? options)
+    private void RenderTableToPdf(ColumnDescriptor column, object data, VisualElementOptions? options, ExportTheme theme)
     {
         try
         {
@@ -1061,11 +1060,12 @@ public class DocumentExportService : IDocumentExportService
                     foreach (var headerText in tableData.Headers)
                     {
                         header.Cell()
-                            .Background(QuestPDF.Helpers.Colors.Grey.Lighten3)
+                            .Background(HexToColor(theme.TableHeaderBg))
                             .Padding(5)
                             .Text(headerText)
                             .Bold()
-                            .FontSize(10);
+                            .FontSize(10)
+                            .FontColor(HexToColor(theme.TableHeaderFg));
                     }
                 });
 
@@ -1074,8 +1074,8 @@ public class DocumentExportService : IDocumentExportService
                 foreach (var row in tableData.Rows)
                 {
                     var bgColor = rowIndex % 2 == 0
-                        ? QuestPDF.Helpers.Colors.White
-                        : QuestPDF.Helpers.Colors.Grey.Lighten5;
+                        ? HexToColor(theme.PageBackgroundColor)
+                        : HexToColor(theme.TableAlternateRowBg);
 
                     foreach (var cell in row.Cells)
                     {
@@ -1094,14 +1094,12 @@ public class DocumentExportService : IDocumentExportService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to render table to PDF");
-            column.Item().Text("[Table rendering error]").FontSize(10).FontColor(QuestPDF.Helpers.Colors.Red.Medium);
+            column.Item().Text("[Table rendering error]").FontSize(10).FontColor(HexToColor(theme.ErrorColor));
         }
     }
 
-    private void RenderChartPlaceholderToPdf(ColumnDescriptor column, ExportVisualElement visual, VisualElementOptions? options)
+    private void RenderChartPlaceholderToPdf(ColumnDescriptor column, ExportVisualElement visual, VisualElementOptions? options, ExportTheme theme)
     {
-        // In a full implementation, this would render actual chart images
-        // For now, render a placeholder with chart data summary
         try
         {
             var chartData = DeserializeVisualData<ExportChartData>(visual.Data);
@@ -1114,7 +1112,7 @@ public class DocumentExportService : IDocumentExportService
             column.Item()
                 .Width(width)
                 .Height(height)
-                .Background(QuestPDF.Helpers.Colors.Grey.Lighten4)
+                .Background(HexToColor(theme.ChartPlaceholderBg))
                 .Padding(10)
                 .Column(chartColumn =>
                 {
@@ -1124,7 +1122,6 @@ public class DocumentExportService : IDocumentExportService
 
                     chartColumn.Item().PaddingTop(10);
 
-                    // Show legend/data summary
                     if (chartData.Datasets != null)
                     {
                         foreach (var dataset in chartData.Datasets.Take(3))
@@ -1139,11 +1136,11 @@ public class DocumentExportService : IDocumentExportService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to render chart placeholder to PDF");
-            column.Item().Text("[Chart rendering error]").FontSize(10).FontColor(QuestPDF.Helpers.Colors.Red.Medium);
+            column.Item().Text("[Chart rendering error]").FontSize(10).FontColor(HexToColor(theme.ErrorColor));
         }
     }
 
-    private void RenderMetricsToPdf(ColumnDescriptor column, object data, VisualElementOptions? options)
+    private void RenderMetricsToPdf(ColumnDescriptor column, object data, VisualElementOptions? options, ExportTheme theme)
     {
         try
         {
@@ -1156,27 +1153,27 @@ public class DocumentExportService : IDocumentExportService
                 foreach (var metric in metricData.Metrics.Take(4))
                 {
                     row.RelativeItem()
-                        .Background(QuestPDF.Helpers.Colors.Grey.Lighten4)
+                        .Background(HexToColor(theme.MetricCardBg))
                         .Padding(10)
                         .Column(metricColumn =>
                         {
                             // Label
                             metricColumn.Item().Text(metric.Label)
-                                .FontSize(9).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
+                                .FontSize(9).FontColor(HexToColor(theme.MetricLabelColor));
 
                             // Value
                             var formattedValue = FormatMetricValue(metric);
                             metricColumn.Item().Text(formattedValue)
-                                .Bold().FontSize(16);
+                                .Bold().FontSize(16).FontColor(HexToColor(theme.MetricValueColor));
 
                             // Trend
                             if (!string.IsNullOrWhiteSpace(metric.TrendValue))
                             {
                                 var trendColor = metric.Trend == "up"
-                                    ? QuestPDF.Helpers.Colors.Green.Darken1
+                                    ? HexToColor(theme.TrendUpColor)
                                     : metric.Trend == "down"
-                                        ? QuestPDF.Helpers.Colors.Red.Darken1
-                                        : QuestPDF.Helpers.Colors.Grey.Darken1;
+                                        ? HexToColor(theme.TrendDownColor)
+                                        : HexToColor(theme.TrendNeutralColor);
 
                                 metricColumn.Item().Text(metric.TrendValue)
                                     .FontSize(10).FontColor(trendColor);
@@ -1188,11 +1185,11 @@ public class DocumentExportService : IDocumentExportService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to render metrics to PDF");
-            column.Item().Text("[Metrics rendering error]").FontSize(10).FontColor(QuestPDF.Helpers.Colors.Red.Medium);
+            column.Item().Text("[Metrics rendering error]").FontSize(10).FontColor(HexToColor(theme.ErrorColor));
         }
     }
 
-    private void RenderInfographicToPdf(ColumnDescriptor column, object data, VisualElementOptions? options)
+    private void RenderInfographicToPdf(ColumnDescriptor column, object data, VisualElementOptions? options, ExportTheme theme)
     {
         try
         {
@@ -1211,11 +1208,11 @@ public class DocumentExportService : IDocumentExportService
                     {
                         // Number/icon placeholder
                         row.ConstantItem(30)
-                            .Background(QuestPDF.Helpers.Colors.Blue.Lighten4)
+                            .Background(HexToColor(theme.InfographicNumberBg))
                             .AlignCenter()
                             .AlignMiddle()
                             .Text($"{itemNumber}")
-                            .Bold().FontSize(12);
+                            .Bold().FontSize(12).FontColor(HexToColor(theme.InfographicNumberFg));
 
                         // Content
                         row.RelativeItem()
@@ -1237,14 +1234,15 @@ public class DocumentExportService : IDocumentExportService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to render infographic to PDF");
-            column.Item().Text("[Infographic rendering error]").FontSize(10).FontColor(QuestPDF.Helpers.Colors.Red.Medium);
+            column.Item().Text("[Infographic rendering error]").FontSize(10).FontColor(HexToColor(theme.ErrorColor));
         }
     }
 
     private byte[] GenerateWordDocumentWithVisuals(
         BusinessPlan businessPlan,
         ExportWithVisualsRequest request,
-        ExportStatistics statistics)
+        ExportStatistics statistics,
+        ExportTheme theme)
     {
         var sections = request.Sections ?? GetDefaultSections(businessPlan, request.Language);
         statistics.SectionCount = sections.Count;
@@ -1257,25 +1255,25 @@ public class DocumentExportService : IDocumentExportService
         var body = mainPart.Document.AppendChild(new Body());
 
         // Add styles
-        AddWordStyles(mainPart);
+        AddWordStyles(mainPart, theme);
 
         // Cover page
         if (request.CoverPageSettings != null)
         {
-            AddWordCoverPage(body, request.CoverPageSettings, businessPlan, request.Language);
+            AddWordCoverPage(body, request.CoverPageSettings, businessPlan, request.Language, theme);
             body.Append(new WordParagraph(new DocumentFormat.OpenXml.Wordprocessing.Run(
                 new DocumentFormat.OpenXml.Wordprocessing.Break { Type = BreakValues.Page })));
         }
         else
         {
             // Simple title
-            AddWordTitle(body, $"{GetLocalizedText("Business Plan", request.Language)}: {businessPlan.Title}");
+            AddWordTitle(body, $"{GetLocalizedText("Business Plan", request.Language)}: {businessPlan.Title}", theme);
         }
 
         // Table of contents placeholder
         if (request.IncludeTableOfContents)
         {
-            AddWordHeading(body, GetLocalizedText("Table of Contents", request.Language), 1);
+            AddWordHeading(body, GetLocalizedText("Table of Contents", request.Language), 1, theme);
             var sectionNumber = 1;
             foreach (var section in sections.Where(s => !string.IsNullOrWhiteSpace(s.Content)))
             {
@@ -1293,14 +1291,14 @@ public class DocumentExportService : IDocumentExportService
                 continue;
 
             // Section title
-            AddWordHeading(body, section.Title, 1);
+            AddWordHeading(body, section.Title, 1, theme);
 
             // Prose content
             if (!string.IsNullOrWhiteSpace(section.Content))
             {
                 var wordCount = section.Content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
                 statistics.WordCount += wordCount;
-                AddWordParagraph(body, StripHtml(section.Content));
+                RenderContentToWord(body, section.Content, theme);
             }
 
             // Visual elements
@@ -1309,7 +1307,7 @@ public class DocumentExportService : IDocumentExportService
                 foreach (var visual in section.VisualElements)
                 {
                     body.Append(new WordParagraph()); // Spacing
-                    RenderVisualElementToWord(body, visual, statistics);
+                    RenderVisualElementToWord(body, visual, statistics, theme);
                 }
             }
 
@@ -1320,7 +1318,7 @@ public class DocumentExportService : IDocumentExportService
         return memoryStream.ToArray();
     }
 
-    private void AddWordStyles(MainDocumentPart mainPart)
+    private void AddWordStyles(MainDocumentPart mainPart, ExportTheme theme)
     {
         var stylesPart = mainPart.AddNewPart<StyleDefinitionsPart>();
         stylesPart.Styles = new Styles();
@@ -1336,21 +1334,21 @@ public class DocumentExportService : IDocumentExportService
         heading1Style.Append(new StyleRunProperties(
             new WordBold(),
             new WordFontSize { Val = "32" },
-            new WordColor { Val = "2E75B6" }
+            new WordColor { Val = HexForOpenXml(theme.HeadingColor) }
         ));
         stylesPart.Styles.Append(heading1Style);
 
         stylesPart.Styles.Save();
     }
 
-    private void AddWordCoverPage(Body body, ExportCoverPageSettings settings, BusinessPlan businessPlan, string language)
+    private void AddWordCoverPage(Body body, ExportCoverPageSettings settings, BusinessPlan businessPlan, string language, ExportTheme theme)
     {
         // Company name
         var companyPara = new WordParagraph();
         var companyProps = new ParagraphProperties(new Justification { Val = JustificationValues.Center });
         companyPara.Append(companyProps);
         var companyRun = new WordRun();
-        companyRun.Append(new WordRunProperties(new WordBold(), new WordFontSize { Val = "56" }, new WordColor { Val = "2E75B6" }));
+        companyRun.Append(new WordRunProperties(new WordBold(), new WordFontSize { Val = "56" }, new WordColor { Val = HexForOpenXml(theme.CoverTitleColor) }));
         companyRun.Append(new WordText(settings.CompanyName ?? businessPlan.Organization?.Name ?? ""));
         companyPara.Append(companyRun);
         body.Append(companyPara);
@@ -1374,7 +1372,7 @@ public class DocumentExportService : IDocumentExportService
             var subtitleProps = new ParagraphProperties(new Justification { Val = JustificationValues.Center });
             subtitlePara.Append(subtitleProps);
             var subtitleRun = new WordRun();
-            subtitleRun.Append(new WordRunProperties(new WordFontSize { Val = "28" }, new WordColor { Val = "666666" }));
+            subtitleRun.Append(new WordRunProperties(new WordFontSize { Val = "28" }, new WordColor { Val = HexForOpenXml(theme.CoverSubtitleColor) }));
             subtitleRun.Append(new WordText(settings.Subtitle));
             subtitlePara.Append(subtitleRun);
             body.Append(subtitlePara);
@@ -1411,22 +1409,24 @@ public class DocumentExportService : IDocumentExportService
         body.Append(para);
     }
 
-    private void AddWordTitle(Body body, string text)
+    private void AddWordTitle(Body body, string text, ExportTheme? theme = null)
     {
+        theme ??= ExportThemeRegistry.GetTheme("classic");
         var paragraph = new WordParagraph();
         var run = new WordRun();
         var runProperties = new WordRunProperties();
         runProperties.Append(new WordBold());
         runProperties.Append(new WordFontSize { Val = "48" });
-        runProperties.Append(new WordColor { Val = "1F4E79" });
+        runProperties.Append(new WordColor { Val = HexForOpenXml(theme.HeadingColor) });
         run.Append(runProperties);
         run.Append(new WordText(text));
         paragraph.Append(run);
         body.Append(paragraph);
     }
 
-    private void AddWordHeading(Body body, string text, int level)
+    private void AddWordHeading(Body body, string text, int level, ExportTheme? theme = null)
     {
+        theme ??= ExportThemeRegistry.GetTheme("classic");
         var paragraph = new WordParagraph();
         var paragraphProperties = new ParagraphProperties();
         paragraphProperties.Append(new SpacingBetweenLines { Before = "240", After = "120" });
@@ -1436,14 +1436,14 @@ public class DocumentExportService : IDocumentExportService
         var runProperties = new WordRunProperties();
         runProperties.Append(new WordBold());
         runProperties.Append(new WordFontSize { Val = level == 1 ? "32" : "28" });
-        runProperties.Append(new WordColor { Val = level == 1 ? "2E75B6" : "5B9BD5" });
+        runProperties.Append(new WordColor { Val = HexForOpenXml(level == 1 ? theme.HeadingColor : theme.Heading2Color) });
         run.Append(runProperties);
         run.Append(new WordText(text));
         paragraph.Append(run);
         body.Append(paragraph);
     }
 
-    private void AddWordParagraph(Body body, string text, bool isItalic = false)
+    private void AddWordParagraph(Body body, string text, bool isItalic = false, ExportTheme? theme = null)
     {
         var paragraph = new WordParagraph();
         var paragraphProperties = new ParagraphProperties();
@@ -1453,9 +1453,10 @@ public class DocumentExportService : IDocumentExportService
         var run = new WordRun();
         if (isItalic)
         {
+            theme ??= ExportThemeRegistry.GetTheme("classic");
             var runProperties = new WordRunProperties();
             runProperties.Append(new WordItalic());
-            runProperties.Append(new WordColor { Val = "666666" });
+            runProperties.Append(new WordColor { Val = HexForOpenXml(theme.MutedTextColor) });
             run.Append(runProperties);
         }
         run.Append(new WordText(text) { Space = SpaceProcessingModeValues.Preserve });
@@ -1463,29 +1464,63 @@ public class DocumentExportService : IDocumentExportService
         body.Append(paragraph);
     }
 
-    private void RenderVisualElementToWord(Body body, ExportVisualElement visual, ExportStatistics statistics)
+    /// <summary>
+    /// Renders section content to Word, converting markdown headings into styled sub-headings
+    /// and splitting paragraphs properly.
+    /// </summary>
+    private void RenderContentToWord(Body body, string content, ExportTheme theme)
+    {
+        // Strip HTML tags, decode entities
+        var text = System.Text.RegularExpressions.Regex.Replace(content, "<[^>]*>", "\n");
+        text = System.Net.WebUtility.HtmlDecode(text);
+
+        var blocks = System.Text.RegularExpressions.Regex.Split(text, @"\n\s*\n")
+            .Select(b => b.Trim())
+            .Where(b => !string.IsNullOrWhiteSpace(b));
+
+        foreach (var block in blocks)
+        {
+            var headingMatch = System.Text.RegularExpressions.Regex.Match(block, @"^(#{1,4})\s+(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline);
+            if (headingMatch.Success)
+            {
+                var headingText = StripInlineMarkdown(headingMatch.Groups[2].Value);
+                AddWordHeading(body, headingText, 2, theme);
+                continue;
+            }
+
+            var paragraphText = StripInlineMarkdown(block);
+            paragraphText = System.Text.RegularExpressions.Regex.Replace(paragraphText, @"\s*\n\s*", " ").Trim();
+
+            if (!string.IsNullOrWhiteSpace(paragraphText))
+            {
+                AddWordParagraph(body, paragraphText);
+            }
+        }
+    }
+
+    private void RenderVisualElementToWord(Body body, ExportVisualElement visual, ExportStatistics statistics, ExportTheme theme)
     {
         statistics.VisualElementCount++;
 
         // Visual element title
         if (!string.IsNullOrWhiteSpace(visual.Title))
         {
-            AddWordHeading(body, visual.Title, 2);
+            AddWordHeading(body, visual.Title, 2, theme);
         }
 
         switch (visual.Type.ToLower())
         {
             case "table":
                 statistics.TableCount++;
-                RenderTableToWord(body, visual.Data);
+                RenderTableToWord(body, visual.Data, theme);
                 break;
             case "chart":
                 statistics.ChartCount++;
-                RenderChartPlaceholderToWord(body, visual);
+                RenderChartPlaceholderToWord(body, visual, theme);
                 break;
             case "metric":
                 statistics.MetricCount++;
-                RenderMetricsToWord(body, visual.Data);
+                RenderMetricsToWord(body, visual.Data, theme);
                 break;
             case "infographic":
                 statistics.InfographicCount++;
@@ -1494,7 +1529,7 @@ public class DocumentExportService : IDocumentExportService
         }
     }
 
-    private void RenderTableToWord(Body body, object data)
+    private void RenderTableToWord(Body body, object data, ExportTheme theme)
     {
         try
         {
@@ -1523,10 +1558,10 @@ public class DocumentExportService : IDocumentExportService
             foreach (var header in tableData.Headers)
             {
                 var cell = new WordTableCell();
-                cell.Append(new WordTableCellProperties(new WordShading { Fill = "E0E0E0" }));
+                cell.Append(new WordTableCellProperties(new WordShading { Fill = HexForOpenXml(theme.TableHeaderBg) }));
                 var para = new WordParagraph();
                 var run = new WordRun();
-                run.Append(new WordRunProperties(new WordBold()));
+                run.Append(new WordRunProperties(new WordBold(), new WordColor { Val = HexForOpenXml(theme.TableHeaderFg) }));
                 run.Append(new WordText(header));
                 para.Append(run);
                 cell.Append(para);
@@ -1562,14 +1597,14 @@ public class DocumentExportService : IDocumentExportService
         }
     }
 
-    private void RenderChartPlaceholderToWord(Body body, ExportVisualElement visual)
+    private void RenderChartPlaceholderToWord(Body body, ExportVisualElement visual, ExportTheme theme)
     {
         try
         {
             var chartData = DeserializeVisualData<ExportChartData>(visual.Data);
 
             var para = new WordParagraph();
-            var props = new ParagraphProperties(new WordShading { Fill = "F0F0F0" });
+            var props = new ParagraphProperties(new WordShading { Fill = HexForOpenXml(theme.ChartPlaceholderBg) });
             para.Append(props);
 
             var run = new WordRun();
@@ -1591,7 +1626,7 @@ public class DocumentExportService : IDocumentExportService
         }
     }
 
-    private void RenderMetricsToWord(Body body, object data)
+    private void RenderMetricsToWord(Body body, object data, ExportTheme theme)
     {
         try
         {
@@ -1610,12 +1645,12 @@ public class DocumentExportService : IDocumentExportService
             foreach (var metric in metricData.Metrics.Take(4))
             {
                 var cell = new WordTableCell();
-                cell.Append(new WordTableCellProperties(new WordShading { Fill = "F8F8F8" }));
+                cell.Append(new WordTableCellProperties(new WordShading { Fill = HexForOpenXml(theme.MetricCardBg) }));
 
                 // Label
                 var labelPara = new WordParagraph();
                 var labelRun = new WordRun();
-                labelRun.Append(new WordRunProperties(new WordFontSize { Val = "18" }, new WordColor { Val = "666666" }));
+                labelRun.Append(new WordRunProperties(new WordFontSize { Val = "18" }, new WordColor { Val = HexForOpenXml(theme.MetricLabelColor) }));
                 labelRun.Append(new WordText(metric.Label));
                 labelPara.Append(labelRun);
                 cell.Append(labelPara);
@@ -1675,7 +1710,7 @@ public class DocumentExportService : IDocumentExportService
         }
     }
 
-    private string GenerateHtmlWithVisuals(BusinessPlan businessPlan, ExportWithVisualsRequest request)
+    private string GenerateHtmlWithVisuals(BusinessPlan businessPlan, ExportWithVisualsRequest request, ExportTheme theme)
     {
         var sections = request.Sections ?? GetDefaultSections(businessPlan, request.Language);
         var html = new StringBuilder();
@@ -1687,7 +1722,7 @@ public class DocumentExportService : IDocumentExportService
         html.AppendLine("<meta name='viewport' content='width=device-width, initial-scale=1.0'>");
         html.AppendLine($"<title>{GetLocalizedText("Business Plan", request.Language)}: {businessPlan.Title}</title>");
         html.AppendLine("<style>");
-        html.AppendLine(GetEnhancedCss(request.CoverPageSettings?.PrimaryColor));
+        html.AppendLine(GetEnhancedCss(theme));
         html.AppendLine("</style>");
         html.AppendLine("</head>");
         html.AppendLine("<body>");
@@ -1922,49 +1957,48 @@ public class DocumentExportService : IDocumentExportService
         }
     }
 
-    private string GetEnhancedCss(string? primaryColor)
+    private string GetEnhancedCss(ExportTheme theme)
     {
-        var color = primaryColor ?? "#2563EB";
         return $@"
-            :root {{ --primary-color: {color}; }}
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f5f5f5; }}
-            .cover-page {{ min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: linear-gradient(135deg, var(--primary-color) 0%, #1e40af 100%); color: white; text-align: center; padding: 40px; }}
+            :root {{ --primary-color: {theme.PrimaryColor}; --secondary-color: {theme.SecondaryColor}; }}
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: {theme.BodyBackgroundColor}; }}
+            .cover-page {{ min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: linear-gradient(135deg, var(--primary-color) 0%, {theme.CoverGradientEnd} 100%); color: white; text-align: center; padding: 40px; }}
             .cover-page .company-name {{ font-size: 3rem; margin-bottom: 0.5rem; }}
             .cover-page .document-title {{ font-size: 2rem; font-weight: normal; margin-bottom: 1rem; }}
             .cover-page .subtitle {{ font-size: 1.2rem; opacity: 0.9; }}
             .cover-page .prepared-info {{ margin: 0.5rem 0; }}
             .cover-page .date {{ margin-top: 2rem; opacity: 0.8; }}
             .container {{ max-width: 900px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 0 20px rgba(0,0,0,0.1); }}
-            .toc {{ background: #f8f9fa; padding: 20px; margin-bottom: 30px; border-radius: 8px; }}
+            .toc {{ background: {theme.TocBackgroundColor}; padding: 20px; margin-bottom: 30px; border-radius: 8px; }}
             .toc h2 {{ margin-top: 0; color: var(--primary-color); }}
             .toc ol {{ padding-left: 20px; }}
-            .toc a {{ color: #333; text-decoration: none; }}
+            .toc a {{ color: {theme.TextColor}; text-decoration: none; }}
             .toc a:hover {{ color: var(--primary-color); }}
             .section {{ margin-bottom: 40px; }}
-            .section h2 {{ color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; }}
-            .content {{ text-align: justify; color: #2c3e50; }}
+            .section h2 {{ color: var(--primary-color); border-bottom: 2px solid {theme.SeparatorColor}; padding-bottom: 10px; }}
+            .content {{ text-align: justify; color: {theme.TextColor}; }}
             .visual-element {{ margin: 20px 0; }}
-            .visual-element h3 {{ color: #34495e; margin-bottom: 10px; }}
+            .visual-element h3 {{ color: {theme.Heading2Color}; margin-bottom: 10px; }}
             .data-table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
-            .data-table th, .data-table td {{ padding: 12px; text-align: left; border: 1px solid #ddd; }}
-            .data-table th {{ background: #f0f0f0; font-weight: bold; }}
-            .data-table tr:nth-child(even) {{ background: #fafafa; }}
-            .data-table tr.highlighted {{ background: #fff3cd; }}
+            .data-table th, .data-table td {{ padding: 12px; text-align: left; border: 1px solid {theme.TableBorderColor}; }}
+            .data-table th {{ background: {theme.TableHeaderBg}; color: {theme.TableHeaderFg}; font-weight: bold; }}
+            .data-table tr:nth-child(even) {{ background: {theme.TableAlternateRowBg}; }}
+            .data-table tr.highlighted {{ background: {theme.TableHighlightBg}; }}
             .data-table td.bold {{ font-weight: bold; }}
-            .chart-placeholder {{ background: #f0f0f0; padding: 40px; text-align: center; color: #666; border-radius: 8px; }}
+            .chart-placeholder {{ background: {theme.ChartPlaceholderBg}; padding: 40px; text-align: center; color: {theme.MutedTextColor}; border-radius: 8px; }}
             .metrics-container {{ display: flex; gap: 15px; flex-wrap: wrap; }}
-            .metric-card {{ flex: 1; min-width: 150px; background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; }}
-            .metric-label {{ color: #666; font-size: 0.9rem; }}
-            .metric-value {{ font-size: 1.8rem; font-weight: bold; color: #333; }}
+            .metric-card {{ flex: 1; min-width: 150px; background: {theme.MetricCardBg}; padding: 20px; border-radius: 8px; text-align: center; }}
+            .metric-label {{ color: {theme.MetricLabelColor}; font-size: 0.9rem; }}
+            .metric-value {{ font-size: 1.8rem; font-weight: bold; color: {theme.MetricValueColor}; }}
             .metric-trend {{ font-size: 0.9rem; margin-top: 5px; }}
-            .trend-up {{ color: #22c55e; }}
-            .trend-down {{ color: #ef4444; }}
+            .trend-up {{ color: {theme.TrendUpColor}; }}
+            .trend-down {{ color: {theme.TrendDownColor}; }}
             .infographic {{ margin: 15px 0; }}
             .infographic-item {{ display: flex; gap: 15px; margin-bottom: 15px; }}
-            .item-number {{ width: 30px; height: 30px; background: var(--primary-color); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; }}
+            .item-number {{ width: 30px; height: 30px; background: {theme.InfographicNumberBg}; color: {theme.InfographicNumberFg}; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; }}
             .item-content {{ flex: 1; }}
             .item-title {{ font-weight: bold; margin-bottom: 5px; }}
-            .item-description {{ color: #666; }}
+            .item-description {{ color: {theme.MutedTextColor}; }}
             @media print {{ body {{ background: white; }} .container {{ box-shadow: none; }} .cover-page {{ page-break-after: always; }} }}
         ";
     }
@@ -1993,9 +2027,16 @@ public class DocumentExportService : IDocumentExportService
         AddSection("Solution", businessPlan.Solution);
         AddSection("Market Analysis", businessPlan.MarketAnalysis);
         AddSection("Competitive Analysis", businessPlan.CompetitiveAnalysis);
-        AddSection("Financial Projections", businessPlan.FinancialProjections);
+        AddSection("SWOT Analysis", businessPlan.SwotAnalysis);
+        AddSection("Business Model", businessPlan.BusinessModel);
         AddSection("Marketing Strategy", businessPlan.MarketingStrategy);
+        AddSection("Branding Strategy", businessPlan.BrandingStrategy);
+        AddSection("Operations Plan", businessPlan.OperationsPlan);
         AddSection("Management Team", businessPlan.ManagementTeam);
+        AddSection("Financial Projections", businessPlan.FinancialProjections);
+        AddSection("Funding Requirements", businessPlan.FundingRequirements);
+        AddSection("Risk Analysis", businessPlan.RiskAnalysis);
+        AddSection("Exit Strategy", businessPlan.ExitStrategy);
 
         return sections;
     }
@@ -2023,9 +2064,16 @@ public class DocumentExportService : IDocumentExportService
         AddSectionInfo("Solution", businessPlan.Solution);
         AddSectionInfo("Market Analysis", businessPlan.MarketAnalysis);
         AddSectionInfo("Competitive Analysis", businessPlan.CompetitiveAnalysis);
-        AddSectionInfo("Financial Projections", businessPlan.FinancialProjections);
+        AddSectionInfo("SWOT Analysis", businessPlan.SwotAnalysis);
+        AddSectionInfo("Business Model", businessPlan.BusinessModel);
         AddSectionInfo("Marketing Strategy", businessPlan.MarketingStrategy);
+        AddSectionInfo("Branding Strategy", businessPlan.BrandingStrategy);
+        AddSectionInfo("Operations Plan", businessPlan.OperationsPlan);
         AddSectionInfo("Management Team", businessPlan.ManagementTeam);
+        AddSectionInfo("Financial Projections", businessPlan.FinancialProjections);
+        AddSectionInfo("Funding Requirements", businessPlan.FundingRequirements);
+        AddSectionInfo("Risk Analysis", businessPlan.RiskAnalysis);
+        AddSectionInfo("Exit Strategy", businessPlan.ExitStrategy);
 
         return sections;
     }
@@ -2051,13 +2099,80 @@ public class DocumentExportService : IDocumentExportService
         if (string.IsNullOrWhiteSpace(html))
             return string.Empty;
 
-        // Simple HTML tag removal
+        // Remove HTML tags
         var text = System.Text.RegularExpressions.Regex.Replace(html, "<[^>]*>", " ");
         // Decode HTML entities
         text = System.Net.WebUtility.HtmlDecode(text);
+        // Strip markdown headings (## Title → Title)
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"^#{1,6}\s+", "", System.Text.RegularExpressions.RegexOptions.Multiline);
+        // Strip markdown bold/italic (**text** → text, *text* → text)
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\*{1,3}([^*]+)\*{1,3}", "$1");
+        // Strip markdown bullet points (- item → item)
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"^\s*[-*+]\s+", "", System.Text.RegularExpressions.RegexOptions.Multiline);
+        // Strip markdown numbered lists (1. item → item)
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"^\s*\d+\.\s+", "", System.Text.RegularExpressions.RegexOptions.Multiline);
         // Normalize whitespace
         text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim();
         return text;
+    }
+
+    /// <summary>
+    /// Renders section content to PDF, converting markdown headings into styled sub-headings
+    /// and splitting on double-newlines into separate paragraphs.
+    /// </summary>
+    private static void RenderContentToPdf(QuestPDF.Fluent.ColumnDescriptor column, string content, ExportTheme theme)
+    {
+        // First strip HTML tags and decode entities
+        var text = System.Text.RegularExpressions.Regex.Replace(content, "<[^>]*>", "\n");
+        text = System.Net.WebUtility.HtmlDecode(text);
+
+        // Split into blocks by double-newline
+        var blocks = System.Text.RegularExpressions.Regex.Split(text, @"\n\s*\n")
+            .Select(b => b.Trim())
+            .Where(b => !string.IsNullOrWhiteSpace(b));
+
+        foreach (var block in blocks)
+        {
+            var line = block;
+
+            // Check if this block is a markdown heading
+            var headingMatch = System.Text.RegularExpressions.Regex.Match(line, @"^(#{1,4})\s+(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline);
+            if (headingMatch.Success)
+            {
+                var level = headingMatch.Groups[1].Value.Length;
+                var headingText = StripInlineMarkdown(headingMatch.Groups[2].Value);
+                var fontSize = level switch { 1 => 15f, 2 => 14f, 3 => 13f, _ => 12f };
+
+                column.Item().PaddingTop(level <= 2 ? 10 : 6)
+                    .Text(headingText)
+                    .Bold().FontSize(fontSize).FontColor(HexToColor(theme.HeadingColor));
+                continue;
+            }
+
+            // Regular paragraph — strip inline markdown and render
+            var paragraphText = StripInlineMarkdown(line);
+            // Collapse internal newlines to spaces for prose flow
+            paragraphText = System.Text.RegularExpressions.Regex.Replace(paragraphText, @"\s*\n\s*", " ").Trim();
+
+            if (!string.IsNullOrWhiteSpace(paragraphText))
+            {
+                column.Item().PaddingTop(4)
+                    .Text(paragraphText)
+                    .FontSize(11).FontColor(HexToColor(theme.TextColor)).LineHeight(1.5f);
+            }
+        }
+    }
+
+    /// <summary>Strips inline markdown formatting (bold, italic, bullets, numbered lists).</summary>
+    private static string StripInlineMarkdown(string text)
+    {
+        // Bold/italic: **text**, *text*, ***text***
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\*{1,3}([^*]+)\*{1,3}", "$1");
+        // Bullet points: - item, * item, + item
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"^\s*[-*+]\s+", "• ", System.Text.RegularExpressions.RegexOptions.Multiline);
+        // Numbered lists: 1. item
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"^\s*(\d+)\.\s+", "$1. ", System.Text.RegularExpressions.RegexOptions.Multiline);
+        return text.Trim();
     }
 
     private static string FormatMetricValue(ExportMetric metric)

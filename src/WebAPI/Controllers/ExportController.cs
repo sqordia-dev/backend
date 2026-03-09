@@ -11,13 +11,19 @@ namespace WebAPI.Controllers;
 public class ExportController : BaseApiController
 {
     private readonly IDocumentExportService _exportService;
+    private readonly ISlideDeckService _slideDeckService;
+    private readonly IThemedPdfService _themedPdfService;
     private readonly ILogger<ExportController> _logger;
 
     public ExportController(
         IDocumentExportService exportService,
+        ISlideDeckService slideDeckService,
+        IThemedPdfService themedPdfService,
         ILogger<ExportController> logger)
     {
         _exportService = exportService;
+        _slideDeckService = slideDeckService;
+        _themedPdfService = themedPdfService;
         _logger = logger;
     }
 
@@ -68,9 +74,7 @@ public class ExportController : BaseApiController
         var result = await _exportService.ExportToPdfAsync(businessPlanId, language, cancellationToken);
 
         if (!result.IsSuccess)
-        {
-            return BadRequest(new { error = result.Error });
-        }
+            return HandleResult(result);
 
         var exportResult = result.Value!;
 
@@ -78,6 +82,45 @@ public class ExportController : BaseApiController
             exportResult.FileData,
             exportResult.ContentType,
             exportResult.FileName);
+    }
+
+    /// <summary>
+    /// Export a themed PDF using Puppeteer (selectable text, proper page breaks).
+    /// Renders the same HTML template as the frontend preview.
+    /// </summary>
+    /// <param name="businessPlanId">The business plan ID to export</param>
+    /// <param name="language">Export language (fr or en). Defaults to fr.</param>
+    /// <param name="themeId">Theme ID (classic, modern, corporate, etc.). Defaults to classic.</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>PDF file download with selectable text</returns>
+    [HttpGet("themed-pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportToThemedPdf(
+        Guid businessPlanId,
+        [FromQuery] string language = "fr",
+        [FromQuery] string? themeId = null,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation(
+            "Themed PDF export for business plan {BusinessPlanId} in {Language} with theme {ThemeId}",
+            businessPlanId, language, themeId ?? "classic");
+
+        if (language != "fr" && language != "en")
+        {
+            return BadRequest(new { error = "Language must be either 'fr' or 'en'" });
+        }
+
+        var result = await _themedPdfService.GenerateThemedPdfAsync(
+            businessPlanId, themeId, language, cancellationToken);
+
+        if (!result.IsSuccess)
+            return HandleResult(result);
+
+        var exportResult = result.Value!;
+        return File(exportResult.FileData, exportResult.ContentType, exportResult.FileName);
     }
 
     /// <summary>
@@ -127,9 +170,7 @@ public class ExportController : BaseApiController
         var result = await _exportService.ExportToWordAsync(businessPlanId, language, cancellationToken);
 
         if (!result.IsSuccess)
-        {
-            return BadRequest(new { error = result.Error });
-        }
+            return HandleResult(result);
 
         var exportResult = result.Value!;
 
@@ -193,9 +234,7 @@ public class ExportController : BaseApiController
         var result = await _exportService.ExportToHtmlAsync(businessPlanId, language, cancellationToken);
 
         if (!result.IsSuccess)
-        {
-            return BadRequest(new { error = result.Error });
-        }
+            return HandleResult(result);
 
         var htmlContent = result.Value!;
 
@@ -240,9 +279,7 @@ public class ExportController : BaseApiController
         var result = await _exportService.GetAvailableTemplatesAsync();
 
         if (!result.IsSuccess)
-        {
-            return BadRequest(new { error = result.Error });
-        }
+            return HandleResult(result);
 
         return Ok(result.Value);
     }
@@ -271,16 +308,16 @@ public class ExportController : BaseApiController
         var result = await _exportService.ExportToExcelAsync(businessPlanId, language, cancellationToken);
 
         if (!result.IsSuccess)
-        {
-            return BadRequest(new { error = result.Error });
-        }
+            return HandleResult(result);
 
         var exportResult = result.Value!;
         return File(exportResult.FileData, exportResult.ContentType, exportResult.FileName);
     }
 
     /// <summary>
-    /// Export a business plan to PowerPoint (PPTX) format
+    /// Export a business plan to PowerPoint (PPTX) format.
+    /// When the SlideDeckExport feature flag is enabled, generates a full slide deck with AI-summarized content.
+    /// Otherwise, falls back to a basic title-slide-only export.
     /// </summary>
     [HttpGet("powerpoint")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -290,22 +327,35 @@ public class ExportController : BaseApiController
     public async Task<IActionResult> ExportToPowerPoint(
         Guid businessPlanId,
         [FromQuery] string language = "fr",
+        [FromQuery] string? themeId = null,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("PowerPoint export request for business plan {BusinessPlanId} in {Language}",
-            businessPlanId, language);
+        _logger.LogInformation("PowerPoint export request for business plan {BusinessPlanId} in {Language} with theme {ThemeId}",
+            businessPlanId, language, themeId ?? "default");
 
         if (language != "fr" && language != "en")
         {
             return BadRequest(new { error = "Language must be either 'fr' or 'en'" });
         }
 
+        // Use SlideDeckService for full AI-powered slide deck, fall back to basic export on failure
+        var slideDeckResult = await _slideDeckService.GenerateSlideDeckAsync(
+            businessPlanId, themeId, language, cancellationToken);
+
+        if (slideDeckResult.IsSuccess)
+        {
+            var deckExport = slideDeckResult.Value!;
+            return File(deckExport.FileData, deckExport.ContentType, deckExport.FileName);
+        }
+
+        _logger.LogWarning("SlideDeckService failed, falling back to basic PowerPoint export: {Error}",
+            slideDeckResult.Error?.Message ?? "Unknown");
+
+        // Fallback to basic PowerPoint export
         var result = await _exportService.ExportToPowerPointAsync(businessPlanId, language, cancellationToken);
 
         if (!result.IsSuccess)
-        {
-            return BadRequest(new { error = result.Error });
-        }
+            return HandleResult(result);
 
         var exportResult = result.Value!;
         return File(exportResult.FileData, exportResult.ContentType, exportResult.FileName);
@@ -413,9 +463,7 @@ public class ExportController : BaseApiController
         var result = await _exportService.ExportToPdfWithVisualsAsync(businessPlanId, request, cancellationToken);
 
         if (!result.IsSuccess)
-        {
-            return BadRequest(new { error = result.Error });
-        }
+            return HandleResult(result);
 
         var exportResult = result.Value!;
 
@@ -472,9 +520,7 @@ public class ExportController : BaseApiController
         var result = await _exportService.ExportToWordWithVisualsAsync(businessPlanId, request, cancellationToken);
 
         if (!result.IsSuccess)
-        {
-            return BadRequest(new { error = result.Error });
-        }
+            return HandleResult(result);
 
         var exportResult = result.Value!;
 
@@ -528,9 +574,7 @@ public class ExportController : BaseApiController
         var result = await _exportService.ExportToHtmlWithVisualsAsync(businessPlanId, request, cancellationToken);
 
         if (!result.IsSuccess)
-        {
-            return BadRequest(new { error = result.Error });
-        }
+            return HandleResult(result);
 
         var htmlContent = result.Value!;
 
@@ -595,9 +639,7 @@ public class ExportController : BaseApiController
         var result = await _exportService.GetExportPreviewAsync(businessPlanId, cancellationToken);
 
         if (!result.IsSuccess)
-        {
-            return BadRequest(new { error = result.Error });
-        }
+            return HandleResult(result);
 
         return Ok(result.Value);
     }

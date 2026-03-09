@@ -246,6 +246,209 @@ public static class QuestionContextMapper
     }
 
     /// <summary>
+    /// Builds a section context enriched with the Business Brief.
+    /// Prepends the brief summary before section-specific answers for holistic AI understanding.
+    /// </summary>
+    public static string BuildSectionContextWithBrief(
+        string sectionName,
+        Dictionary<int, string> allAnswers,
+        string businessBriefJson,
+        string language = "fr")
+    {
+        var isFrench = language.Equals("fr", StringComparison.OrdinalIgnoreCase);
+        var contextParts = new List<string>();
+
+        // 1. Add Business Brief summary as top-level context
+        if (!string.IsNullOrWhiteSpace(businessBriefJson))
+        {
+            var briefHeader = isFrench
+                ? "=== SYNTHÈSE GLOBALE DE L'ENTREPRISE (Business Brief) ==="
+                : "=== BUSINESS OVERVIEW SYNTHESIS (Business Brief) ===";
+            contextParts.Add(briefHeader);
+            contextParts.Add("");
+
+            // Parse the brief and format key sections relevant to this section
+            contextParts.Add(FormatBriefForSection(businessBriefJson, sectionName, isFrench));
+            contextParts.Add("");
+        }
+
+        // 2. Add section-specific context (existing logic)
+        var sectionContext = BuildSectionContext(sectionName, allAnswers, language);
+        contextParts.Add(sectionContext);
+
+        return string.Join("\n", contextParts);
+    }
+
+    /// <summary>
+    /// Formats relevant parts of the Business Brief for a specific section.
+    /// Different sections need different aspects of the brief emphasized.
+    /// </summary>
+    private static string FormatBriefForSection(string briefJson, string sectionName, bool isFrench)
+    {
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(briefJson);
+            var root = doc.RootElement;
+            var parts = new List<string>();
+
+            // Always include company profile and business concept
+            if (root.TryGetProperty("companyProfile", out var profile))
+            {
+                var label = isFrench ? "Profil de l'entreprise" : "Company Profile";
+                parts.Add($"[{label}]");
+                AppendJsonProperties(parts, profile, isFrench);
+                parts.Add("");
+            }
+
+            if (root.TryGetProperty("businessConcept", out var concept))
+            {
+                var label = isFrench ? "Concept d'affaires" : "Business Concept";
+                parts.Add($"[{label}]");
+                AppendJsonProperties(parts, concept, isFrench);
+                parts.Add("");
+            }
+
+            // Section-specific emphasis
+            switch (sectionName)
+            {
+                case "MarketAnalysis":
+                case "CompetitiveAnalysis":
+                case "SwotAnalysis":
+                    AppendBriefSection(parts, root, "marketContext", isFrench ? "Contexte du marché" : "Market Context", isFrench);
+                    AppendBriefSection(parts, root, "strategicContext", isFrench ? "Contexte stratégique" : "Strategic Context", isFrench);
+                    break;
+
+                case "FinancialProjections":
+                case "FundingRequirements":
+                case "BusinessModel":
+                    AppendBriefSection(parts, root, "financialContext", isFrench ? "Contexte financier" : "Financial Context", isFrench);
+                    AppendBriefSection(parts, root, "marketContext", isFrench ? "Contexte du marché" : "Market Context", isFrench);
+                    break;
+
+                case "OperationsPlan":
+                case "ManagementTeam":
+                    AppendBriefSection(parts, root, "operationalContext", isFrench ? "Contexte opérationnel" : "Operational Context", isFrench);
+                    break;
+
+                case "MarketingStrategy":
+                case "BrandingStrategy":
+                    AppendBriefSection(parts, root, "marketContext", isFrench ? "Contexte du marché" : "Market Context", isFrench);
+                    AppendBriefSection(parts, root, "operationalContext", isFrench ? "Contexte opérationnel" : "Operational Context", isFrench);
+                    break;
+
+                case "RiskAnalysis":
+                case "ExitStrategy":
+                    AppendBriefSection(parts, root, "strategicContext", isFrench ? "Contexte stratégique" : "Strategic Context", isFrench);
+                    AppendBriefSection(parts, root, "financialContext", isFrench ? "Contexte financier" : "Financial Context", isFrench);
+                    break;
+
+                case "ExecutiveSummary":
+                    // Executive summary gets everything
+                    AppendBriefSection(parts, root, "marketContext", isFrench ? "Contexte du marché" : "Market Context", isFrench);
+                    AppendBriefSection(parts, root, "financialContext", isFrench ? "Contexte financier" : "Financial Context", isFrench);
+                    AppendBriefSection(parts, root, "strategicContext", isFrench ? "Contexte stratégique" : "Strategic Context", isFrench);
+                    AppendBriefSection(parts, root, "operationalContext", isFrench ? "Contexte opérationnel" : "Operational Context", isFrench);
+                    break;
+
+                default:
+                    // For OBNL and other sections, include all context
+                    AppendBriefSection(parts, root, "marketContext", isFrench ? "Contexte du marché" : "Market Context", isFrench);
+                    AppendBriefSection(parts, root, "financialContext", isFrench ? "Contexte financier" : "Financial Context", isFrench);
+                    AppendBriefSection(parts, root, "strategicContext", isFrench ? "Contexte stratégique" : "Strategic Context", isFrench);
+                    break;
+            }
+
+            // Always include generation guidance and maturity assessment
+            AppendBriefSection(parts, root, "maturityAssessment", isFrench ? "Évaluation de maturité" : "Maturity Assessment", isFrench);
+            AppendBriefSection(parts, root, "generationGuidance", isFrench ? "Directives de génération" : "Generation Guidance", isFrench);
+
+            return string.Join("\n", parts);
+        }
+        catch
+        {
+            // If parsing fails, return the raw brief
+            return briefJson;
+        }
+    }
+
+    private static void AppendBriefSection(
+        List<string> parts,
+        System.Text.Json.JsonElement root,
+        string propertyName,
+        string label,
+        bool isFrench)
+    {
+        if (root.TryGetProperty(propertyName, out var section))
+        {
+            parts.Add($"[{label}]");
+            AppendJsonProperties(parts, section, isFrench);
+            parts.Add("");
+        }
+    }
+
+    private static void AppendJsonProperties(
+        List<string> parts,
+        System.Text.Json.JsonElement element,
+        bool isFrench)
+    {
+        if (element.ValueKind != System.Text.Json.JsonValueKind.Object)
+            return;
+
+        foreach (var prop in element.EnumerateObject())
+        {
+            if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                var value = prop.Value.GetString();
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    parts.Add($"  - {FormatPropertyName(prop.Name)}: {value}");
+                }
+            }
+            else if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.Number)
+            {
+                parts.Add($"  - {FormatPropertyName(prop.Name)}: {prop.Value}");
+            }
+            else if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                var items = new List<string>();
+                foreach (var item in prop.Value.EnumerateArray())
+                {
+                    if (item.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        var val = item.GetString();
+                        if (!string.IsNullOrWhiteSpace(val))
+                            items.Add(val);
+                    }
+                }
+                if (items.Any())
+                {
+                    parts.Add($"  - {FormatPropertyName(prop.Name)}: {string.Join("; ", items)}");
+                }
+            }
+            else if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                parts.Add($"  [{FormatPropertyName(prop.Name)}]");
+                AppendJsonProperties(parts, prop.Value, isFrench);
+            }
+        }
+    }
+
+    private static string FormatPropertyName(string camelCase)
+    {
+        // Convert camelCase to Title Case with spaces
+        var result = new System.Text.StringBuilder();
+        for (var i = 0; i < camelCase.Length; i++)
+        {
+            if (i > 0 && char.IsUpper(camelCase[i]))
+            {
+                result.Append(' ');
+            }
+            result.Append(i == 0 ? char.ToUpper(camelCase[i]) : camelCase[i]);
+        }
+        return result.ToString();
+    }
+
+    /// <summary>
     /// Gets questions that provide relevant context for a given question.
     /// Returns question numbers that should be included in AI context.
     /// </summary>

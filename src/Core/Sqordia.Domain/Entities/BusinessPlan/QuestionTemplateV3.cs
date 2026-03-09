@@ -114,6 +114,12 @@ public class QuestionTemplateV3 : BaseAuditableEntity
     /// </summary>
     public string? SectionGroup { get; private set; }
 
+    /// <summary>
+    /// Maps this question to an Organization profile field key for adaptive interview filtering.
+    /// When set, answers can be pre-filled from the org profile and vice versa.
+    /// </summary>
+    public string? ProfileFieldKey { get; private set; }
+
     // Navigation properties
     public virtual ICollection<QuestionSectionMapping> SectionMappings { get; private set; } = new List<QuestionSectionMapping>();
 
@@ -201,6 +207,11 @@ public class QuestionTemplateV3 : BaseAuditableEntity
     public void SetSectionGroup(string? sectionGroup)
     {
         SectionGroup = sectionGroup;
+    }
+
+    public void SetProfileFieldKey(string? profileFieldKey)
+    {
+        ProfileFieldKey = profileFieldKey;
     }
 
     public void UpdateDisplayOrder(int displayOrder)

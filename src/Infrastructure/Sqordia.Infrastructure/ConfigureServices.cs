@@ -18,6 +18,7 @@ using Sqordia.Application.Services.V2;
 using Sqordia.Application.Services.V2.Implementations;
 using Sqordia.Application.Financial.Services;
 using Sqordia.Infrastructure.Services;
+using Sqordia.Infrastructure.Services.QualityAgents;
 using Sqordia.Infrastructure.Identity;
 using Sqordia.Infrastructure.Localization;
 using Sqordia.Infrastructure.Settings;
@@ -341,12 +342,58 @@ public static class ConfigureServices
         // Register the main IAIService as the fallback wrapper (replaces direct OpenAIService registration)
         services.AddSingleton<IAIService, AIProviderWithFallback>();
 
+        // Generation tool service for tool-augmented AI generation
+        services.AddScoped<IGenerationToolService, GenerationToolService>();
+
+        // Quality Agents for post-generation analysis
+        services.AddScoped<IQualityAgent, WritingQualityAgent>();
+        services.AddScoped<IQualityAgent, FinancialConsistencyAgent>();
+        services.AddScoped<IQualityAgent, ComplianceAgent>();
+        services.AddScoped<IQualityAgent, BankReadinessAgent>();
+        services.AddScoped<IQualityAgentOrchestrator, QualityAgentOrchestrator>();
+
+        // Python AI Microservice (LangChain, MLflow, RAGAS)
+        services.Configure<PythonServiceSettings>(configuration.GetSection("AI:PythonService"));
+        services.PostConfigure<PythonServiceSettings>(options =>
+        {
+            var envBaseUrl = Environment.GetEnvironmentVariable("AI__PythonService__BaseUrl");
+            if (!string.IsNullOrEmpty(envBaseUrl))
+            {
+                options.BaseUrl = envBaseUrl;
+            }
+            var envServiceKey = Environment.GetEnvironmentVariable("AI__PythonService__ServiceKey");
+            if (!string.IsNullOrEmpty(envServiceKey))
+            {
+                options.ServiceKey = envServiceKey;
+            }
+        });
+        services.AddHttpClient<IAIPythonService, AIPythonServiceClient>((sp, client) =>
+        {
+            var pythonSettings = sp.GetRequiredService<IOptions<PythonServiceSettings>>().Value;
+            client.BaseAddress = new Uri(pythonSettings.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(pythonSettings.GenerationTimeoutSeconds);
+            if (!string.IsNullOrEmpty(pythonSettings.ServiceKey))
+            {
+                client.DefaultRequestHeaders.Add("X-Service-Key", pythonSettings.ServiceKey);
+            }
+        });
+
         // Register Prompt Improvement service for AI-powered prompt optimization
         services.AddHttpClient("Anthropic");
         services.AddScoped<IPromptImprovementService, PromptImprovementService>();
 
         // Document export service - Required for PDF/Word export
         services.AddTransient<IDocumentExportService, DocumentExportService>();
+
+        // Themed PDF service — Puppeteer-based, selectable text, matches frontend preview
+        services.AddSingleton<IHtmlToPdfRenderer, Sqordia.Infrastructure.Services.DocumentExport.PuppeteerPdfRenderer>();
+        services.AddScoped<IThemedPdfService, Sqordia.Infrastructure.Services.DocumentExport.ThemedPdfService>();
+
+        // AI content adaptation service — adapts content for PDF/Word/PowerPoint formats
+        services.AddScoped<IContentAdaptationService, Sqordia.Infrastructure.Services.ContentAdaptation.ContentAdaptationService>();
+
+        // Slide deck service - Required for PowerPoint slide deck generation
+        services.AddScoped<ISlideDeckService, SlideDeckService>();
 
         // Financial projection service - Required for financial calculations and projections
         services.AddTransient<IFinancialProjectionService, FinancialProjectionService>();

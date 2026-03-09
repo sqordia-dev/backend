@@ -34,6 +34,17 @@ public interface IBusinessPlanGenerationService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Regenerates a section with user feedback and instructions.
+    /// Uses the original context + current content + user feedback to produce an improved version.
+    /// </summary>
+    Task<Result<BusinessPlan>> RegenerateSectionWithFeedbackAsync(
+        Guid businessPlanId,
+        string sectionName,
+        SectionRegenerationRequest request,
+        string language = "fr",
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets the generation status of a business plan
     /// </summary>
     /// <param name="businessPlanId">The ID of the business plan</param>
@@ -49,6 +60,21 @@ public interface IBusinessPlanGenerationService
     /// <param name="planType">The type of business plan</param>
     /// <returns>List of section names</returns>
     List<string> GetAvailableSections(string planType);
+}
+
+/// <summary>
+/// Request for section regeneration with user feedback.
+/// </summary>
+public class SectionRegenerationRequest
+{
+    /// <summary>User's feedback on what to change</summary>
+    public string? Feedback { get; set; }
+
+    /// <summary>Elements from the current version to preserve</summary>
+    public List<string>? KeepElements { get; set; }
+
+    /// <summary>Desired tone adjustment</summary>
+    public string? Tone { get; set; }
 }
 
 /// <summary>

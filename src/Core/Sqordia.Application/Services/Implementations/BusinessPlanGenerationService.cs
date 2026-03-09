@@ -16,6 +16,8 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
     private readonly IAIService _aiService;
     private readonly IAIPromptService _aiPromptService;
     private readonly IEmailService _emailService;
+    private readonly IBusinessBriefService _businessBriefService;
+    private readonly IGenerationPipelineService? _pipelineService;
     private readonly ILogger<BusinessPlanGenerationService> _logger;
 
     public BusinessPlanGenerationService(
@@ -23,12 +25,16 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
         IAIService aiService,
         IAIPromptService aiPromptService,
         IEmailService emailService,
-        ILogger<BusinessPlanGenerationService> logger)
+        IBusinessBriefService businessBriefService,
+        ILogger<BusinessPlanGenerationService> logger,
+        IGenerationPipelineService? pipelineService = null)
     {
         _context = context;
         _aiService = aiService;
         _aiPromptService = aiPromptService;
         _emailService = emailService;
+        _businessBriefService = businessBriefService;
+        _pipelineService = pipelineService;
         _logger = logger;
     }
 
@@ -37,6 +43,13 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
         string language = "fr",
         CancellationToken cancellationToken = default)
     {
+        // Delegate to multi-pass pipeline if available
+        if (_pipelineService != null)
+        {
+            _logger.LogInformation("Delegating to multi-pass generation pipeline for plan {PlanId}", businessPlanId);
+            return await _pipelineService.ExecutePipelineAsync(businessPlanId, language, cancellationToken);
+        }
+
         try
         {
             _logger.LogInformation("Starting business plan generation for ID: {BusinessPlanId}", businessPlanId);
@@ -112,7 +125,40 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
                 answersByQuestionNumber.Count,
                 businessPlanId);
 
-            // Generate all sections with section-specific context
+            // Phase 1: Generate Business Brief for unified context
+            string? businessBriefJson = businessPlan.BusinessBriefJson;
+            try
+            {
+                businessPlan.UpdateGenerationProgress("BusinessBrief", 0);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                _logger.LogInformation("Generating Business Brief for plan {PlanId}", businessPlanId);
+                var briefResult = await _businessBriefService.GenerateBusinessBriefAsync(
+                    businessPlanId, language, cancellationToken);
+
+                if (briefResult.IsSuccess)
+                {
+                    // Re-fetch the plan since the brief service updated it
+                    businessBriefJson = (await _context.BusinessPlans
+                        .FirstAsync(bp => bp.Id == businessPlanId, cancellationToken)).BusinessBriefJson;
+
+                    _logger.LogInformation("Business Brief generated successfully for plan {PlanId}", businessPlanId);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Business Brief generation failed for plan {PlanId}: {Error}. Proceeding without brief.",
+                        businessPlanId, briefResult.Error?.Message);
+                }
+            }
+            catch (Exception briefEx)
+            {
+                _logger.LogWarning(briefEx,
+                    "Business Brief generation failed for plan {PlanId}. Proceeding without brief.",
+                    businessPlanId);
+            }
+
+            // Phase 2: Generate all sections with section-specific context (enriched with brief)
             var sections = GetAvailableSections(businessPlan.PlanType.ToString());
             var totalSections = sections.Count;
             var completedSections = 0;
@@ -121,11 +167,23 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
             {
                 _logger.LogInformation("Generating section: {Section} with focused context", section);
 
-                // Build section-specific context using QuestionContextMapper
-                var sectionContext = QuestionContextMapper.BuildSectionContext(
-                    section,
-                    answersByQuestionNumber,
-                    language);
+                // Build section context — use brief-enriched context if brief is available
+                string sectionContext;
+                if (!string.IsNullOrWhiteSpace(businessBriefJson))
+                {
+                    sectionContext = QuestionContextMapper.BuildSectionContextWithBrief(
+                        section,
+                        answersByQuestionNumber,
+                        businessBriefJson,
+                        language);
+                }
+                else
+                {
+                    sectionContext = QuestionContextMapper.BuildSectionContext(
+                        section,
+                        answersByQuestionNumber,
+                        language);
+                }
 
                 var content = await GenerateSectionContentAsync(
                     businessPlan.PlanType,
@@ -138,6 +196,8 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
                 SetSectionContent(businessPlan, section, content);
 
                 completedSections++;
+                var progress = (int)((decimal)completedSections / totalSections * 100);
+                businessPlan.UpdateGenerationProgress(section, progress);
                 _logger.LogInformation("Completed {Completed}/{Total} sections", completedSections, totalSections);
 
                 // Save after each section so frontend can track real-time progress
@@ -229,15 +289,30 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
 
             // Build section-specific context using QuestionContextMapper
             var answersByQuestionNumber = BuildAnswersDictionary(businessPlan.QuestionnaireResponses);
-            var sectionContext = QuestionContextMapper.BuildSectionContext(
-                sectionName,
-                answersByQuestionNumber,
-                language);
+
+            // Use brief-enriched context if a brief exists
+            string sectionContext;
+            if (!string.IsNullOrWhiteSpace(businessPlan.BusinessBriefJson))
+            {
+                sectionContext = QuestionContextMapper.BuildSectionContextWithBrief(
+                    sectionName,
+                    answersByQuestionNumber,
+                    businessPlan.BusinessBriefJson,
+                    language);
+            }
+            else
+            {
+                sectionContext = QuestionContextMapper.BuildSectionContext(
+                    sectionName,
+                    answersByQuestionNumber,
+                    language);
+            }
 
             _logger.LogInformation(
-                "Regenerating section {Section} with {QuestionCount} relevant answers",
+                "Regenerating section {Section} with {QuestionCount} relevant answers (brief: {HasBrief})",
                 sectionName,
-                QuestionContextMapper.GetQuestionsForSection(sectionName).Length);
+                QuestionContextMapper.GetQuestionsForSection(sectionName).Length,
+                !string.IsNullOrWhiteSpace(businessPlan.BusinessBriefJson));
 
             var content = await GenerateSectionContentAsync(
                 businessPlan.PlanType,
@@ -261,6 +336,161 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
                 sectionName, businessPlanId);
             return Result.Failure<BusinessPlan>($"Failed to regenerate section: {ex.Message}");
         }
+    }
+
+    public async Task<Result<BusinessPlan>> RegenerateSectionWithFeedbackAsync(
+        Guid businessPlanId,
+        string sectionName,
+        SectionRegenerationRequest request,
+        string language = "fr",
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "Regenerating section {Section} with feedback for business plan ID: {BusinessPlanId}",
+                sectionName, businessPlanId);
+
+            var businessPlan = await _context.BusinessPlans
+                .Include(bp => bp.QuestionnaireResponses)
+                    .ThenInclude(qr => qr.QuestionTemplate)
+                .Include(bp => bp.QuestionnaireResponses)
+                    .ThenInclude(qr => qr.QuestionTemplateV2)
+                .FirstOrDefaultAsync(bp => bp.Id == businessPlanId && !bp.IsDeleted, cancellationToken);
+
+            if (businessPlan == null)
+            {
+                return Result.Failure<BusinessPlan>($"Business plan with ID {businessPlanId} not found.");
+            }
+
+            // Get current section content
+            var normalizedName = NormalizeSectionName(sectionName);
+            var property = typeof(BusinessPlan).GetProperty(normalizedName);
+            var currentContent = property?.GetValue(businessPlan) as string;
+
+            if (string.IsNullOrWhiteSpace(currentContent))
+            {
+                return Result.Failure<BusinessPlan>(
+                    $"Section {sectionName} has no content to regenerate with feedback. Use standard regeneration instead.");
+            }
+
+            // Build section context (with brief if available)
+            var answersByQuestionNumber = BuildAnswersDictionary(businessPlan.QuestionnaireResponses);
+            string sectionContext;
+            if (!string.IsNullOrWhiteSpace(businessPlan.BusinessBriefJson))
+            {
+                sectionContext = QuestionContextMapper.BuildSectionContextWithBrief(
+                    sectionName, answersByQuestionNumber, businessPlan.BusinessBriefJson, language);
+            }
+            else
+            {
+                sectionContext = QuestionContextMapper.BuildSectionContext(
+                    sectionName, answersByQuestionNumber, language);
+            }
+
+            // Build feedback-enhanced prompt
+            var feedbackPrompt = BuildFeedbackPrompt(
+                sectionName, currentContent, sectionContext, request, language);
+
+            var systemPrompt = await GetSystemPromptAsync(language, businessPlan.PlanType, cancellationToken);
+
+            var content = await _aiService.GenerateContentWithRetryAsync(
+                systemPrompt,
+                feedbackPrompt,
+                maxTokens: 4000,
+                temperature: 0.7f,
+                maxRetries: 3,
+                cancellationToken);
+
+            SetSectionContent(businessPlan, sectionName, content);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Section {Section} regenerated with feedback for plan {PlanId}",
+                sectionName, businessPlanId);
+
+            return Result.Success(businessPlan);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error regenerating section {Section} with feedback for business plan ID: {BusinessPlanId}",
+                sectionName, businessPlanId);
+            return Result.Failure<BusinessPlan>($"Failed to regenerate section with feedback: {ex.Message}");
+        }
+    }
+
+    private static string BuildFeedbackPrompt(
+        string sectionName,
+        string currentContent,
+        string sectionContext,
+        SectionRegenerationRequest request,
+        string language)
+    {
+        var sb = new StringBuilder();
+
+        if (language.ToLower() == "en")
+        {
+            sb.AppendLine("You are regenerating a business plan section based on user feedback.");
+            sb.AppendLine();
+            sb.AppendLine("## Original Business Context");
+            sb.AppendLine(sectionContext);
+            sb.AppendLine();
+            sb.AppendLine($"## Current Content of '{sectionName}'");
+            sb.AppendLine(currentContent);
+            sb.AppendLine();
+            sb.AppendLine("## User Feedback");
+
+            if (!string.IsNullOrWhiteSpace(request.Feedback))
+                sb.AppendLine($"Instructions: {request.Feedback}");
+
+            if (request.KeepElements != null && request.KeepElements.Count > 0)
+            {
+                sb.AppendLine("Elements to PRESERVE from the current version:");
+                foreach (var element in request.KeepElements)
+                    sb.AppendLine($"  - {element}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Tone))
+                sb.AppendLine($"Desired tone: {request.Tone}");
+
+            sb.AppendLine();
+            sb.AppendLine($"Regenerate the '{sectionName}' section incorporating the user's feedback. ");
+            sb.AppendLine("Preserve any elements the user asked to keep. Improve based on their instructions.");
+            sb.AppendLine("Maintain the same level of detail and professionalism. Aim for 400-600 words.");
+        }
+        else
+        {
+            sb.AppendLine("Vous régénérez une section de plan d'affaires basée sur les commentaires de l'utilisateur.");
+            sb.AppendLine();
+            sb.AppendLine("## Contexte commercial original");
+            sb.AppendLine(sectionContext);
+            sb.AppendLine();
+            sb.AppendLine($"## Contenu actuel de '{sectionName}'");
+            sb.AppendLine(currentContent);
+            sb.AppendLine();
+            sb.AppendLine("## Commentaires de l'utilisateur");
+
+            if (!string.IsNullOrWhiteSpace(request.Feedback))
+                sb.AppendLine($"Instructions : {request.Feedback}");
+
+            if (request.KeepElements != null && request.KeepElements.Count > 0)
+            {
+                sb.AppendLine("Éléments à CONSERVER de la version actuelle :");
+                foreach (var element in request.KeepElements)
+                    sb.AppendLine($"  - {element}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Tone))
+                sb.AppendLine($"Ton souhaité : {request.Tone}");
+
+            sb.AppendLine();
+            sb.AppendLine($"Régénérez la section '{sectionName}' en intégrant les commentaires de l'utilisateur. ");
+            sb.AppendLine("Préservez les éléments que l'utilisateur a demandé de garder. Améliorez selon ses instructions.");
+            sb.AppendLine("Maintenez le même niveau de détail et de professionnalisme. Visez 400-600 mots.");
+        }
+
+        return sb.ToString();
     }
 
     public async Task<Result<BusinessPlanGenerationStatus>> GetGenerationStatusAsync(

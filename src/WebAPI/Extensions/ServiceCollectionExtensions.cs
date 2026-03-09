@@ -287,7 +287,26 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddHealthCheckServices(this IServiceCollection services)
     {
-        services.AddHealthChecks();
+        services.AddHealthChecks()
+            .AddAsyncCheck("python-ai-service", async (ct) =>
+            {
+                try
+                {
+                    using var scope = services.BuildServiceProvider().CreateScope();
+                    var pythonService = scope.ServiceProvider.GetService<Sqordia.Application.Common.Interfaces.IAIPythonService>();
+                    if (pythonService == null)
+                        return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Degraded("Python AI service not registered");
+
+                    var available = await pythonService.IsAvailableAsync(ct);
+                    return available
+                        ? Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("Python AI service is available")
+                        : Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Degraded("Python AI service is not reachable");
+                }
+                catch (Exception ex)
+                {
+                    return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Degraded("Python AI service check failed", ex);
+                }
+            }, tags: new[] { "ai", "external" });
         return services;
     }
 

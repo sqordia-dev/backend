@@ -95,6 +95,39 @@ output "export_function_app_name" {
   value       = azurerm_linux_function_app.export_handler.name
 }
 
+# Python AI Service Outputs
+output "ai_service_function_app_name" {
+  description = "Python AI Service Function App name"
+  value       = azurerm_linux_function_app.ai_service.name
+}
+
+output "ai_service_url" {
+  description = "Python AI Service base URL"
+  value       = "https://${azurerm_linux_function_app.ai_service.default_hostname}"
+}
+
+output "ai_service_insights_key" {
+  description = "AI Service Application Insights instrumentation key"
+  value       = azurerm_application_insights.ai_functions.instrumentation_key
+  sensitive   = true
+}
+
+# MLflow Outputs
+output "mlflow_container_app_name" {
+  description = "MLflow tracking server Container App name"
+  value       = azurerm_container_app.mlflow.name
+}
+
+output "mlflow_url" {
+  description = "MLflow tracking server URL (internal or public depending on config)"
+  value       = "https://${azurerm_container_app.mlflow.ingress[0].fqdn}"
+}
+
+output "mlflow_database_name" {
+  description = "MLflow PostgreSQL database name"
+  value       = azurerm_postgresql_flexible_server_database.mlflow.name
+}
+
 # Container Registry Outputs
 output "container_registry_login_server" {
   description = "Container Registry login server"

@@ -92,12 +92,18 @@ services:
       - AzureStorage__ContainerName=sqordia-documents
       - AzureStorage__AccountName=devstoreaccount1
 
+      # Python AI Service
+      - AI__PythonService__BaseUrl=http://sqordia-ai-service:8100
+      - AI__PythonService__ServiceKey=${AI_SERVICE_KEY:-dev-shared-secret-key}
+      - AI__PythonService__EvaluationTimeoutSeconds=120
+      - AI__PythonService__GenerationTimeoutSeconds=300
+
       # Disable HTTPS redirect for Docker development
       - DISABLE_HTTPS_REDIRECT=true
-      
+
       # Frontend URL for CORS (development)
       - FRONTEND_BASE_URL=http://localhost:5173
-      
+
       # Enable database seeding on startup (for local development)
       - Database__RunSeedsOnStartup=true
     volumes:
@@ -111,6 +117,8 @@ services:
       sqordia-db:
         condition: service_healthy
       sqordia-azurite:
+        condition: service_healthy
+      sqordia-ai-service:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -142,6 +150,80 @@ services:
       retries: 15
       start_period: 10s
 
+  # Python AI Microservice (LangChain, MLflow, RAGAS)
+  sqordia-ai-service:
+    build:
+      context: ../ai-service
+      dockerfile: Dockerfile
+    container_name: sqordia-ai-service-dev
+    ports:
+      - "8100:8100"
+    environment:
+      - AI_ACTIVE_PROVIDER=${AI_ACTIVE_PROVIDER:-ollama}
+      - AI_FALLBACK_PROVIDERS=${AI_FALLBACK_PROVIDERS:-[]}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      - GOOGLE_MODEL=${GOOGLE_MODEL:-gemini-2.0-flash}
+      - OLLAMA_BASE_URL=http://sqordia-ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
+      - AI_SERVICE_KEY=${AI_SERVICE_KEY:-dev-shared-secret-key}
+      - MLFLOW_TRACKING_URI=http://sqordia-mlflow:5050
+      - LOG_LEVEL=INFO
+      - CORS_ORIGINS=["http://localhost:5241","http://localhost:5173"]
+    networks:
+      - sqordia-network
+    depends_on:
+      sqordia-ollama:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # MLflow Tracking Server
+  sqordia-mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.19.0
+    container_name: sqordia-mlflow-dev
+    command: mlflow server --host 0.0.0.0 --port 5050 --backend-store-uri sqlite:///mlflow/mlflow.db --default-artifact-root /mlflow/artifacts
+    ports:
+      - "5050:5050"
+    volumes:
+      - sqordia-mlflow-data:/mlflow
+    networks:
+      - sqordia-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:5050/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # Ollama — Local LLM for development (no API keys needed)
+  # First run pulls the model (~4GB). Subsequent runs use cached model.
+  # To use a different model: OLLAMA_MODEL=mistral docker-compose up
+  sqordia-ollama:
+    image: ollama/ollama:latest
+    container_name: sqordia-ollama-dev
+    # No host port mapping — accessible only within Docker network (avoids conflict with native Ollama)
+    volumes:
+      - sqordia-ollama-data:/root/.ollama
+    networks:
+      - sqordia-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   # Azurite - Azure Blob Storage emulator for local development
   sqordia-azurite:
     image: mcr.microsoft.com/azure-storage/azurite:latest
@@ -169,4 +251,8 @@ volumes:
   sqordia-db-data:
     driver: local
   sqordia-azurite-data:
+    driver: local
+  sqordia-mlflow-data:
+    driver: local
+  sqordia-ollama-data:
     driver: local

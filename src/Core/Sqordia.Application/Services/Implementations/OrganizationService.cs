@@ -188,6 +188,17 @@ public class OrganizationService : IOrganizationService
                 RequireEmailVerification = organization.RequireEmailVerification,
                 Created = organization.Created,
                 CreatedBy = organization.CreatedBy,
+                Industry = organization.Industry,
+                Sector = organization.Sector,
+                TeamSize = organization.TeamSize,
+                FundingStatus = organization.FundingStatus,
+                TargetMarket = organization.TargetMarket,
+                BusinessStage = organization.BusinessStage,
+                GoalsJson = organization.GoalsJson,
+                City = organization.City,
+                Province = organization.Province,
+                Country = organization.Country,
+                ProfileCompletenessScore = organization.ProfileCompletenessScore,
                 Members = organization.Members.Select(m => new OrganizationMemberResponse
                 {
                     Id = m.Id,
@@ -239,6 +250,25 @@ public class OrganizationService : IOrganizationService
             }
 
             organization.UpdateDetails(request.Name, request.Description, request.Website);
+
+            // Update business context if any fields are provided
+            if (request.Industry != null || request.Sector != null || request.TeamSize != null ||
+                request.FundingStatus != null || request.TargetMarket != null || request.BusinessStage != null ||
+                request.GoalsJson != null || request.City != null || request.Province != null || request.Country != null)
+            {
+                organization.UpdateBusinessContext(
+                    request.Industry ?? organization.Industry,
+                    request.Sector ?? organization.Sector,
+                    request.TeamSize ?? organization.TeamSize,
+                    request.FundingStatus ?? organization.FundingStatus,
+                    request.TargetMarket ?? organization.TargetMarket,
+                    request.BusinessStage ?? organization.BusinessStage,
+                    request.GoalsJson ?? organization.GoalsJson,
+                    request.City ?? organization.City,
+                    request.Province ?? organization.Province,
+                    request.Country ?? organization.Country);
+            }
+
             await _context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Organization {OrganizationId} updated by user {UserId}", organizationId, userId.Value);
@@ -684,7 +714,18 @@ public class OrganizationService : IOrganizationService
             RequireEmailVerification = organization.RequireEmailVerification,
             MemberCount = organization.Members.Count(m => m.IsActive),
             Created = organization.Created,
-            CreatedBy = organization.CreatedBy
+            CreatedBy = organization.CreatedBy,
+            Industry = organization.Industry,
+            Sector = organization.Sector,
+            TeamSize = organization.TeamSize,
+            FundingStatus = organization.FundingStatus,
+            TargetMarket = organization.TargetMarket,
+            BusinessStage = organization.BusinessStage,
+            GoalsJson = organization.GoalsJson,
+            City = organization.City,
+            Province = organization.Province,
+            Country = organization.Country,
+            ProfileCompletenessScore = organization.ProfileCompletenessScore
         };
     }
 }

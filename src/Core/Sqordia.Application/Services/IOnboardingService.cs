@@ -4,6 +4,14 @@ using Sqordia.Contracts.Responses.Onboarding;
 
 namespace Sqordia.Application.Services;
 
+public class OnboardingProfileCompleteResponse
+{
+    public bool Success { get; set; }
+    public Guid? OrganizationId { get; set; }
+    public Guid? BusinessPlanId { get; set; }
+    public string? Message { get; set; }
+}
+
 /// <summary>
 /// Service for managing user onboarding progress
 /// </summary>
@@ -41,6 +49,11 @@ public interface IOnboardingService
     Task<Result<OnboardingCompleteResponse>> CompleteAsync(
         Guid userId,
         OnboardingCompleteRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<OnboardingProfileCompleteResponse>> CompleteProfileAsync(
+        Guid userId,
+        OnboardingProfileCompleteRequest request,
         CancellationToken cancellationToken = default);
 }
 

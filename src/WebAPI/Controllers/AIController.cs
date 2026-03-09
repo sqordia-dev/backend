@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Services.V2;
 using Sqordia.Contracts.Requests.AI;
 using Sqordia.Contracts.Requests.V2.Questionnaire;
@@ -16,15 +17,18 @@ namespace WebAPI.Controllers;
 public class AIController : BaseApiController
 {
     private readonly IQuestionPolishService _polishService;
+    private readonly IAIPythonService _pythonService;
     private readonly IAuditService _auditService;
     private readonly ILogger<AIController> _logger;
 
     public AIController(
         IQuestionPolishService polishService,
+        IAIPythonService pythonService,
         IAuditService auditService,
         ILogger<AIController> logger)
     {
         _polishService = polishService;
+        _pythonService = pythonService;
         _auditService = auditService;
         _logger = logger;
     }
@@ -50,11 +54,15 @@ public class AIController : BaseApiController
         _logger.LogInformation("Polishing answer for question {QuestionId} with {Length} characters",
             request.QuestionId, request.Answer.Length);
 
+        // Enrich context with organization profile if available
+        var baseContext = request.Context ?? $"Question ID: {request.QuestionId}, Persona: {request.Persona}";
+        var enrichedContext = EnrichContextWithOrgProfile(baseContext, request.OrganizationContext, request.Language ?? "en");
+
         // Use the existing polish service
         var polishRequest = new PolishTextRequest
         {
             Text = request.Answer,
-            Context = request.Context ?? $"Question ID: {request.QuestionId}, Persona: {request.Persona}",
+            Context = enrichedContext,
             Language = request.Language ?? "en",
             Tone = "professional"
         };
@@ -145,10 +153,13 @@ public class AIController : BaseApiController
         // Get polished text if requested
         if (request.IncludePolish)
         {
+            var baseContext = request.Context ?? $"Question ID: {request.QuestionId}, Persona: {request.Persona}";
+            var enrichedContext = EnrichContextWithOrgProfile(baseContext, request.OrganizationContext, request.Language ?? "en");
+
             var polishRequest = new PolishTextRequest
             {
                 Text = request.Answer,
-                Context = request.Context ?? $"Question ID: {request.QuestionId}, Persona: {request.Persona}",
+                Context = enrichedContext,
                 Language = request.Language ?? "en",
                 Tone = "professional"
             };
@@ -221,6 +232,108 @@ public class AIController : BaseApiController
         response.Summary = GenerateStepSummary(response);
 
         return Ok(response);
+    }
+
+    /// <summary>
+    /// Evaluate completeness of an individual questionnaire answer via the Python AI service.
+    /// </summary>
+    [HttpPost("evaluate/answer-completeness")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> EvaluateAnswerCompleteness(
+        [FromBody] AnswerCompletenessRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!await _pythonService.IsAvailableAsync(cancellationToken))
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                    new { error = "Python AI service is currently unavailable." });
+            }
+
+            _logger.LogInformation("Evaluating answer completeness for question {QuestionNumber}",
+                request.QuestionNumber);
+
+            var response = await _pythonService.EvaluateAnswerCompletenessAsync(request, cancellationToken);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error evaluating answer completeness for question {QuestionNumber}",
+                request.QuestionNumber);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = "An error occurred while evaluating answer completeness." });
+        }
+    }
+
+    /// <summary>
+    /// Evaluate completeness and coherence of an entire questionnaire step via the Python AI service.
+    /// </summary>
+    [HttpPost("evaluate/step-completeness")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> EvaluateStepCompleteness(
+        [FromBody] StepCompletenessRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!await _pythonService.IsAvailableAsync(cancellationToken))
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                    new { error = "Python AI service is currently unavailable." });
+            }
+
+            _logger.LogInformation("Evaluating step completeness for step {StepNumber} with {AnswerCount} answers",
+                request.StepNumber, request.Answers.Count);
+
+            var response = await _pythonService.EvaluateStepCompletenessAsync(request, cancellationToken);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error evaluating step completeness for step {StepNumber}",
+                request.StepNumber);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = "An error occurred while evaluating step completeness." });
+        }
+    }
+
+    /// <summary>
+    /// Run full LLM-as-Judge evaluation on a generated section via the Python AI service.
+    /// </summary>
+    [HttpPost("judge/full-evaluation")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> RunJudgeEvaluation(
+        [FromBody] JudgeEvaluationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!await _pythonService.IsAvailableAsync(cancellationToken))
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                    new { error = "Python AI service is currently unavailable." });
+            }
+
+            _logger.LogInformation("Running judge evaluation for section {SectionName}",
+                request.SectionName);
+
+            var response = await _pythonService.RunJudgeEvaluationAsync(request, cancellationToken);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error running judge evaluation for section {SectionName}",
+                request.SectionName);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = "An error occurred while running judge evaluation." });
+        }
     }
 
     private int CalculateStrengthScore(string originalText, string? polishedText)
@@ -400,5 +513,39 @@ public class AIController : BaseApiController
 
         var result = await _auditService.AuditSectionAsync(planId, request.SectionName, request.Language, cancellationToken);
         return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Enriches a context string with organization profile data for AI personalization
+    /// </summary>
+    private static string EnrichContextWithOrgProfile(string baseContext, OrganizationContextDto? org, string language)
+    {
+        if (org == null)
+            return baseContext;
+
+        var isFrench = language.Equals("fr", StringComparison.OrdinalIgnoreCase);
+        var parts = new List<string> { baseContext };
+
+        void Add(string labelFr, string labelEn, string? value)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                parts.Add($"{(isFrench ? labelFr : labelEn)}: {value}");
+        }
+
+        Add("Entreprise", "Company", org.CompanyName);
+        Add("Industrie", "Industry", org.Industry);
+        Add("Secteur", "Sector", org.Sector);
+        Add("Stade", "Stage", org.BusinessStage);
+        Add("Équipe", "Team", org.TeamSize);
+        Add("Financement", "Funding", org.FundingStatus);
+        Add("Marché cible", "Target Market", org.TargetMarket);
+
+        var locationParts = new[] { org.City, org.Province, org.Country }
+            .Where(p => !string.IsNullOrWhiteSpace(p));
+        var location = string.Join(", ", locationParts);
+        if (!string.IsNullOrWhiteSpace(location))
+            Add("Localisation", "Location", location);
+
+        return string.Join(". ", parts);
     }
 }

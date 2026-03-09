@@ -102,6 +102,10 @@ public class QuestionTemplateV3Configuration : IEntityTypeConfiguration<Question
         builder.Property(x => x.SectionGroup)
             .HasMaxLength(200);
 
+        // Profile Field Key (maps question to Organization profile field)
+        builder.Property(x => x.ProfileFieldKey)
+            .HasMaxLength(100);
+
         // Audit fields
         builder.Property(x => x.Created)
             .IsRequired();
@@ -135,6 +139,11 @@ public class QuestionTemplateV3Configuration : IEntityTypeConfiguration<Question
         // Active questions lookup
         builder.HasIndex(x => new { x.IsActive, x.DisplayOrder })
             .HasDatabaseName("IX_QuestionTemplatesV3_Active_Order");
+
+        // Profile field key lookup
+        builder.HasIndex(x => x.ProfileFieldKey)
+            .HasDatabaseName("IX_QuestionTemplatesV3_ProfileFieldKey")
+            .HasFilter("\"ProfileFieldKey\" IS NOT NULL");
 
         // Soft delete filter
         builder.HasQueryFilter(x => !x.IsDeleted);

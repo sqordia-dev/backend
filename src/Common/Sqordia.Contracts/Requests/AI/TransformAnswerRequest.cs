@@ -64,6 +64,30 @@ public class TransformAnswerRequest
     /// Business sector/industry from Q5 for context
     /// </summary>
     public string? BusinessSector { get; set; }
+
+    /// <summary>
+    /// Organization profile context collected during onboarding.
+    /// Provides structured business metadata for richer AI personalization.
+    /// </summary>
+    public OrganizationContextDto? OrganizationContext { get; set; }
+}
+
+/// <summary>
+/// Structured organization profile data from onboarding for AI context enrichment
+/// </summary>
+public class OrganizationContextDto
+{
+    public string? CompanyName { get; set; }
+    public string? Industry { get; set; }
+    public string? Sector { get; set; }
+    public string? BusinessStage { get; set; }
+    public string? TeamSize { get; set; }
+    public string? FundingStatus { get; set; }
+    public string? TargetMarket { get; set; }
+    public string? City { get; set; }
+    public string? Province { get; set; }
+    public string? Country { get; set; }
+    public string? Goals { get; set; }
 }
 
 /// <summary>

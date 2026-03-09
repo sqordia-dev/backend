@@ -23,6 +23,8 @@ public class BusinessPlanControllerTests
     private readonly Mock<IStrategyMapService> _strategyMapServiceMock;
     private readonly Mock<IReadinessScoreService> _readinessScoreServiceMock;
     private readonly Mock<IAuditService> _auditServiceMock;
+    private readonly Mock<IBusinessBriefService> _businessBriefServiceMock;
+    private readonly Mock<IQualityAgentOrchestrator> _qualityAgentOrchestratorMock;
     private readonly Mock<IApplicationDbContext> _contextMock;
     private readonly Mock<ILogger<BusinessPlanController>> _loggerMock;
     private readonly BusinessPlanController _sut;
@@ -38,6 +40,8 @@ public class BusinessPlanControllerTests
         _strategyMapServiceMock = new Mock<IStrategyMapService>();
         _readinessScoreServiceMock = new Mock<IReadinessScoreService>();
         _auditServiceMock = new Mock<IAuditService>();
+        _businessBriefServiceMock = new Mock<IBusinessBriefService>();
+        _qualityAgentOrchestratorMock = new Mock<IQualityAgentOrchestrator>();
         _contextMock = new Mock<IApplicationDbContext>();
         _loggerMock = new Mock<ILogger<BusinessPlanController>>();
 
@@ -46,6 +50,8 @@ public class BusinessPlanControllerTests
             _strategyMapServiceMock.Object,
             _readinessScoreServiceMock.Object,
             _auditServiceMock.Object,
+            _businessBriefServiceMock.Object,
+            _qualityAgentOrchestratorMock.Object,
             _contextMock.Object,
             _loggerMock.Object);
 
@@ -834,6 +840,8 @@ public class BusinessPlanControllerTests
             _strategyMapServiceMock.Object,
             _readinessScoreServiceMock.Object,
             _auditServiceMock.Object,
+            _businessBriefServiceMock.Object,
+            _qualityAgentOrchestratorMock.Object,
             _contextMock.Object,
             _loggerMock.Object);
 
@@ -876,6 +884,8 @@ public class BusinessPlanControllerTests
             _strategyMapServiceMock.Object,
             _readinessScoreServiceMock.Object,
             _auditServiceMock.Object,
+            _businessBriefServiceMock.Object,
+            _qualityAgentOrchestratorMock.Object,
             _contextMock.Object,
             _loggerMock.Object);
 
@@ -913,6 +923,8 @@ public class BusinessPlanControllerTests
             _strategyMapServiceMock.Object,
             _readinessScoreServiceMock.Object,
             _auditServiceMock.Object,
+            _businessBriefServiceMock.Object,
+            _qualityAgentOrchestratorMock.Object,
             _contextMock.Object,
             _loggerMock.Object);
 

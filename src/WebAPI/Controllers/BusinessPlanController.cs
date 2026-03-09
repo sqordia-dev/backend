@@ -22,6 +22,8 @@ public class BusinessPlanController : BaseApiController
     private readonly IStrategyMapService _strategyMapService;
     private readonly IReadinessScoreService _readinessScoreService;
     private readonly IAuditService _auditService;
+    private readonly IBusinessBriefService _businessBriefService;
+    private readonly IQualityAgentOrchestrator _qualityAgentOrchestrator;
     private readonly IApplicationDbContext _context;
     private readonly ILogger<BusinessPlanController> _logger;
 
@@ -30,6 +32,8 @@ public class BusinessPlanController : BaseApiController
         IStrategyMapService strategyMapService,
         IReadinessScoreService readinessScoreService,
         IAuditService auditService,
+        IBusinessBriefService businessBriefService,
+        IQualityAgentOrchestrator qualityAgentOrchestrator,
         IApplicationDbContext context,
         ILogger<BusinessPlanController> logger)
     {
@@ -37,6 +41,8 @@ public class BusinessPlanController : BaseApiController
         _strategyMapService = strategyMapService;
         _readinessScoreService = readinessScoreService;
         _auditService = auditService;
+        _businessBriefService = businessBriefService;
+        _qualityAgentOrchestrator = qualityAgentOrchestrator;
         _context = context;
         _logger = logger;
     }
@@ -528,6 +534,92 @@ public class BusinessPlanController : BaseApiController
         };
 
         return Ok(response);
+    }
+
+    /// <summary>
+    /// Get the Business Brief for a business plan
+    /// </summary>
+    /// <param name="id">The business plan ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The stored Business Brief</returns>
+    [HttpGet("{id}/brief")]
+    [ProducesResponseType(typeof(BusinessBriefDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetBusinessBrief(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _businessBriefService.GetBusinessBriefAsync(id, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Run quality analysis agents on a business plan
+    /// </summary>
+    /// <param name="id">The business plan ID</param>
+    /// <param name="language">Language (fr or en)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Quality agent report with scores and findings</returns>
+    [HttpPost("{id}/quality-review")]
+    [ProducesResponseType(typeof(QualityAgentReport), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RunQualityReview(
+        Guid id,
+        [FromQuery] string language = "fr",
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _qualityAgentOrchestrator.RunQualityAgentsAsync(id, language, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Regenerate a section with user feedback
+    /// </summary>
+    /// <param name="id">The business plan ID</param>
+    /// <param name="sectionName">The section name (PascalCase or kebab-case)</param>
+    /// <param name="request">Feedback and instructions for regeneration</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The updated business plan</returns>
+    [HttpPost("{id}/sections/{sectionName}/regenerate")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RegenerateSectionWithFeedback(
+        Guid id,
+        string sectionName,
+        [FromBody] Sqordia.Contracts.Requests.BusinessPlan.RegenerateSectionWithFeedbackRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var generationService = HttpContext.RequestServices.GetRequiredService<IBusinessPlanGenerationService>();
+
+        var feedbackRequest = new SectionRegenerationRequest
+        {
+            Feedback = request.Feedback,
+            KeepElements = request.KeepElements,
+            Tone = request.Tone
+        };
+
+        var result = await generationService.RegenerateSectionWithFeedbackAsync(
+            id, sectionName, feedbackRequest, request.Language, cancellationToken);
+
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Regenerate the Business Brief for a business plan
+    /// </summary>
+    /// <param name="id">The business plan ID</param>
+    /// <param name="language">Language (fr or en)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The newly generated Business Brief</returns>
+    [HttpPost("{id}/brief/regenerate")]
+    [ProducesResponseType(typeof(BusinessBriefDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RegenerateBusinessBrief(
+        Guid id,
+        [FromQuery] string language = "fr",
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _businessBriefService.GenerateBusinessBriefAsync(id, language, cancellationToken);
+        return HandleResult(result);
     }
 }
 
