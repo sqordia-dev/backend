@@ -139,6 +139,9 @@ public interface IApplicationDbContext
     // Analytics Insights
     DbSet<AnalyticsInsight> AnalyticsInsights { get; }
 
+    // Notifications
+    DbSet<Notification> Notifications { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default);
 }

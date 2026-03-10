@@ -102,6 +102,9 @@ public static class ConfigureServices
             services.AddScoped<IQuestionnaireServiceV3, QuestionnaireServiceV3>();
             services.AddScoped<IQuestionSectionMappingService, QuestionSectionMappingService>();
 
+            // Notification service
+            services.AddScoped<INotificationService, NotificationService>();
+
             // Previsio Financial Projections services
             services.AddScoped<IFinancialPlanService, FinancialPlanServiceImpl>();
             services.AddScoped<ISalesModuleService, SalesModuleServiceImpl>();

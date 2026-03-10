@@ -16,19 +16,22 @@ public class OrganizationService : IOrganizationService
     private readonly ILogger<OrganizationService> _logger;
     private readonly ILocalizationService _localizationService;
     private readonly IOrganizationMembershipCache _membershipCache;
+    private readonly INotificationService _notificationService;
 
     public OrganizationService(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
         ILogger<OrganizationService> logger,
         ILocalizationService localizationService,
-        IOrganizationMembershipCache membershipCache)
+        IOrganizationMembershipCache membershipCache,
+        INotificationService notificationService)
     {
         _context = context;
         _currentUserService = currentUserService;
         _logger = logger;
         _localizationService = localizationService;
         _membershipCache = membershipCache;
+        _notificationService = notificationService;
     }
 
     public async Task<Result<OrganizationResponse>> CreateOrganizationAsync(CreateOrganizationRequest request, CancellationToken cancellationToken = default)
@@ -497,6 +500,26 @@ public class OrganizationService : IOrganizationService
             _membershipCache.InvalidateMembership(organizationId, request.UserId);
 
             _logger.LogInformation("User {UserId} added to organization {OrganizationId} by {InvitedBy}", request.UserId, organizationId, userId.Value);
+
+            // Send in-app notification to the new member
+            try
+            {
+                await _notificationService.CreateNotificationAsync(
+                    request.UserId,
+                    NotificationType.OrganizationInvitation,
+                    NotificationCategory.Organization,
+                    titleFr: $"Vous avez été ajouté à {organization.Name}",
+                    titleEn: $"You have been added to {organization.Name}",
+                    messageFr: $"Vous avez rejoint l'organisation {organization.Name} en tant que {role}.",
+                    messageEn: $"You have joined the organization {organization.Name} as {role}.",
+                    actionUrl: "/dashboard",
+                    relatedEntityId: organizationId,
+                    cancellationToken: cancellationToken);
+            }
+            catch (Exception notifEx)
+            {
+                _logger.LogWarning(notifEx, "Failed to create organization invitation notification for user {UserId}", request.UserId);
+            }
 
             return Result.Success(new OrganizationMemberResponse
             {

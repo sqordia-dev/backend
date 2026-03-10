@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Sqordia.Application.Common.Interfaces;
+using Sqordia.Application.Services;
 using Sqordia.Application.Services.Implementations;
 using Sqordia.Domain.Entities.BusinessPlan;
 using Sqordia.Domain.Enums;
@@ -21,6 +22,7 @@ public class BusinessPlanGenerationServiceTests : IDisposable
     private readonly Mock<IAIPromptService> _aiPromptServiceMock;
     private readonly Mock<IEmailService> _emailServiceMock;
     private readonly Mock<IBusinessBriefService> _businessBriefServiceMock;
+    private readonly Mock<INotificationService> _notificationServiceMock;
     private readonly Mock<ILogger<BusinessPlanGenerationService>> _loggerMock;
     private readonly BusinessPlanGenerationService _sut;
 
@@ -42,10 +44,11 @@ public class BusinessPlanGenerationServiceTests : IDisposable
         _aiPromptServiceMock = new Mock<IAIPromptService>();
         _emailServiceMock = new Mock<IEmailService>();
         _businessBriefServiceMock = new Mock<IBusinessBriefService>();
+        _notificationServiceMock = new Mock<INotificationService>();
         _loggerMock = new Mock<ILogger<BusinessPlanGenerationService>>();
 
         // Create service under test
-        _sut = new BusinessPlanGenerationService(_context, _aiServiceMock.Object, _aiPromptServiceMock.Object, _emailServiceMock.Object, _businessBriefServiceMock.Object, _loggerMock.Object);
+        _sut = new BusinessPlanGenerationService(_context, _aiServiceMock.Object, _aiPromptServiceMock.Object, _emailServiceMock.Object, _businessBriefServiceMock.Object, _notificationServiceMock.Object, _loggerMock.Object);
     }
 
     #region GenerateBusinessPlanAsync Tests

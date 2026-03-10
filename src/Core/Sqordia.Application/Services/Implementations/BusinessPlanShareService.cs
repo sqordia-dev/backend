@@ -16,17 +16,20 @@ public class BusinessPlanShareService : IBusinessPlanShareService
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<BusinessPlanShareService> _logger;
     private readonly ILocalizationService _localizationService;
+    private readonly INotificationService _notificationService;
 
     public BusinessPlanShareService(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
         ILogger<BusinessPlanShareService> logger,
-        ILocalizationService localizationService)
+        ILocalizationService localizationService,
+        INotificationService notificationService)
     {
         _context = context;
         _currentUserService = currentUserService;
         _logger = logger;
         _localizationService = localizationService;
+        _notificationService = notificationService;
     }
 
     public async Task<Result<BusinessPlanShareResponse>> ShareBusinessPlanAsync(
@@ -159,8 +162,31 @@ public class BusinessPlanShareService : IBusinessPlanShareService
             _context.BusinessPlanShares.Add(share);
             await _context.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("Business plan {PlanId} shared with {Identifier} by {OwnerId}", 
+            _logger.LogInformation("Business plan {PlanId} shared with {Identifier} by {OwnerId}",
                 businessPlanId, sharedWithUserId?.ToString() ?? sharedWithEmail ?? "unknown", currentUserId.Value);
+
+            // Send in-app notification to the recipient
+            if (sharedWithUserId.HasValue)
+            {
+                try
+                {
+                    await _notificationService.CreateNotificationAsync(
+                        sharedWithUserId.Value,
+                        Domain.Enums.NotificationType.BusinessPlanShared,
+                        Domain.Enums.NotificationCategory.BusinessPlan,
+                        titleFr: $"Plan partagé avec vous : {businessPlan.Title}",
+                        titleEn: $"Plan shared with you: {businessPlan.Title}",
+                        messageFr: $"Un plan d'affaires a été partagé avec vous ({permission}).",
+                        messageEn: $"A business plan has been shared with you ({permission}).",
+                        actionUrl: $"/business-plan/{businessPlanId}/preview",
+                        relatedEntityId: businessPlanId,
+                        cancellationToken: cancellationToken);
+                }
+                catch (Exception notifEx)
+                {
+                    _logger.LogWarning(notifEx, "Failed to create share notification for plan {PlanId}", businessPlanId);
+                }
+            }
 
             var shareResponse = new BusinessPlanShareResponse
             {

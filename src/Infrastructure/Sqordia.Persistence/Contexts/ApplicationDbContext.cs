@@ -141,6 +141,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     // Analytics Insights
     public DbSet<AnalyticsInsight> AnalyticsInsights { get; set; }
 
+    // Notifications
+    public DbSet<Notification> Notifications { get; set; }
+
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {
     }

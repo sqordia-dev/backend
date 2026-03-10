@@ -5,6 +5,7 @@ using Sqordia.Application.Services;
 using Sqordia.Contracts.Requests.Comment;
 using Sqordia.Contracts.Responses.Comment;
 using Sqordia.Domain.Entities.BusinessPlan;
+using Sqordia.Domain.Enums;
 
 namespace Sqordia.Application.Services.Implementations;
 
@@ -12,15 +13,18 @@ public class PlanCommentService : IPlanCommentService
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<PlanCommentService> _logger;
 
     public PlanCommentService(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
+        INotificationService notificationService,
         ILogger<PlanCommentService> logger)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -65,6 +69,31 @@ public class PlanCommentService : IPlanCommentService
 
         _logger.LogInformation("Comment created on section {SectionName} for business plan {BusinessPlanId}",
             request.SectionName, request.BusinessPlanId);
+
+        // Notify plan owner about the new comment (if commenter is not the owner)
+        try
+        {
+            if (!string.IsNullOrEmpty(businessPlan.CreatedBy) &&
+                Guid.TryParse(businessPlan.CreatedBy, out var planOwnerId) &&
+                planOwnerId != currentUserId)
+            {
+                await _notificationService.CreateNotificationAsync(
+                    planOwnerId,
+                    NotificationType.CommentAdded,
+                    NotificationCategory.Collaboration,
+                    titleFr: $"Nouveau commentaire sur {businessPlan.Title}",
+                    titleEn: $"New comment on {businessPlan.Title}",
+                    messageFr: $"Un commentaire a été ajouté à la section {request.SectionName}.",
+                    messageEn: $"A comment was added to section {request.SectionName}.",
+                    actionUrl: $"/business-plan/{request.BusinessPlanId}/preview",
+                    relatedEntityId: request.BusinessPlanId,
+                    cancellationToken: cancellationToken);
+            }
+        }
+        catch (Exception notifEx)
+        {
+            _logger.LogWarning(notifEx, "Failed to create comment notification for plan {PlanId}", request.BusinessPlanId);
+        }
 
         return MapToResponse(comment);
     }

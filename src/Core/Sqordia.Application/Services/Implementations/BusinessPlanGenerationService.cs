@@ -18,6 +18,7 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
     private readonly IEmailService _emailService;
     private readonly IBusinessBriefService _businessBriefService;
     private readonly IGenerationPipelineService? _pipelineService;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<BusinessPlanGenerationService> _logger;
 
     public BusinessPlanGenerationService(
@@ -26,6 +27,7 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
         IAIPromptService aiPromptService,
         IEmailService emailService,
         IBusinessBriefService businessBriefService,
+        INotificationService notificationService,
         ILogger<BusinessPlanGenerationService> logger,
         IGenerationPipelineService? pipelineService = null)
     {
@@ -34,6 +36,7 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
         _aiPromptService = aiPromptService;
         _emailService = emailService;
         _businessBriefService = businessBriefService;
+        _notificationService = notificationService;
         _pipelineService = pipelineService;
         _logger = logger;
     }
@@ -241,6 +244,29 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
                 _logger.LogError(emailEx,
                     "Failed to send business plan generation notification email for plan {PlanId}. Generation completed successfully.",
                     businessPlanId);
+            }
+
+            // Send in-app notification
+            try
+            {
+                if (!string.IsNullOrEmpty(businessPlan.CreatedBy) && Guid.TryParse(businessPlan.CreatedBy, out var ownerUserId))
+                {
+                    await _notificationService.CreateNotificationAsync(
+                        ownerUserId,
+                        Domain.Enums.NotificationType.BusinessPlanGenerated,
+                        Domain.Enums.NotificationCategory.BusinessPlan,
+                        titleFr: $"Plan d'affaires prêt : {businessPlan.Title}",
+                        titleEn: $"Business plan ready: {businessPlan.Title}",
+                        messageFr: "Votre plan d'affaires a été généré avec succès. Consultez-le maintenant.",
+                        messageEn: "Your business plan has been generated successfully. View it now.",
+                        actionUrl: $"/business-plan/{businessPlan.Id}/preview",
+                        relatedEntityId: businessPlan.Id,
+                        cancellationToken: cancellationToken);
+                }
+            }
+            catch (Exception notifEx)
+            {
+                _logger.LogWarning(notifEx, "Failed to create in-app notification for plan {PlanId}", businessPlanId);
             }
 
             return Result.Success(businessPlan);
