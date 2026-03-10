@@ -13,67 +13,18 @@ namespace Sqordia.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "Persona",
-                table: "Users",
-                type: "character varying(50)",
-                maxLength: 50,
-                nullable: true);
-
-            migrationBuilder.AddColumn<bool>(
-                name: "AllowDownload",
-                table: "BusinessPlanShares",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.AddColumn<bool>(
-                name: "EnableWatermark",
-                table: "BusinessPlanShares",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.AddColumn<bool>(
-                name: "IsVaultShare",
-                table: "BusinessPlanShares",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.AddColumn<int>(
-                name: "MaxViews",
-                table: "BusinessPlanShares",
-                type: "integer",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "PasswordHash",
-                table: "BusinessPlanShares",
-                type: "character varying(256)",
-                maxLength: 256,
-                nullable: true);
-
-            migrationBuilder.AddColumn<bool>(
-                name: "RequireEmailVerification",
-                table: "BusinessPlanShares",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.AddColumn<bool>(
-                name: "TrackViews",
-                table: "BusinessPlanShares",
-                type: "boolean",
-                nullable: false,
-                defaultValue: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "WatermarkText",
-                table: "BusinessPlanShares",
-                type: "character varying(500)",
-                maxLength: 500,
-                nullable: true);
+            // These columns may already exist from previous migrations (AddGrowthArchitectV2Features, AddVaultShareFeatures)
+            migrationBuilder.Sql(@"
+                ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""Persona"" character varying(50);
+                ALTER TABLE ""BusinessPlanShares"" ADD COLUMN IF NOT EXISTS ""AllowDownload"" boolean NOT NULL DEFAULT false;
+                ALTER TABLE ""BusinessPlanShares"" ADD COLUMN IF NOT EXISTS ""EnableWatermark"" boolean NOT NULL DEFAULT false;
+                ALTER TABLE ""BusinessPlanShares"" ADD COLUMN IF NOT EXISTS ""IsVaultShare"" boolean NOT NULL DEFAULT false;
+                ALTER TABLE ""BusinessPlanShares"" ADD COLUMN IF NOT EXISTS ""MaxViews"" integer;
+                ALTER TABLE ""BusinessPlanShares"" ADD COLUMN IF NOT EXISTS ""PasswordHash"" character varying(256);
+                ALTER TABLE ""BusinessPlanShares"" ADD COLUMN IF NOT EXISTS ""RequireEmailVerification"" boolean NOT NULL DEFAULT false;
+                ALTER TABLE ""BusinessPlanShares"" ADD COLUMN IF NOT EXISTS ""TrackViews"" boolean NOT NULL DEFAULT true;
+                ALTER TABLE ""BusinessPlanShares"" ADD COLUMN IF NOT EXISTS ""WatermarkText"" character varying(500);
+            ");
 
             migrationBuilder.CreateTable(
                 name: "FinancialCells",
@@ -129,25 +80,24 @@ namespace Sqordia.Persistence.Migrations
                     table.PrimaryKey("PK_LocationOverheadRates", x => x.Id);
                 });
 
-            migrationBuilder.InsertData(
-                table: "LocationOverheadRates",
-                columns: new[] { "Id", "CreatedAt", "CreatedBy", "Currency", "EffectiveDate", "ExpiryDate", "InsuranceRate", "IsActive", "OfficeCost", "OverheadRate", "Province", "ProvinceCode", "TaxRate", "UpdatedAt", "UpdatedBy" },
-                values: new object[,]
-                {
-                    { new Guid("a0000000-0000-0000-0000-000000000001"), new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System", "CAD", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, 200m, true, 600m, 10.0m, "Alberta", "AB", 15.0m, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System" },
-                    { new Guid("a0000000-0000-0000-0000-000000000002"), new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System", "CAD", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, 250m, true, 800m, 12.0m, "British Columbia", "BC", 20.0m, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System" },
-                    { new Guid("a0000000-0000-0000-0000-000000000003"), new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System", "CAD", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, 180m, true, 450m, 10.0m, "Manitoba", "MB", 17.0m, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System" },
-                    { new Guid("a0000000-0000-0000-0000-000000000004"), new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System", "CAD", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, 170m, true, 400m, 9.0m, "New Brunswick", "NB", 20.0m, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System" },
-                    { new Guid("a0000000-0000-0000-0000-000000000005"), new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System", "CAD", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, 175m, true, 420m, 9.0m, "Newfoundland and Labrador", "NL", 20.0m, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System" },
-                    { new Guid("a0000000-0000-0000-0000-000000000006"), new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System", "CAD", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, 175m, true, 450m, 9.5m, "Nova Scotia", "NS", 21.0m, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System" },
-                    { new Guid("a0000000-0000-0000-0000-000000000007"), new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System", "CAD", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, 250m, true, 750m, 12.0m, "Ontario", "ON", 20.0m, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System" },
-                    { new Guid("a0000000-0000-0000-0000-000000000008"), new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System", "CAD", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, 160m, true, 380m, 8.5m, "Prince Edward Island", "PE", 20.0m, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System" },
-                    { new Guid("a0000000-0000-0000-0000-000000000009"), new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System", "CAD", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, 220m, true, 600m, 11.0m, "Quebec", "QC", 24.0m, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System" },
-                    { new Guid("a0000000-0000-0000-0000-000000000010"), new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System", "CAD", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, 180m, true, 450m, 9.5m, "Saskatchewan", "SK", 16.0m, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System" },
-                    { new Guid("a0000000-0000-0000-0000-000000000011"), new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System", "CAD", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, 200m, true, 700m, 11.0m, "Northwest Territories", "NT", 15.0m, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System" },
-                    { new Guid("a0000000-0000-0000-0000-000000000012"), new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System", "CAD", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, 220m, true, 900m, 12.0m, "Nunavut", "NU", 15.0m, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System" },
-                    { new Guid("a0000000-0000-0000-0000-000000000013"), new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System", "CAD", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, 190m, true, 650m, 10.5m, "Yukon", "YT", 15.0m, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "System" }
-                });
+            migrationBuilder.Sql(@"
+                INSERT INTO ""LocationOverheadRates"" (""Id"", ""CreatedAt"", ""CreatedBy"", ""Currency"", ""EffectiveDate"", ""ExpiryDate"", ""InsuranceRate"", ""IsActive"", ""OfficeCost"", ""OverheadRate"", ""Province"", ""ProvinceCode"", ""TaxRate"", ""UpdatedAt"", ""UpdatedBy"")
+                VALUES
+                ('a0000000-0000-0000-0000-000000000001', '2024-01-01T00:00:00Z', 'System', 'CAD', '2024-01-01T00:00:00Z', NULL, 200, true, 600, 10.0, 'Alberta', 'AB', 15.0, '2024-01-01T00:00:00Z', 'System'),
+                ('a0000000-0000-0000-0000-000000000002', '2024-01-01T00:00:00Z', 'System', 'CAD', '2024-01-01T00:00:00Z', NULL, 250, true, 800, 12.0, 'British Columbia', 'BC', 20.0, '2024-01-01T00:00:00Z', 'System'),
+                ('a0000000-0000-0000-0000-000000000003', '2024-01-01T00:00:00Z', 'System', 'CAD', '2024-01-01T00:00:00Z', NULL, 180, true, 450, 10.0, 'Manitoba', 'MB', 17.0, '2024-01-01T00:00:00Z', 'System'),
+                ('a0000000-0000-0000-0000-000000000004', '2024-01-01T00:00:00Z', 'System', 'CAD', '2024-01-01T00:00:00Z', NULL, 170, true, 400, 9.0, 'New Brunswick', 'NB', 20.0, '2024-01-01T00:00:00Z', 'System'),
+                ('a0000000-0000-0000-0000-000000000005', '2024-01-01T00:00:00Z', 'System', 'CAD', '2024-01-01T00:00:00Z', NULL, 175, true, 420, 9.0, 'Newfoundland and Labrador', 'NL', 20.0, '2024-01-01T00:00:00Z', 'System'),
+                ('a0000000-0000-0000-0000-000000000006', '2024-01-01T00:00:00Z', 'System', 'CAD', '2024-01-01T00:00:00Z', NULL, 175, true, 450, 9.5, 'Nova Scotia', 'NS', 21.0, '2024-01-01T00:00:00Z', 'System'),
+                ('a0000000-0000-0000-0000-000000000007', '2024-01-01T00:00:00Z', 'System', 'CAD', '2024-01-01T00:00:00Z', NULL, 250, true, 750, 12.0, 'Ontario', 'ON', 20.0, '2024-01-01T00:00:00Z', 'System'),
+                ('a0000000-0000-0000-0000-000000000008', '2024-01-01T00:00:00Z', 'System', 'CAD', '2024-01-01T00:00:00Z', NULL, 160, true, 380, 8.5, 'Prince Edward Island', 'PE', 20.0, '2024-01-01T00:00:00Z', 'System'),
+                ('a0000000-0000-0000-0000-000000000009', '2024-01-01T00:00:00Z', 'System', 'CAD', '2024-01-01T00:00:00Z', NULL, 220, true, 600, 11.0, 'Quebec', 'QC', 24.0, '2024-01-01T00:00:00Z', 'System'),
+                ('a0000000-0000-0000-0000-000000000010', '2024-01-01T00:00:00Z', 'System', 'CAD', '2024-01-01T00:00:00Z', NULL, 180, true, 450, 9.5, 'Saskatchewan', 'SK', 16.0, '2024-01-01T00:00:00Z', 'System'),
+                ('a0000000-0000-0000-0000-000000000011', '2024-01-01T00:00:00Z', 'System', 'CAD', '2024-01-01T00:00:00Z', NULL, 200, true, 700, 11.0, 'Northwest Territories', 'NT', 15.0, '2024-01-01T00:00:00Z', 'System'),
+                ('a0000000-0000-0000-0000-000000000012', '2024-01-01T00:00:00Z', 'System', 'CAD', '2024-01-01T00:00:00Z', NULL, 220, true, 900, 12.0, 'Nunavut', 'NU', 15.0, '2024-01-01T00:00:00Z', 'System'),
+                ('a0000000-0000-0000-0000-000000000013', '2024-01-01T00:00:00Z', 'System', 'CAD', '2024-01-01T00:00:00Z', NULL, 190, true, 650, 10.5, 'Yukon', 'YT', 15.0, '2024-01-01T00:00:00Z', 'System')
+                ON CONFLICT DO NOTHING;
+            ");
 
             migrationBuilder.CreateIndex(
                 name: "IX_FinancialCells_BusinessPlan_Sheet_Row_Column",

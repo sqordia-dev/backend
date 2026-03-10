@@ -23,6 +23,8 @@ bld/
 ## Generated files
 *.designer.cs
 *.Designer.cs
+# BUT keep EF Core migration Designer files (required for migration discovery)
+!**/Migrations/*.Designer.cs
 *.generated.cs
 *.Generated.cs
 **/GeneratedCode/

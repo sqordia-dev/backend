@@ -79,32 +79,16 @@ namespace Sqordia.Persistence.Migrations
                 column: "VersionNumber");
 
             // Seed initial questionnaire steps
-            var now = DateTime.UtcNow;
-
-            migrationBuilder.InsertData(
-                table: "QuestionnaireSteps",
-                columns: new[] { "Id", "StepNumber", "TitleFR", "TitleEN", "DescriptionFR", "DescriptionEN", "Icon", "IsActive", "Created", "IsDeleted" },
-                values: new object[] { Guid.NewGuid(), 1, "Identit\u00e9 & Vision", "Identity & Vision", "D\u00e9finissez qui vous \u00eates et o\u00f9 vous allez", "Define who you are and where you're going", null, true, now, false });
-
-            migrationBuilder.InsertData(
-                table: "QuestionnaireSteps",
-                columns: new[] { "Id", "StepNumber", "TitleFR", "TitleEN", "DescriptionFR", "DescriptionEN", "Icon", "IsActive", "Created", "IsDeleted" },
-                values: new object[] { Guid.NewGuid(), 2, "L'Offre", "The Offering", "D\u00e9crivez vos produits et services", "Describe your products and services", null, true, now, false });
-
-            migrationBuilder.InsertData(
-                table: "QuestionnaireSteps",
-                columns: new[] { "Id", "StepNumber", "TitleFR", "TitleEN", "DescriptionFR", "DescriptionEN", "Icon", "IsActive", "Created", "IsDeleted" },
-                values: new object[] { Guid.NewGuid(), 3, "Analyse de march\u00e9", "Market Analysis", "Comprenez votre march\u00e9 et vos concurrents", "Understand your market and competitors", null, true, now, false });
-
-            migrationBuilder.InsertData(
-                table: "QuestionnaireSteps",
-                columns: new[] { "Id", "StepNumber", "TitleFR", "TitleEN", "DescriptionFR", "DescriptionEN", "Icon", "IsActive", "Created", "IsDeleted" },
-                values: new object[] { Guid.NewGuid(), 4, "Op\u00e9rations & \u00c9quipe", "Operations & People", "Planifiez vos op\u00e9rations et votre \u00e9quipe", "Plan your operations and team", null, true, now, false });
-
-            migrationBuilder.InsertData(
-                table: "QuestionnaireSteps",
-                columns: new[] { "Id", "StepNumber", "TitleFR", "TitleEN", "DescriptionFR", "DescriptionEN", "Icon", "IsActive", "Created", "IsDeleted" },
-                values: new object[] { Guid.NewGuid(), 5, "Finances & Risques", "Financials & Risks", "\u00c9valuez vos projections financi\u00e8res et risques", "Assess your financial projections and risks", null, true, now, false });
+            migrationBuilder.Sql(@"
+                INSERT INTO ""QuestionnaireSteps"" (""Id"", ""StepNumber"", ""TitleFR"", ""TitleEN"", ""DescriptionFR"", ""DescriptionEN"", ""Icon"", ""IsActive"", ""Created"", ""IsDeleted"")
+                VALUES
+                (gen_random_uuid(), 1, 'Identité & Vision', 'Identity & Vision', 'Définissez qui vous êtes et où vous allez', 'Define who you are and where you''re going', NULL, true, NOW(), false),
+                (gen_random_uuid(), 2, 'L''Offre', 'The Offering', 'Décrivez vos produits et services', 'Describe your products and services', NULL, true, NOW(), false),
+                (gen_random_uuid(), 3, 'Analyse de marché', 'Market Analysis', 'Comprenez votre marché et vos concurrents', 'Understand your market and competitors', NULL, true, NOW(), false),
+                (gen_random_uuid(), 4, 'Opérations & Équipe', 'Operations & People', 'Planifiez vos opérations et votre équipe', 'Plan your operations and team', NULL, true, NOW(), false),
+                (gen_random_uuid(), 5, 'Finances & Risques', 'Financials & Risks', 'Évaluez vos projections financières et risques', 'Assess your financial projections and risks', NULL, true, NOW(), false)
+                ON CONFLICT DO NOTHING;
+            ");
         }
 
         /// <inheritdoc />

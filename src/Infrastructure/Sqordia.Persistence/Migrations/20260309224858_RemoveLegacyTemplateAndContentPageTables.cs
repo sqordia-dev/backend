@@ -11,26 +11,13 @@ namespace Sqordia.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "ContentPages");
-
-            migrationBuilder.DropTable(
-                name: "TemplateCustomizations");
-
-            migrationBuilder.DropTable(
-                name: "TemplateFields");
-
-            migrationBuilder.DropTable(
-                name: "TemplateRatings");
-
-            migrationBuilder.DropTable(
-                name: "TemplateUsages");
-
-            migrationBuilder.DropTable(
-                name: "TemplateSections");
-
-            migrationBuilder.DropTable(
-                name: "Templates");
+            migrationBuilder.Sql("DROP TABLE IF EXISTS \"ContentPages\";");
+            migrationBuilder.Sql("DROP TABLE IF EXISTS \"TemplateCustomizations\";");
+            migrationBuilder.Sql("DROP TABLE IF EXISTS \"TemplateFields\";");
+            migrationBuilder.Sql("DROP TABLE IF EXISTS \"TemplateRatings\";");
+            migrationBuilder.Sql("DROP TABLE IF EXISTS \"TemplateUsages\";");
+            migrationBuilder.Sql("DROP TABLE IF EXISTS \"TemplateSections\";");
+            migrationBuilder.Sql("DROP TABLE IF EXISTS \"Templates\";");
         }
 
         /// <inheritdoc />

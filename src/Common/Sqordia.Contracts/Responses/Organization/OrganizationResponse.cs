@@ -14,7 +14,7 @@ public class OrganizationResponse
     public bool AllowMemberInvites { get; set; }
     public bool RequireEmailVerification { get; set; }
     public int MemberCount { get; set; }
-    public DateTime Created { get; set; }
+    public DateTime CreatedAt { get; set; }
     public string? CreatedBy { get; set; }
 
     // Business context

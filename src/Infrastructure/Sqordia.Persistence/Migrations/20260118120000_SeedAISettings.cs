@@ -14,11 +14,11 @@ namespace Sqordia.Persistence.Migrations
             migrationBuilder.Sql(@"
                 INSERT INTO ""Settings"" (""Id"", ""Key"", ""Value"", ""Category"", ""Description"",
                                         ""IsPublic"", ""SettingType"", ""DataType"", ""IsEncrypted"",
-                                        ""IsCritical"", ""Created"")
+                                        ""IsCritical"", ""Created"", ""IsDeleted"")
                 SELECT
                     gen_random_uuid(),
                     'AI.ActiveProvider',
-                    'OpenAI',  -- Only OpenAI for now, Claude/Gemini in future versions
+                    'OpenAI',
                     'AI',
                     'Active AI provider (OpenAI, Claude, or Gemini)',
                     false,
@@ -26,18 +26,19 @@ namespace Sqordia.Persistence.Migrations
                     1, -- String
                     false,
                     true,
-                    NOW()
+                    NOW(),
+                    false
                 WHERE NOT EXISTS (
                     SELECT 1 FROM ""Settings"" WHERE ""Key"" = 'AI.ActiveProvider'
                 );
 
                 INSERT INTO ""Settings"" (""Id"", ""Key"", ""Value"", ""Category"", ""Description"",
                                         ""IsPublic"", ""SettingType"", ""DataType"", ""IsEncrypted"",
-                                        ""IsCritical"", ""Created"")
+                                        ""IsCritical"", ""Created"", ""IsDeleted"")
                 SELECT
                     gen_random_uuid(),
                     'AI.FallbackProviders',
-                    '[]',  -- No fallbacks for now, Claude/Gemini in future versions
+                    '[]',
                     'AI',
                     'Fallback AI providers in order of preference',
                     false,
@@ -45,14 +46,15 @@ namespace Sqordia.Persistence.Migrations
                     3, -- Json
                     false,
                     true,
-                    NOW()
+                    NOW(),
+                    false
                 WHERE NOT EXISTS (
                     SELECT 1 FROM ""Settings"" WHERE ""Key"" = 'AI.FallbackProviders'
                 );
 
                 INSERT INTO ""Settings"" (""Id"", ""Key"", ""Value"", ""Category"", ""Description"",
                                         ""IsPublic"", ""SettingType"", ""DataType"", ""IsEncrypted"",
-                                        ""IsCritical"", ""Created"")
+                                        ""IsCritical"", ""Created"", ""IsDeleted"")
                 SELECT
                     gen_random_uuid(),
                     'AI.OpenAI.Model',
@@ -64,14 +66,15 @@ namespace Sqordia.Persistence.Migrations
                     1, -- String
                     false,
                     false,
-                    NOW()
+                    NOW(),
+                    false
                 WHERE NOT EXISTS (
                     SELECT 1 FROM ""Settings"" WHERE ""Key"" = 'AI.OpenAI.Model'
                 );
 
                 INSERT INTO ""Settings"" (""Id"", ""Key"", ""Value"", ""Category"", ""Description"",
                                         ""IsPublic"", ""SettingType"", ""DataType"", ""IsEncrypted"",
-                                        ""IsCritical"", ""Created"")
+                                        ""IsCritical"", ""Created"", ""IsDeleted"")
                 SELECT
                     gen_random_uuid(),
                     'AI.Claude.Model',
@@ -83,14 +86,15 @@ namespace Sqordia.Persistence.Migrations
                     1, -- String
                     false,
                     false,
-                    NOW()
+                    NOW(),
+                    false
                 WHERE NOT EXISTS (
                     SELECT 1 FROM ""Settings"" WHERE ""Key"" = 'AI.Claude.Model'
                 );
 
                 INSERT INTO ""Settings"" (""Id"", ""Key"", ""Value"", ""Category"", ""Description"",
                                         ""IsPublic"", ""SettingType"", ""DataType"", ""IsEncrypted"",
-                                        ""IsCritical"", ""Created"")
+                                        ""IsCritical"", ""Created"", ""IsDeleted"")
                 SELECT
                     gen_random_uuid(),
                     'AI.Gemini.Model',
@@ -102,7 +106,8 @@ namespace Sqordia.Persistence.Migrations
                     1, -- String
                     false,
                     false,
-                    NOW()
+                    NOW(),
+                    false
                 WHERE NOT EXISTS (
                     SELECT 1 FROM ""Settings"" WHERE ""Key"" = 'AI.Gemini.Model'
                 );
