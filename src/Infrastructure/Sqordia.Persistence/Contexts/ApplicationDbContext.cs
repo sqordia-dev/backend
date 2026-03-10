@@ -65,14 +65,6 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<GrantApplication> GrantApplications { get; set; }
     public DbSet<ImpactMeasurement> ImpactMeasurements { get; set; }
     
-    // Template Management
-    public DbSet<Template> Templates { get; set; }
-    public DbSet<TemplateSection> TemplateSections { get; set; }
-    public DbSet<TemplateField> TemplateFields { get; set; }
-    public DbSet<TemplateCustomization> TemplateCustomizations { get; set; }
-    public DbSet<TemplateRating> TemplateRatings { get; set; }
-    public DbSet<TemplateUsage> TemplateUsages { get; set; }
-
     // Financial Management
     public DbSet<Currency> Currencies { get; set; }
     public DbSet<ExchangeRate> ExchangeRates { get; set; }
@@ -120,9 +112,6 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     // Application Settings
     public DbSet<Settings> Settings { get; set; }
     
-    // Content Management (CMS)
-    public DbSet<ContentPage> ContentPages { get; set; }
-
     // CMS Versioning
     public DbSet<CmsVersion> CmsVersions { get; set; }
     public DbSet<CmsContentBlock> CmsContentBlocks { get; set; }

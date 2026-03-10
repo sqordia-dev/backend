@@ -63,14 +63,6 @@ public interface IApplicationDbContext
     DbSet<GrantApplication> GrantApplications { get; }
     DbSet<ImpactMeasurement> ImpactMeasurements { get; }
     
-    // Template Management
-    DbSet<Template> Templates { get; }
-    DbSet<TemplateSection> TemplateSections { get; }
-    DbSet<TemplateField> TemplateFields { get; }
-    DbSet<TemplateCustomization> TemplateCustomizations { get; }
-    DbSet<TemplateRating> TemplateRatings { get; }
-    DbSet<TemplateUsage> TemplateUsages { get; }
-
     // Financial Management
     DbSet<Currency> Currencies { get; }
     DbSet<ExchangeRate> ExchangeRates { get; }
@@ -118,9 +110,6 @@ public interface IApplicationDbContext
     // Application Settings
     DbSet<Settings> Settings { get; }
     
-    // Content Management (CMS)
-    DbSet<ContentPage> ContentPages { get; }
-
     // CMS Versioning
     DbSet<CmsVersion> CmsVersions { get; }
     DbSet<CmsContentBlock> CmsContentBlocks { get; }

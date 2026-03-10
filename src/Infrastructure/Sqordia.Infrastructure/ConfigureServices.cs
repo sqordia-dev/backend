@@ -425,9 +425,6 @@ public static class ConfigureServices
         // Plan comment service - Required for collaborative comments
         services.AddTransient<IPlanCommentService, PlanCommentService>();
         
-        // Content management service - Required for admin CMS
-        services.AddTransient<IContentManagementService, ContentManagementService>();
-
         // CMS Versioning services
         services.AddTransient<ICmsVersionService, CmsVersionService>();
         services.AddTransient<ICmsContentBlockService, CmsContentBlockService>();
@@ -484,7 +481,6 @@ public static class ConfigureServices
         services.AddTransient<IQuestionPolishService, QuestionPolishService>();
         services.AddTransient<IStrategyMapService, StrategyMapService>();
         services.AddTransient<IQuestionnaireServiceV2, QuestionnaireServiceV2>();
-        services.AddTransient<IFinancialBenchmarkService, FinancialBenchmarkService>();
         services.AddTransient<IVaultShareService, VaultShareService>();
 
         // Subscription service
