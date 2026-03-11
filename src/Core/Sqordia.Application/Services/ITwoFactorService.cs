@@ -9,7 +9,7 @@ public interface ITwoFactorService
     // Setup and Configuration
     Task<Result<TwoFactorSetupResponse>> SetupTwoFactorAsync(CancellationToken cancellationToken = default);
     Task<Result<BackupCodesResponse>> EnableTwoFactorAsync(EnableTwoFactorRequest request, CancellationToken cancellationToken = default);
-    Task<Result> DisableTwoFactorAsync(CancellationToken cancellationToken = default);
+    Task<Result> DisableTwoFactorAsync(DisableTwoFactorRequest request, CancellationToken cancellationToken = default);
     
     // Status and Info
     Task<Result<TwoFactorStatusResponse>> GetTwoFactorStatusAsync(CancellationToken cancellationToken = default);

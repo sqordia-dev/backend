@@ -81,6 +81,9 @@ public class AuthenticationServiceTests : IDisposable
             .Setup(x => x.GetCurrentLanguage())
             .Returns("fr");
 
+        // Create mock for ITotpService
+        var totpServiceMock = new Mock<ITotpService>();
+
         // Create service under test
         _sut = new AuthenticationService(
             _context,
@@ -90,7 +93,8 @@ public class AuthenticationServiceTests : IDisposable
             _securityServiceMock.Object,
             _httpContextAccessorMock.Object,
             _loggerMock.Object,
-            localizationServiceMock.Object);
+            localizationServiceMock.Object,
+            totpServiceMock.Object);
     }
 
     [Fact]

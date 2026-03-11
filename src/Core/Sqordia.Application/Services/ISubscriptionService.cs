@@ -30,7 +30,12 @@ public interface ISubscriptionService
     Task<Result<SubscriptionDto>> SubscribeAsync(Guid userId, SubscribeRequest request, CancellationToken cancellationToken = default);
     
     /// <summary>
-    /// Change subscription plan
+    /// Preview what a plan change will cost (proration details)
+    /// </summary>
+    Task<Result<PlanChangePreviewDto>> PreviewPlanChangeAsync(Guid userId, ChangePlanRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Change subscription plan immediately with proration
     /// </summary>
     Task<Result<SubscriptionDto>> ChangePlanAsync(Guid userId, ChangePlanRequest request, CancellationToken cancellationToken = default);
     

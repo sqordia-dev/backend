@@ -121,6 +121,11 @@ public interface IAdminDashboardService
     Task<Result<AdminRegenerationResult>> ForceBusinessPlanRegenerationAsync(Guid businessPlanId, List<string>? sections = null, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Admin-level soft-delete of a business plan (bypasses ownership checks)
+    /// </summary>
+    Task<Result> AdminDeleteBusinessPlanAsync(Guid businessPlanId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get comprehensive user detail for admin management
     /// </summary>
     Task<Result<AdminUserDetail>> GetUserDetailAsync(Guid userId, CancellationToken cancellationToken = default);

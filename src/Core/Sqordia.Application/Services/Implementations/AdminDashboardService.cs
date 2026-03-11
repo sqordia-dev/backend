@@ -366,7 +366,7 @@ public class AdminDashboardService : IAdminDashboardService
                 ? await _context.Users.AsNoTracking()
                     .Where(u => ownerUserIds.Contains(u.Id))
                     .ToDictionaryAsync(u => u.Id, u => u, cancellationToken)
-                : new Dictionary<Guid, Domain.Entities.User>();
+                : new Dictionary<Guid, Domain.Entities.Identity.User>();
 
             var organizations = organizationsData.Select(o =>
             {
@@ -382,7 +382,7 @@ public class AdminDashboardService : IAdminDashboardService
                     IsActive = o.IsActive,
                     CreatedAt = o.Created,
                     OwnerId = ownerMember?.UserId ?? Guid.Empty,
-                    OwnerEmail = ownerUser?.Email ?? o.CreatedBy ?? "Unknown",
+                    OwnerEmail = ownerUser?.Email?.Value ?? o.CreatedBy ?? "Unknown",
                     OwnerName = ownerUser != null ? $"{ownerUser.FirstName} {ownerUser.LastName}".Trim() : "Unknown",
                     MemberCount = o.Members.Count,
                     BusinessPlanCount = bpCounts.Total,
@@ -792,6 +792,35 @@ public class AdminDashboardService : IAdminDashboardService
         {
             _logger.LogError(ex, "Error forcing business plan regeneration for {BusinessPlanId}", businessPlanId);
             return Result.Failure<AdminRegenerationResult>("Failed to force business plan regeneration.");
+        }
+    }
+
+    public async Task<Result> AdminDeleteBusinessPlanAsync(Guid businessPlanId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var businessPlan = await _context.BusinessPlans
+                .FirstOrDefaultAsync(bp => bp.Id == businessPlanId && !bp.IsDeleted, cancellationToken);
+
+            if (businessPlan == null)
+            {
+                return Result.Failure(Error.NotFound("Admin.BusinessPlan.NotFound", "Business plan not found."));
+            }
+
+            businessPlan.SoftDelete();
+            businessPlan.LastModified = DateTime.UtcNow;
+            businessPlan.LastModifiedBy = "admin";
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Admin deleted business plan {BusinessPlanId} (Title: {Title})", businessPlanId, businessPlan.Title);
+
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting business plan {BusinessPlanId}", businessPlanId);
+            return Result.Failure(Error.Failure("Admin.BusinessPlan.DeleteFailed", "Failed to delete business plan."));
         }
     }
 

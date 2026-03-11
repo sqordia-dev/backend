@@ -1,3 +1,4 @@
+using Sqordia.Application.Common.Models;
 using Sqordia.Contracts.Requests.Questionnaire;
 using Sqordia.Contracts.Responses.Questionnaire;
 using Sqordia.Contracts.Requests.Sections;
@@ -32,6 +33,18 @@ public interface IAIService
     /// Generates content with retry logic for better reliability
     /// </summary>
     Task<string> GenerateContentWithRetryAsync(
+        string systemPrompt,
+        string userPrompt,
+        int maxTokens = 2000,
+        float temperature = 0.7f,
+        int maxRetries = 3,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Generates content with retry logic and returns metadata (tokens, latency, model).
+    /// Use this for observable AI calls in the generation pipeline.
+    /// </summary>
+    Task<AICallResult> GenerateContentWithMetadataAsync(
         string systemPrompt,
         string userPrompt,
         int maxTokens = 2000,

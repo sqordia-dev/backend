@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
@@ -12,15 +13,18 @@ public class AdaptiveInterviewService : IAdaptiveInterviewService
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IConditionalLogicEvaluator _conditionalLogic;
     private readonly ILogger<AdaptiveInterviewService> _logger;
 
     public AdaptiveInterviewService(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
+        IConditionalLogicEvaluator conditionalLogic,
         ILogger<AdaptiveInterviewService> logger)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _conditionalLogic = conditionalLogic;
         _logger = logger;
     }
 
@@ -45,7 +49,7 @@ public class AdaptiveInterviewService : IAdaptiveInterviewService
         var organization = businessPlan.Organization;
 
         // Load all active V3 questions
-        var allQuestions = await _context.QuestionTemplatesV3
+        var allQuestions = await _context.QuestionTemplates
             .Where(q => q.IsActive)
             .OrderBy(q => q.StepNumber)
             .ThenBy(q => q.DisplayOrder)
@@ -61,17 +65,23 @@ public class AdaptiveInterviewService : IAdaptiveInterviewService
 
         // Load existing responses for this plan (with V3 template for question number)
         var existingResponses = await _context.QuestionnaireResponses
-            .Include(r => r.QuestionTemplateV3)
-            .Where(r => r.BusinessPlanId == businessPlanId && r.QuestionTemplateV3Id != null)
+            .Include(r => r.QuestionTemplate)
+            .Where(r => r.BusinessPlanId == businessPlanId && r.QuestionTemplateId != null)
             .ToListAsync(cancellationToken);
 
         var responsesByQuestionNumber = existingResponses
-            .Where(r => r.QuestionTemplateV3 != null)
-            .ToDictionary(r => r.QuestionTemplateV3!.QuestionNumber, r => r.ResponseText);
+            .Where(r => r.QuestionTemplate != null)
+            .ToDictionary(r => r.QuestionTemplate!.QuestionNumber, r => r.ResponseText);
+
+        // Build numeric answers map for conditional logic numeric comparisons
+        var numericAnswers = existingResponses
+            .Where(r => r.QuestionTemplate != null && r.NumericValue.HasValue)
+            .ToDictionary(r => r.QuestionTemplate!.QuestionNumber, r => r.NumericValue!.Value);
 
         var isFrench = language.StartsWith("fr", StringComparison.OrdinalIgnoreCase);
         var questions = new List<AdaptiveQuestionDto>();
         var skippedQuestions = new List<SkippedQuestionDto>();
+        var hiddenQuestions = new List<HiddenQuestionDto>();
 
         foreach (var q in allQuestions)
         {
@@ -106,6 +116,26 @@ public class AdaptiveInterviewService : IAdaptiveInterviewService
                     ProfileFieldValue = profileValue!
                 });
                 continue;
+            }
+
+            // Evaluate conditional logic — hide question if conditions not met
+            if (!string.IsNullOrWhiteSpace(q.ConditionalLogic))
+            {
+                var shouldShow = _conditionalLogic.ShouldShow(
+                    q.ConditionalLogic, responsesByQuestionNumber, numericAnswers);
+
+                if (!shouldShow)
+                {
+                    var dependsOn = ExtractDependencyQuestion(q.ConditionalLogic);
+                    hiddenQuestions.Add(new HiddenQuestionDto
+                    {
+                        Id = q.Id,
+                        QuestionNumber = q.QuestionNumber,
+                        QuestionText = isFrench ? q.QuestionTextFR : q.QuestionTextEN,
+                        DependsOnQuestion = dependsOn
+                    });
+                    continue;
+                }
             }
 
             // Determine if this is a gap question (has profileFieldKey but org field is empty)
@@ -143,6 +173,7 @@ public class AdaptiveInterviewService : IAdaptiveInterviewService
         {
             Questions = questions,
             SkippedQuestions = skippedQuestions,
+            HiddenQuestions = hiddenQuestions,
             TotalQuestions = totalCount,
             RemainingQuestions = totalCount - answeredCount,
             ProfileCompletenessScore = organization?.ProfileCompletenessScore ?? 0
@@ -168,7 +199,7 @@ public class AdaptiveInterviewService : IAdaptiveInterviewService
                 Error.NotFound("BusinessPlan.NotFound", "Business plan not found"));
 
         // Find the question template to get profileFieldKey
-        var question = await _context.QuestionTemplatesV3
+        var question = await _context.QuestionTemplates
             .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
 
         if (question == null)
@@ -196,5 +227,42 @@ public class AdaptiveInterviewService : IAdaptiveInterviewService
         await _context.SaveChangesAsync(cancellationToken);
 
         return Result.Success(true);
+    }
+
+    /// <summary>
+    /// Extracts the primary dependency question number from conditional logic JSON.
+    /// </summary>
+    private static int ExtractDependencyQuestion(string conditionalLogicJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(conditionalLogicJson);
+            var root = doc.RootElement;
+
+            // Simple format: { "showIf": "question5" }
+            if (root.TryGetProperty("showIf", out var showIf))
+            {
+                var field = showIf.GetString() ?? "";
+                if (int.TryParse(field.Replace("question", "").Replace("q", "").Trim(), out var qNum))
+                    return qNum;
+            }
+
+            // Complex format: first condition's field
+            if (root.TryGetProperty("conditions", out var conditions))
+            {
+                foreach (var cond in conditions.EnumerateArray())
+                {
+                    if (cond.TryGetProperty("field", out var fieldProp))
+                    {
+                        var field = fieldProp.GetString() ?? "";
+                        if (int.TryParse(field.Replace("question", "").Replace("q", "").Trim(), out var qNum))
+                            return qNum;
+                    }
+                }
+            }
+        }
+        catch { /* best effort */ }
+
+        return 0;
     }
 }

@@ -25,9 +25,9 @@ public class AdminQuestionnaireV3Controller : BaseApiController
     /// Get all V3 questions with optional filtering
     /// </summary>
     [HttpGet]
-    [ProducesResponseType(typeof(List<QuestionTemplateV3ListResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(List<QuestionTemplateListResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetQuestions(
-        [FromQuery] QuestionTemplateV3FilterRequest? filter,
+        [FromQuery] QuestionTemplateFilterRequest? filter,
         CancellationToken cancellationToken)
     {
         var result = await _service.GetQuestionsAsync(filter, cancellationToken);
@@ -38,7 +38,7 @@ public class AdminQuestionnaireV3Controller : BaseApiController
     /// Get a V3 question by ID
     /// </summary>
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(QuestionTemplateV3Response), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(QuestionTemplateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetQuestionById(Guid id, CancellationToken cancellationToken)
     {
@@ -50,7 +50,7 @@ public class AdminQuestionnaireV3Controller : BaseApiController
     /// Get a V3 question by question number
     /// </summary>
     [HttpGet("by-number/{questionNumber:int}")]
-    [ProducesResponseType(typeof(QuestionTemplateV3Response), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(QuestionTemplateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetQuestionByNumber(int questionNumber, CancellationToken cancellationToken)
     {
@@ -62,7 +62,7 @@ public class AdminQuestionnaireV3Controller : BaseApiController
     /// Get V3 questions by step number
     /// </summary>
     [HttpGet("by-step/{stepNumber:int}")]
-    [ProducesResponseType(typeof(List<QuestionTemplateV3ListResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(List<QuestionTemplateListResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetQuestionsByStep(
         int stepNumber,
         [FromQuery] string? personaType,
@@ -83,7 +83,7 @@ public class AdminQuestionnaireV3Controller : BaseApiController
     /// Get V3 questions by persona type
     /// </summary>
     [HttpGet("by-persona/{personaType}")]
-    [ProducesResponseType(typeof(List<QuestionTemplateV3ListResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(List<QuestionTemplateListResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetQuestionsByPersona(string personaType, CancellationToken cancellationToken)
     {
         if (!Enum.TryParse<Sqordia.Domain.Enums.PersonaType>(personaType, true, out var persona))
@@ -102,7 +102,7 @@ public class AdminQuestionnaireV3Controller : BaseApiController
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateQuestion(
-        [FromBody] CreateQuestionTemplateV3Request request,
+        [FromBody] CreateQuestionTemplateRequest request,
         CancellationToken cancellationToken)
     {
         var result = await _service.CreateQuestionAsync(request, cancellationToken);
@@ -121,7 +121,7 @@ public class AdminQuestionnaireV3Controller : BaseApiController
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateQuestion(
         Guid id,
-        [FromBody] UpdateQuestionTemplateV3Request request,
+        [FromBody] UpdateQuestionTemplateRequest request,
         CancellationToken cancellationToken)
     {
         var result = await _service.UpdateQuestionAsync(id, request, cancellationToken);

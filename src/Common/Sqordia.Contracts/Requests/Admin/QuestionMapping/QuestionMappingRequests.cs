@@ -5,7 +5,7 @@ namespace Sqordia.Contracts.Requests.Admin.QuestionMapping;
 /// </summary>
 public record CreateQuestionMappingRequest
 {
-    public Guid QuestionTemplateV3Id { get; init; }
+    public Guid QuestionTemplateId { get; init; }
     public Guid SubSectionId { get; init; }
     public string? MappingContext { get; init; } // "primary", "secondary"
     public decimal? Weight { get; init; } // 0-1
@@ -36,7 +36,7 @@ public record BulkUpdateMappingsRequest
 /// </summary>
 public record MappingUpdate
 {
-    public Guid QuestionTemplateV3Id { get; init; }
+    public Guid QuestionTemplateId { get; init; }
     public Guid SubSectionId { get; init; }
     public MappingAction Action { get; init; }
     public string? MappingContext { get; init; }
@@ -58,7 +58,7 @@ public enum MappingAction
 /// </summary>
 public record QuestionMappingFilterRequest
 {
-    public Guid? QuestionTemplateV3Id { get; init; }
+    public Guid? QuestionTemplateId { get; init; }
     public Guid? SubSectionId { get; init; }
     public Guid? MainSectionId { get; init; }
     public string? MappingContext { get; init; }

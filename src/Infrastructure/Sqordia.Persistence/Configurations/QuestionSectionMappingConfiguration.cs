@@ -16,7 +16,7 @@ public class QuestionSectionMappingConfiguration : IEntityTypeConfiguration<Ques
         builder.HasKey(x => x.Id);
 
         // Foreign Keys
-        builder.Property(x => x.QuestionTemplateV3Id)
+        builder.Property(x => x.QuestionTemplateId)
             .IsRequired();
 
         builder.Property(x => x.SubSectionId)
@@ -51,7 +51,7 @@ public class QuestionSectionMappingConfiguration : IEntityTypeConfiguration<Ques
         // Indexes
 
         // Lookup by question
-        builder.HasIndex(x => new { x.QuestionTemplateV3Id, x.IsActive })
+        builder.HasIndex(x => new { x.QuestionTemplateId, x.IsActive })
             .HasDatabaseName("IX_QuestionSectionMappings_Question_Active");
 
         // Lookup by sub-section
@@ -63,7 +63,7 @@ public class QuestionSectionMappingConfiguration : IEntityTypeConfiguration<Ques
             .HasDatabaseName("IX_QuestionSectionMappings_SubSection_Context_Active");
 
         // Unique constraint: one mapping per question-section pair
-        builder.HasIndex(x => new { x.QuestionTemplateV3Id, x.SubSectionId })
+        builder.HasIndex(x => new { x.QuestionTemplateId, x.SubSectionId })
             .IsUnique()
             .HasDatabaseName("IX_QuestionSectionMappings_Unique");
 

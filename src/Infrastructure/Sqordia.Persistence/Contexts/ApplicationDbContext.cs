@@ -47,9 +47,6 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     
     // Business Plan Management
     public DbSet<Domain.Entities.BusinessPlan.BusinessPlan> BusinessPlans { get; set; }
-    public DbSet<QuestionnaireTemplate> QuestionnaireTemplates { get; set; }
-    public DbSet<QuestionTemplate> QuestionTemplates { get; set; }
-    public DbSet<QuestionTemplateV2> QuestionTemplatesV2 { get; set; }
     public DbSet<QuestionnaireVersion> QuestionnaireVersions { get; set; }
     public DbSet<QuestionnaireStep> QuestionnaireSteps { get; set; }
     public DbSet<QuestionnaireResponse> QuestionnaireResponses { get; set; }
@@ -101,7 +98,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<MainSection> MainSections { get; set; }
     public DbSet<SubSection> SubSections { get; set; }
     public DbSet<SectionPrompt> SectionPrompts { get; set; }
-    public DbSet<QuestionTemplateV3> QuestionTemplatesV3 { get; set; }
+    public DbSet<QuestionTemplate> QuestionTemplates { get; set; }
     public DbSet<QuestionSectionMapping> QuestionSectionMappings { get; set; }
     
     // Audit logging

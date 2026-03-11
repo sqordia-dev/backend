@@ -28,7 +28,7 @@ public class StructureFinaleQuestionsSeeder
     {
         _logger.LogInformation("Starting STRUCTURE FINALE Questions seeding/update...");
 
-        var existingQuestions = await _context.QuestionTemplatesV3.ToListAsync(cancellationToken);
+        var existingQuestions = await _context.QuestionTemplates.ToListAsync(cancellationToken);
         var newQuestions = GetDetailedQuestionTemplates();
 
         foreach (var newQuestion in newQuestions)
@@ -48,7 +48,7 @@ public class StructureFinaleQuestionsSeeder
             else
             {
                 // Add new question
-                _context.QuestionTemplatesV3.Add(newQuestion);
+                _context.QuestionTemplates.Add(newQuestion);
                 _logger.LogDebug("Added new question {Number}", newQuestion.QuestionNumber);
             }
         }
@@ -57,9 +57,9 @@ public class StructureFinaleQuestionsSeeder
         _logger.LogInformation("STRUCTURE FINALE Questions seeding/update completed. Total: {Count} questions.", newQuestions.Count);
     }
 
-    private List<QuestionTemplateV3> GetDetailedQuestionTemplates()
+    private List<QuestionTemplate> GetDetailedQuestionTemplates()
     {
-        var questions = new List<QuestionTemplateV3>();
+        var questions = new List<QuestionTemplate>();
 
         // Question 1: Company Name
         questions.Add(CreateDetailedQuestion(
@@ -1313,7 +1313,7 @@ Stay simple, break down the estimate (rent + fees) and ensure the amount is real
         return questions;
     }
 
-    private QuestionTemplateV3 CreateDetailedQuestion(
+    private QuestionTemplate CreateDetailedQuestion(
         int questionNumber,
         int stepNumber,
         QuestionType questionType,
@@ -1328,7 +1328,7 @@ Stay simple, break down the estimate (rent + fees) and ensure the amount is real
         string? optionsFR = null,
         string? optionsEN = null)
     {
-        return QuestionTemplateV3.Create(
+        return QuestionTemplate.Create(
             questionNumber: questionNumber,
             personaType: null,
             stepNumber: stepNumber,

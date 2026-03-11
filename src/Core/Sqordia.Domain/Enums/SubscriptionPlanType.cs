@@ -1,23 +1,28 @@
 namespace Sqordia.Domain.Enums;
 
 /// <summary>
-/// Subscription plan types
+/// Subscription plan types — ordered by tier level
 /// </summary>
 public enum SubscriptionPlanType
 {
     /// <summary>
-    /// Free plan with limited features
+    /// Decouverte — Free plan for exploring the platform
     /// </summary>
     Free = 0,
-    
+
     /// <summary>
-    /// Pro plan with advanced features
+    /// Essentiel — Starter plan for solo entrepreneurs ($29/mo)
     /// </summary>
-    Pro = 1,
-    
+    Starter = 1,
+
     /// <summary>
-    /// Enterprise plan with unlimited features
+    /// Professionnel — Full-featured plan for growing businesses ($59/mo)
     /// </summary>
-    Enterprise = 2
+    Professional = 2,
+
+    /// <summary>
+    /// Entreprise — Unlimited plan for agencies and large organizations ($149/mo)
+    /// </summary>
+    Enterprise = 3
 }
 

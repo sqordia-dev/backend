@@ -187,4 +187,73 @@ public class JwtTokenService : IJwtTokenService, Application.Common.Interfaces.I
         var userId = await ValidateAccessTokenAsync(token);
         return !string.IsNullOrEmpty(userId);
     }
+
+    private const string TwoFactorAudience = "Sqordia-2FA-Challenge";
+
+    public string GenerateTwoFactorToken(Guid userId)
+    {
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? _configuration["JwtSettings:Secret"]!;
+        var key = Encoding.UTF8.GetBytes(jwtSecret);
+
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim("purpose", "2fa")
+            }),
+            Expires = DateTime.UtcNow.AddMinutes(5),
+            Issuer = _configuration["JwtSettings:Issuer"],
+            Audience = TwoFactorAudience,
+            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+        };
+
+        var token = tokenHandler.CreateToken(tokenDescriptor);
+        return tokenHandler.WriteToken(token);
+    }
+
+    public Guid? ValidateTwoFactorToken(string token)
+    {
+        try
+        {
+            var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? _configuration["JwtSettings:Secret"]!;
+
+            // Use dedicated validation params with 2FA-specific audience
+            var twoFactorValidationParams = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+                ValidateIssuer = true,
+                ValidIssuer = _configuration["JwtSettings:Issuer"],
+                ValidateAudience = true,
+                ValidAudience = TwoFactorAudience,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var principal = tokenHandler.ValidateToken(token, twoFactorValidationParams, out var validatedToken);
+
+            if (validatedToken is JwtSecurityToken jwtToken &&
+                jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+            {
+                // Verify this is a 2FA token
+                var purposeClaim = principal.FindFirst("purpose")?.Value;
+                if (purposeClaim != "2fa") return null;
+
+                var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out var userId))
+                {
+                    return userId;
+                }
+            }
+        }
+        catch
+        {
+            // Token validation failed (expired, tampered, etc.)
+        }
+
+        return null;
+    }
 }

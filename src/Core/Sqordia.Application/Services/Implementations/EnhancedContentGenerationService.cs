@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Models;
+using Sqordia.Application.Services.AI;
 using Sqordia.Contracts.Requests.Content;
 using Sqordia.Contracts.Responses.Content;
 using Sqordia.Domain.Entities;
@@ -23,6 +24,7 @@ public class EnhancedContentGenerationService : IEnhancedContentGenerationServic
     private readonly IPromptRepository _promptRepository;
     private readonly IPromptSelectorService _promptSelector;
     private readonly IAIService _aiService;
+    private readonly IAITelemetryService _telemetry;
     private readonly ILogger<EnhancedContentGenerationService> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -36,12 +38,14 @@ public class EnhancedContentGenerationService : IEnhancedContentGenerationServic
         IPromptRepository promptRepository,
         IPromptSelectorService promptSelector,
         IAIService aiService,
+        IAITelemetryService telemetry,
         ILogger<EnhancedContentGenerationService> logger)
     {
         _context = context;
         _promptRepository = promptRepository;
         _promptSelector = promptSelector;
         _aiService = aiService;
+        _telemetry = telemetry;
         _logger = logger;
     }
 
@@ -66,8 +70,6 @@ public class EnhancedContentGenerationService : IEnhancedContentGenerationServic
             var businessPlan = await _context.BusinessPlans
                 .Include(bp => bp.QuestionnaireResponses)
                     .ThenInclude(qr => qr.QuestionTemplate)
-                .Include(bp => bp.QuestionnaireResponses)
-                    .ThenInclude(qr => qr.QuestionTemplateV2)
                 .FirstOrDefaultAsync(bp => bp.Id == businessPlanId && !bp.IsDeleted, cancellationToken);
 
             if (businessPlan == null)
@@ -132,22 +134,58 @@ public class EnhancedContentGenerationService : IEnhancedContentGenerationServic
                 userPrompt = GetFallbackUserPrompt(sectionType, variables, options);
             }
 
+            // 4b. Append quality enhancements (rubrics + few-shot examples)
+            var sectionName = sectionType.ToString();
+            var language = options.Language ?? "fr";
+            userPrompt = AppendQualityEnhancements(userPrompt, sectionName, language);
+
             // Add structured output instructions if visuals are requested
             if (options.IncludeVisualElements)
             {
                 userPrompt = AppendStructuredOutputInstructions(userPrompt, sectionType);
             }
 
-            // 5. Call AI service
-            var aiResponse = await _aiService.GenerateContentWithRetryAsync(
+            // 5. Call AI service with metadata and section-appropriate temperature
+            var temperature = SectionTemperatureConfig.GetTemperature(sectionName);
+            var aiResult = await _aiService.GenerateContentWithMetadataAsync(
                 systemPrompt,
                 userPrompt,
                 maxTokens: 4000,
-                temperature: 0.7f,
+                temperature: temperature,
                 maxRetries: 3,
                 cancellationToken);
 
             stopwatch.Stop();
+            var aiResponse = aiResult.Content;
+
+            // 5b. Log telemetry
+            await _telemetry.LogCallAsync(new AICallTelemetry(
+                PromptTemplateId: template?.Id,
+                Provider: aiResult.ModelUsed ?? "unknown",
+                ModelUsed: aiResult.ModelUsed ?? "unknown",
+                InputTokens: aiResult.InputTokens,
+                OutputTokens: aiResult.OutputTokens,
+                LatencyMs: aiResult.LatencyMs,
+                SectionType: sectionName,
+                Language: language,
+                PipelinePass: "EnhancedGeneration",
+                Timestamp: DateTime.UtcNow), cancellationToken);
+
+            // 5c. Validate content quality
+            var validation = AIResponseValidator.ValidateSectionContent(aiResponse, sectionName);
+            if (!validation.IsValid)
+            {
+                _logger.LogWarning("Content validation issues for {Section}: {Errors}",
+                    sectionName, string.Join("; ", validation.Errors));
+            }
+
+            // 5d. Check language correctness
+            var langCheck = LanguageDetector.DetectLanguageMismatch(aiResponse, language);
+            if (!langCheck.IsCorrectLanguage && langCheck.Confidence > 0.6)
+            {
+                _logger.LogWarning("Language mismatch detected for {Section}: expected {Expected}, detected {Detected} (confidence {Confidence:F2})",
+                    sectionName, language, langCheck.DetectedLanguage, langCheck.Confidence);
+            }
 
             // 6. Parse the response
             var content = ParseGeneratedContent(aiResponse, sectionType, options.IncludeVisualElements);
@@ -172,9 +210,9 @@ public class EnhancedContentGenerationService : IEnhancedContentGenerationServic
                 {
                     PromptVersion = template?.Version ?? 0,
                     PromptAlias = template?.Alias?.ToString() ?? (usingFallback ? "fallback" : "default"),
-                    ModelUsed = "gpt-4o",
+                    ModelUsed = aiResult.ModelUsed ?? "gpt-4o",
                     GenerationTimeMs = (int)stopwatch.ElapsedMilliseconds,
-                    TokensUsed = EstimateTokens(aiResponse),
+                    TokensUsed = aiResult.InputTokens + aiResult.OutputTokens,
                     IncludesVisuals = content.VisualElements.Count > 0,
                     GeneratedAt = DateTime.UtcNow
                 }
@@ -258,15 +296,30 @@ public class EnhancedContentGenerationService : IEnhancedContentGenerationServic
             var systemPrompt = GetImprovementSystemPrompt(improvementType);
             var userPrompt = BuildImprovementPrompt(currentContent, improvementType, customPrompt);
 
-            var aiResponse = await _aiService.GenerateContentWithRetryAsync(
+            var sectionName = sectionType.ToString();
+            var temperature = SectionTemperatureConfig.GetTemperature(sectionName);
+            var aiResult = await _aiService.GenerateContentWithMetadataAsync(
                 systemPrompt,
                 userPrompt,
                 maxTokens: 4000,
-                temperature: 0.5f,
+                temperature: temperature,
                 maxRetries: 3,
                 cancellationToken);
 
             stopwatch.Stop();
+            var aiResponse = aiResult.Content;
+
+            await _telemetry.LogCallAsync(new AICallTelemetry(
+                PromptTemplateId: null,
+                Provider: aiResult.ModelUsed ?? "unknown",
+                ModelUsed: aiResult.ModelUsed ?? "unknown",
+                InputTokens: aiResult.InputTokens,
+                OutputTokens: aiResult.OutputTokens,
+                LatencyMs: aiResult.LatencyMs,
+                SectionType: sectionName,
+                Language: "fr",
+                PipelinePass: $"Improvement-{improvementType}",
+                Timestamp: DateTime.UtcNow), cancellationToken);
 
             var content = ParseGeneratedContent(aiResponse, sectionType, true);
 
@@ -279,9 +332,9 @@ public class EnhancedContentGenerationService : IEnhancedContentGenerationServic
                 {
                     PromptVersion = 0,
                     PromptAlias = $"improvement-{improvementType.ToString().ToLower()}",
-                    ModelUsed = "gpt-4o",
+                    ModelUsed = aiResult.ModelUsed ?? "gpt-4o",
                     GenerationTimeMs = (int)stopwatch.ElapsedMilliseconds,
-                    TokensUsed = EstimateTokens(aiResponse),
+                    TokensUsed = aiResult.InputTokens + aiResult.OutputTokens,
                     IncludesVisuals = content.VisualElements.Count > 0,
                     GeneratedAt = DateTime.UtcNow
                 }
@@ -471,8 +524,7 @@ public class EnhancedContentGenerationService : IEnhancedContentGenerationServic
 
         foreach (var response in responses)
         {
-            var questionText = (response.QuestionTemplate?.QuestionText
-                ?? response.QuestionTemplateV2?.QuestionText
+            var questionText = (response.QuestionTemplate?.QuestionTextFR
                 ?? "").ToLowerInvariant();
 
             var answerText = response.ResponseText ?? response.NumericValue?.ToString() ?? "";
@@ -500,16 +552,14 @@ public class EnhancedContentGenerationService : IEnhancedContentGenerationServic
         var sb = new StringBuilder();
 
         var validResponses = responses
-            .Where(r => r.QuestionTemplate != null || r.QuestionTemplateV2 != null)
-            .OrderBy(r => r.QuestionTemplate?.Order ?? r.QuestionTemplateV2?.Order ?? 0)
+            .Where(r => r.QuestionTemplate != null)
+            .OrderBy(r => r.QuestionTemplate!.DisplayOrder)
             .Take(20) // Limit to prevent token overflow
             .ToList();
 
         foreach (var response in validResponses)
         {
-            var questionText = response.QuestionTemplate?.QuestionText
-                ?? response.QuestionTemplateV2?.QuestionText
-                ?? "Question";
+            var questionText = response.QuestionTemplate?.QuestionTextFR ?? "Question";
 
             var answer = response.ResponseText ?? response.NumericValue?.ToString() ?? "";
 
@@ -732,6 +782,30 @@ Rédigez UNIQUEMENT en français. Ne produisez JAMAIS de contenu en anglais. Vis
     {
         // Rough estimate: ~4 characters per token
         return text.Length / 4;
+    }
+
+    /// <summary>
+    /// Appends section-specific quality rubrics and few-shot examples to the prompt.
+    /// </summary>
+    private static string AppendQualityEnhancements(string prompt, string sectionName, string language)
+    {
+        var sb = new StringBuilder(prompt);
+
+        var rubricBlock = SectionRubrics.FormatForPrompt(sectionName, language);
+        if (!string.IsNullOrEmpty(rubricBlock))
+        {
+            sb.AppendLine();
+            sb.AppendLine(rubricBlock);
+        }
+
+        var examplesBlock = FewShotExamples.FormatForPrompt(sectionName, language);
+        if (!string.IsNullOrEmpty(examplesBlock))
+        {
+            sb.AppendLine();
+            sb.AppendLine(examplesBlock);
+        }
+
+        return sb.ToString();
     }
 
     #endregion

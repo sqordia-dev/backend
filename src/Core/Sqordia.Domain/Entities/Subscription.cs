@@ -107,6 +107,20 @@ public class Subscription : BaseAuditableEntity
             EndDate = newEndDate;
         }
     }
+
+    /// <summary>
+    /// Immediately switch to a different plan with prorated pricing.
+    /// The billing period end date stays the same — user pays the difference.
+    /// </summary>
+    public void ChangePlan(Guid newPlanId, decimal newAmount, bool isYearly)
+    {
+        if (Status != SubscriptionStatus.Active)
+            throw new InvalidOperationException("Can only change plan on an active subscription.");
+
+        SubscriptionPlanId = newPlanId;
+        Amount = newAmount;
+        IsYearly = isYearly;
+    }
     
     public void SetStripeIds(string? customerId, string? subscriptionId, string? priceId = null)
     {

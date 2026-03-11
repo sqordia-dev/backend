@@ -3,7 +3,7 @@ namespace Sqordia.Contracts.Requests.Admin.QuestionnaireV3;
 /// <summary>
 /// Request to create a new V3 question template
 /// </summary>
-public record CreateQuestionTemplateV3Request
+public record CreateQuestionTemplateRequest
 {
     public int QuestionNumber { get; init; }
     public string? PersonaType { get; init; }
@@ -29,7 +29,7 @@ public record CreateQuestionTemplateV3Request
 /// <summary>
 /// Request to update a V3 question template
 /// </summary>
-public record UpdateQuestionTemplateV3Request
+public record UpdateQuestionTemplateRequest
 {
     public string QuestionTextFR { get; init; } = null!;
     public string QuestionTextEN { get; init; } = null!;
@@ -69,7 +69,7 @@ public record GetCoachSuggestionRequest
 /// <summary>
 /// Filter for listing V3 questions
 /// </summary>
-public record QuestionTemplateV3FilterRequest
+public record QuestionTemplateFilterRequest
 {
     public string? PersonaType { get; init; }
     public int? StepNumber { get; init; }

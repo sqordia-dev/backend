@@ -342,6 +342,15 @@ public static class ConfigureServices
         // Register the main IAIService as the fallback wrapper (replaces direct OpenAIService registration)
         services.AddSingleton<IAIService, AIProviderWithFallback>();
 
+        // Model registry for runtime model switching via DB settings
+        services.AddScoped<IModelRegistryService, ModelRegistryService>();
+
+        // Structured extraction using Claude tool_use (SWOT, financials, risks)
+        services.AddSingleton<IStructuredExtractionService, StructuredExtractionService>();
+
+        // Document creation agent using Claude tool_use (Word/PPTX/Excel blueprints)
+        services.AddSingleton<IDocumentAgentService, DocumentAgentService>();
+
         // Generation tool service for tool-augmented AI generation
         services.AddScoped<IGenerationToolService, GenerationToolService>();
 
@@ -435,6 +444,21 @@ public static class ConfigureServices
         services.AddTransient<ICmsRegistryService, CmsRegistryService>();
         services.AddTransient<ICmsTemplateService, CmsTemplateService>();
 
+        // AI Telemetry service - observability for AI calls
+        // ML Data Collection & Prediction
+        services.AddScoped<IMLDataCollector, MLDataCollector>();
+        services.AddScoped<IAITelemetryService, AITelemetryService>();
+        services.AddHttpClient<IMLPredictionService, MLPredictionService>((sp, client) =>
+        {
+            var pythonSettings = sp.GetRequiredService<IOptions<PythonServiceSettings>>().Value;
+            client.BaseAddress = new Uri(pythonSettings.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(pythonSettings.EvaluationTimeoutSeconds);
+            if (!string.IsNullOrEmpty(pythonSettings.ServiceKey))
+            {
+                client.DefaultRequestHeaders.Add("X-Service-Key", pythonSettings.ServiceKey);
+            }
+        });
+
         // Bug Report service
         services.AddScoped<IBugReportService, BugReportService>();
 
@@ -485,7 +509,14 @@ public static class ConfigureServices
 
         // Subscription service
         services.AddScoped<Sqordia.Application.Services.ISubscriptionService, SubscriptionService>();
-        
+
+        // Feature gate service
+        services.AddScoped<IFeatureGateService, FeatureGateService>();
+
+        // Subscription intelligence service (ML-driven engagement, churn, promotions)
+        services.AddHttpClient("AIService");
+        services.AddScoped<ISubscriptionIntelligenceService, SubscriptionIntelligenceService>();
+
         // Stripe service
         services.AddScoped<Sqordia.Application.Services.IStripeService, StripeService>();
 

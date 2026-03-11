@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
+using Sqordia.Application.Common.Models;
 using Sqordia.Contracts.Requests.Questionnaire;
 using Sqordia.Contracts.Responses.Questionnaire;
 using Sqordia.Contracts.Requests.Sections;
@@ -113,6 +114,43 @@ public class AIProviderWithFallback : IAIService
         throw new InvalidOperationException(
             "All configured AI providers failed to generate content after retries. Please check provider configurations and API keys.",
             lastException);
+    }
+
+    public async Task<AICallResult> GenerateContentWithMetadataAsync(
+        string systemPrompt,
+        string userPrompt,
+        int maxTokens = 2000,
+        float temperature = 0.7f,
+        int maxRetries = 3,
+        CancellationToken cancellationToken = default)
+    {
+        var providers = await GetProviderChainAsync();
+        Exception? lastException = null;
+
+        foreach (var provider in providers)
+        {
+            try
+            {
+                var providerName = provider.GetType().Name.Replace("Service", "");
+                _logger.LogInformation("Attempting GenerateContentWithMetadataAsync with provider: {Provider}", providerName);
+
+                var result = await provider.GenerateContentWithMetadataAsync(
+                    systemPrompt, userPrompt, maxTokens, temperature, maxRetries, cancellationToken);
+
+                _logger.LogInformation("Successfully generated content with metadata using provider: {Provider}", providerName);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+                var providerName = provider.GetType().Name.Replace("Service", "");
+                _logger.LogWarning(ex, "Provider {Provider} failed GenerateContentWithMetadataAsync, trying next fallback",
+                    providerName);
+            }
+        }
+
+        throw new InvalidOperationException(
+            "All configured AI providers failed GenerateContentWithMetadataAsync.", lastException);
     }
 
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)

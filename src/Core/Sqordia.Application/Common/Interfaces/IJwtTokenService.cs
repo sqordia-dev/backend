@@ -10,4 +10,14 @@ public interface IJwtTokenService
     Task<RefreshToken?> GetRefreshTokenAsync(string token);
     Task RevokeRefreshTokenAsync(RefreshToken refreshToken, string ipAddress, string? replacedByToken = null);
     Task<bool> IsAccessTokenValidAsync(string token);
+
+    /// <summary>
+    /// Generates a short-lived JWT (5 min) for 2FA verification during login.
+    /// </summary>
+    string GenerateTwoFactorToken(Guid userId);
+
+    /// <summary>
+    /// Validates a 2FA token and returns the userId if valid, null otherwise.
+    /// </summary>
+    Guid? ValidateTwoFactorToken(string token);
 }

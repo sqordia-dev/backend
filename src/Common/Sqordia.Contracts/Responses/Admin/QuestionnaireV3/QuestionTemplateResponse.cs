@@ -3,7 +3,7 @@ namespace Sqordia.Contracts.Responses.Admin.QuestionnaireV3;
 /// <summary>
 /// Full response DTO for a V3 question template
 /// </summary>
-public record QuestionTemplateV3Response
+public record QuestionTemplateResponse
 {
     public Guid Id { get; init; }
     public int QuestionNumber { get; init; }
@@ -34,7 +34,7 @@ public record QuestionTemplateV3Response
 /// <summary>
 /// Lightweight list response for V3 questions
 /// </summary>
-public record QuestionTemplateV3ListResponse
+public record QuestionTemplateListResponse
 {
     public Guid Id { get; init; }
     public int QuestionNumber { get; init; }

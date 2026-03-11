@@ -27,6 +27,7 @@ public class SubscriptionPlan : BaseAuditableEntity
     
     // Navigation properties
     public ICollection<Subscription> Subscriptions { get; private set; } = new List<Subscription>();
+    public ICollection<PlanFeatureLimit> FeatureLimits { get; private set; } = new List<PlanFeatureLimit>();
     
     private SubscriptionPlan() { } // EF Core constructor
     

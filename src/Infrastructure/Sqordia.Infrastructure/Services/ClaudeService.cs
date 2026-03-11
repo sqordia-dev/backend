@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Anthropic;
 using Anthropic.Models.Messages;
 using Sqordia.Application.Common.Interfaces;
+using Sqordia.Application.Common.Models;
 using Sqordia.Contracts.Requests.Questionnaire;
 using Sqordia.Contracts.Responses.Questionnaire;
 using Sqordia.Contracts.Requests.Sections;
@@ -122,6 +124,27 @@ public class ClaudeService : IAIService
     {
         // Official SDK handles retries via MaxRetries on the client constructor
         return GenerateContentAsync(systemPrompt, userPrompt, maxTokens, temperature, cancellationToken);
+    }
+
+    public async Task<AICallResult> GenerateContentWithMetadataAsync(
+        string systemPrompt,
+        string userPrompt,
+        int maxTokens = 2000,
+        float temperature = 0.7f,
+        int maxRetries = 3,
+        CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var content = await GenerateContentWithRetryAsync(
+            systemPrompt, userPrompt, maxTokens, temperature, maxRetries, cancellationToken);
+        stopwatch.Stop();
+
+        return new AICallResult(
+            Content: content,
+            InputTokens: (systemPrompt.Length + userPrompt.Length) / 4,
+            OutputTokens: content.Length / 4,
+            LatencyMs: stopwatch.ElapsedMilliseconds,
+            ModelUsed: _settings.Model);
     }
 
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)

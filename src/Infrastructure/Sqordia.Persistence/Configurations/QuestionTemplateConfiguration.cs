@@ -6,13 +6,13 @@ using Sqordia.Domain.Enums;
 namespace Sqordia.Persistence.Configurations;
 
 /// <summary>
-/// EF Core configuration for QuestionTemplateV3 entity
+/// EF Core configuration for QuestionTemplate entity
 /// </summary>
-public class QuestionTemplateV3Configuration : IEntityTypeConfiguration<QuestionTemplateV3>
+public class QuestionTemplateConfiguration : IEntityTypeConfiguration<QuestionTemplate>
 {
-    public void Configure(EntityTypeBuilder<QuestionTemplateV3> builder)
+    public void Configure(EntityTypeBuilder<QuestionTemplate> builder)
     {
-        builder.ToTable("QuestionTemplatesV3");
+        builder.ToTable("QuestionTemplates");
 
         builder.HasKey(x => x.Id);
 
@@ -126,23 +126,23 @@ public class QuestionTemplateV3Configuration : IEntityTypeConfiguration<Question
 
         // Question number lookup
         builder.HasIndex(x => x.QuestionNumber)
-            .HasDatabaseName("IX_QuestionTemplatesV3_QuestionNumber");
+            .HasDatabaseName("IX_QuestionTemplates_QuestionNumber");
 
         // Step-based lookup
         builder.HasIndex(x => new { x.StepNumber, x.DisplayOrder })
-            .HasDatabaseName("IX_QuestionTemplatesV3_Step_Order");
+            .HasDatabaseName("IX_QuestionTemplates_Step_Order");
 
         // Persona-based lookup
         builder.HasIndex(x => new { x.PersonaType, x.StepNumber, x.IsActive })
-            .HasDatabaseName("IX_QuestionTemplatesV3_Persona_Step_Active");
+            .HasDatabaseName("IX_QuestionTemplates_Persona_Step_Active");
 
         // Active questions lookup
         builder.HasIndex(x => new { x.IsActive, x.DisplayOrder })
-            .HasDatabaseName("IX_QuestionTemplatesV3_Active_Order");
+            .HasDatabaseName("IX_QuestionTemplates_Active_Order");
 
         // Profile field key lookup
         builder.HasIndex(x => x.ProfileFieldKey)
-            .HasDatabaseName("IX_QuestionTemplatesV3_ProfileFieldKey")
+            .HasDatabaseName("IX_QuestionTemplates_ProfileFieldKey")
             .HasFilter("\"ProfileFieldKey\" IS NOT NULL");
 
         // Soft delete filter
@@ -151,7 +151,7 @@ public class QuestionTemplateV3Configuration : IEntityTypeConfiguration<Question
         // Relationship to Section Mappings
         builder.HasMany(x => x.SectionMappings)
             .WithOne(x => x.QuestionTemplate)
-            .HasForeignKey(x => x.QuestionTemplateV3Id)
+            .HasForeignKey(x => x.QuestionTemplateId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

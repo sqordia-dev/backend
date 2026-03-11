@@ -40,9 +40,9 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
 
             if (filter != null)
             {
-                if (filter.QuestionTemplateV3Id.HasValue)
+                if (filter.QuestionTemplateId.HasValue)
                 {
-                    query = query.Where(m => m.QuestionTemplateV3Id == filter.QuestionTemplateV3Id.Value);
+                    query = query.Where(m => m.QuestionTemplateId == filter.QuestionTemplateId.Value);
                 }
 
                 if (filter.SubSectionId.HasValue)
@@ -119,7 +119,7 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
                 .Include(m => m.QuestionTemplate)
                 .Include(m => m.SubSection)
                     .ThenInclude(ss => ss.MainSection)
-                .Where(m => m.QuestionTemplateV3Id == questionId && m.IsActive)
+                .Where(m => m.QuestionTemplateId == questionId && m.IsActive)
                 .OrderBy(m => m.SubSection.MainSection.DisplayOrder)
                 .ThenBy(m => m.SubSection.DisplayOrder)
                 .ToListAsync(cancellationToken);
@@ -167,7 +167,7 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
         try
         {
             // Get questions
-            var questionsQuery = _context.QuestionTemplatesV3.AsQueryable();
+            var questionsQuery = _context.QuestionTemplates.AsQueryable();
             if (request?.StepNumber.HasValue == true)
             {
                 questionsQuery = questionsQuery.Where(q => q.StepNumber == request.StepNumber.Value);
@@ -202,7 +202,7 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
             var questionIds = questions.Select(q => q.Id).ToList();
             var subSectionIds = subSections.Select(ss => ss.Id).ToList();
             var mappingsQuery = _context.QuestionSectionMappings
-                .Where(m => questionIds.Contains(m.QuestionTemplateV3Id) &&
+                .Where(m => questionIds.Contains(m.QuestionTemplateId) &&
                            subSectionIds.Contains(m.SubSectionId));
             if (request?.IncludeInactive != true)
             {
@@ -212,7 +212,7 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
 
             // Build matrix
             var mappingLookup = mappings
-                .GroupBy(m => m.QuestionTemplateV3Id)
+                .GroupBy(m => m.QuestionTemplateId)
                 .ToDictionary(g => g.Key, g => g.ToDictionary(m => m.SubSectionId));
 
             var questionRows = questions.Select(q =>
@@ -272,13 +272,13 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
     {
         try
         {
-            var totalQuestions = await _context.QuestionTemplatesV3.CountAsync(q => q.IsActive, cancellationToken);
+            var totalQuestions = await _context.QuestionTemplates.CountAsync(q => q.IsActive, cancellationToken);
             var totalSubSections = await _context.SubSections.CountAsync(ss => ss.IsActive, cancellationToken);
             var totalMappings = await _context.QuestionSectionMappings.CountAsync(m => m.IsActive, cancellationToken);
 
             var questionsWithMappings = await _context.QuestionSectionMappings
                 .Where(m => m.IsActive)
-                .Select(m => m.QuestionTemplateV3Id)
+                .Select(m => m.QuestionTemplateId)
                 .Distinct()
                 .CountAsync(cancellationToken);
 
@@ -316,7 +316,7 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
         {
             // Check if mapping already exists
             var exists = await _context.QuestionSectionMappings.AnyAsync(m =>
-                m.QuestionTemplateV3Id == request.QuestionTemplateV3Id &&
+                m.QuestionTemplateId == request.QuestionTemplateId &&
                 m.SubSectionId == request.SubSectionId,
                 cancellationToken);
 
@@ -327,8 +327,8 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
             }
 
             // Verify question exists
-            var questionExists = await _context.QuestionTemplatesV3.AnyAsync(
-                q => q.Id == request.QuestionTemplateV3Id, cancellationToken);
+            var questionExists = await _context.QuestionTemplates.AnyAsync(
+                q => q.Id == request.QuestionTemplateId, cancellationToken);
             if (!questionExists)
             {
                 return Result.Failure<Guid>(
@@ -345,7 +345,7 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
             }
 
             var mapping = QuestionSectionMapping.Create(
-                request.QuestionTemplateV3Id,
+                request.QuestionTemplateId,
                 request.SubSectionId,
                 request.MappingContext,
                 request.Weight,
@@ -355,7 +355,7 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
             await _context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Created mapping {Id} between question {QuestionId} and sub-section {SubSectionId}",
-                mapping.Id, request.QuestionTemplateV3Id, request.SubSectionId);
+                mapping.Id, request.QuestionTemplateId, request.SubSectionId);
             return Result.Success(mapping.Id);
         }
         catch (Exception ex)
@@ -443,7 +443,7 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
                         case MappingAction.Create:
                             var createResult = await CreateMappingAsync(new CreateQuestionMappingRequest
                             {
-                                QuestionTemplateV3Id = update.QuestionTemplateV3Id,
+                                QuestionTemplateId = update.QuestionTemplateId,
                                 SubSectionId = update.SubSectionId,
                                 MappingContext = update.MappingContext,
                                 Weight = update.Weight
@@ -460,7 +460,7 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
 
                         case MappingAction.Update:
                             var existingMapping = await _context.QuestionSectionMappings.FirstOrDefaultAsync(m =>
-                                m.QuestionTemplateV3Id == update.QuestionTemplateV3Id &&
+                                m.QuestionTemplateId == update.QuestionTemplateId &&
                                 m.SubSectionId == update.SubSectionId,
                                 cancellationToken);
 
@@ -478,7 +478,7 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
 
                         case MappingAction.Delete:
                             var mappingToDelete = await _context.QuestionSectionMappings.FirstOrDefaultAsync(m =>
-                                m.QuestionTemplateV3Id == update.QuestionTemplateV3Id &&
+                                m.QuestionTemplateId == update.QuestionTemplateId &&
                                 m.SubSectionId == update.SubSectionId,
                                 cancellationToken);
 
@@ -519,7 +519,7 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
     public async Task<Result<bool>> MappingExistsAsync(Guid questionId, Guid subSectionId, CancellationToken cancellationToken = default)
     {
         var exists = await _context.QuestionSectionMappings.AnyAsync(m =>
-            m.QuestionTemplateV3Id == questionId &&
+            m.QuestionTemplateId == questionId &&
             m.SubSectionId == subSectionId &&
             m.IsActive,
             cancellationToken);
@@ -531,7 +531,7 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
         try
         {
             var existingMapping = await _context.QuestionSectionMappings.FirstOrDefaultAsync(m =>
-                m.QuestionTemplateV3Id == questionId &&
+                m.QuestionTemplateId == questionId &&
                 m.SubSectionId == subSectionId,
                 cancellationToken);
 
@@ -572,7 +572,7 @@ public class QuestionSectionMappingService : IQuestionSectionMappingService
         return new QuestionMappingResponse
         {
             Id = mapping.Id,
-            QuestionTemplateV3Id = mapping.QuestionTemplateV3Id,
+            QuestionTemplateId = mapping.QuestionTemplateId,
             SubSectionId = mapping.SubSectionId,
             MappingContext = mapping.MappingContext,
             Weight = mapping.Weight,

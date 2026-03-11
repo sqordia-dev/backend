@@ -30,13 +30,13 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
 
     #region Query
 
-    public async Task<Result<List<QuestionTemplateV3ListResponse>>> GetQuestionsAsync(
-        QuestionTemplateV3FilterRequest? filter = null,
+    public async Task<Result<List<QuestionTemplateListResponse>>> GetQuestionsAsync(
+        QuestionTemplateFilterRequest? filter = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var query = _context.QuestionTemplatesV3
+            var query = _context.QuestionTemplates
                 .Include(q => q.SectionMappings)
                 .AsQueryable();
 
@@ -90,23 +90,23 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting V3 questions");
-            return Result.Failure<List<QuestionTemplateV3ListResponse>>(
+            return Result.Failure<List<QuestionTemplateListResponse>>(
                 Error.InternalServerError("QuestionnaireV3.GetError", "Failed to retrieve questions"));
         }
     }
 
-    public async Task<Result<QuestionTemplateV3Response>> GetQuestionByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Result<QuestionTemplateResponse>> GetQuestionByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         try
         {
-            var question = await _context.QuestionTemplatesV3
+            var question = await _context.QuestionTemplates
                 .Include(q => q.SectionMappings)
                     .ThenInclude(m => m.SubSection)
                 .FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
 
             if (question == null)
             {
-                return Result.Failure<QuestionTemplateV3Response>(
+                return Result.Failure<QuestionTemplateResponse>(
                     Error.NotFound("QuestionnaireV3.NotFound", $"Question with ID {id} not found"));
             }
 
@@ -115,23 +115,23 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting V3 question {Id}", id);
-            return Result.Failure<QuestionTemplateV3Response>(
+            return Result.Failure<QuestionTemplateResponse>(
                 Error.InternalServerError("QuestionnaireV3.GetError", "Failed to retrieve question"));
         }
     }
 
-    public async Task<Result<QuestionTemplateV3Response>> GetQuestionByNumberAsync(int questionNumber, CancellationToken cancellationToken = default)
+    public async Task<Result<QuestionTemplateResponse>> GetQuestionByNumberAsync(int questionNumber, CancellationToken cancellationToken = default)
     {
         try
         {
-            var question = await _context.QuestionTemplatesV3
+            var question = await _context.QuestionTemplates
                 .Include(q => q.SectionMappings)
                     .ThenInclude(m => m.SubSection)
                 .FirstOrDefaultAsync(q => q.QuestionNumber == questionNumber, cancellationToken);
 
             if (question == null)
             {
-                return Result.Failure<QuestionTemplateV3Response>(
+                return Result.Failure<QuestionTemplateResponse>(
                     Error.NotFound("QuestionnaireV3.NotFound", $"Question #{questionNumber} not found"));
             }
 
@@ -140,19 +140,19 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting V3 question #{Number}", questionNumber);
-            return Result.Failure<QuestionTemplateV3Response>(
+            return Result.Failure<QuestionTemplateResponse>(
                 Error.InternalServerError("QuestionnaireV3.GetError", "Failed to retrieve question"));
         }
     }
 
-    public async Task<Result<List<QuestionTemplateV3ListResponse>>> GetQuestionsByStepAsync(
+    public async Task<Result<List<QuestionTemplateListResponse>>> GetQuestionsByStepAsync(
         int stepNumber,
         PersonaType? personaType = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var query = _context.QuestionTemplatesV3
+            var query = _context.QuestionTemplates
                 .Include(q => q.SectionMappings)
                 .Where(q => q.StepNumber == stepNumber && q.IsActive);
 
@@ -171,18 +171,18 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting V3 questions for step {StepNumber}", stepNumber);
-            return Result.Failure<List<QuestionTemplateV3ListResponse>>(
+            return Result.Failure<List<QuestionTemplateListResponse>>(
                 Error.InternalServerError("QuestionnaireV3.GetError", "Failed to retrieve questions"));
         }
     }
 
-    public async Task<Result<List<QuestionTemplateV3ListResponse>>> GetQuestionsByPersonaAsync(
+    public async Task<Result<List<QuestionTemplateListResponse>>> GetQuestionsByPersonaAsync(
         PersonaType personaType,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var questions = await _context.QuestionTemplatesV3
+            var questions = await _context.QuestionTemplates
                 .Include(q => q.SectionMappings)
                 .Where(q => (q.PersonaType == null || q.PersonaType == personaType) && q.IsActive)
                 .OrderBy(q => q.StepNumber)
@@ -195,7 +195,7 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting V3 questions for persona {Persona}", personaType);
-            return Result.Failure<List<QuestionTemplateV3ListResponse>>(
+            return Result.Failure<List<QuestionTemplateListResponse>>(
                 Error.InternalServerError("QuestionnaireV3.GetError", "Failed to retrieve questions"));
         }
     }
@@ -204,12 +204,12 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
 
     #region Commands
 
-    public async Task<Result<Guid>> CreateQuestionAsync(CreateQuestionTemplateV3Request request, CancellationToken cancellationToken = default)
+    public async Task<Result<Guid>> CreateQuestionAsync(CreateQuestionTemplateRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
             // Check for duplicate question number
-            var exists = await _context.QuestionTemplatesV3.AnyAsync(
+            var exists = await _context.QuestionTemplates.AnyAsync(
                 q => q.QuestionNumber == request.QuestionNumber, cancellationToken);
             if (exists)
             {
@@ -231,7 +231,7 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
                     Error.Validation("QuestionnaireV3.InvalidType", "Invalid question type"));
             }
 
-            var question = QuestionTemplateV3.Create(
+            var question = QuestionTemplate.Create(
                 request.QuestionNumber,
                 personaType,
                 request.StepNumber,
@@ -252,7 +252,7 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
                 request.IsRequired,
                 request.Icon);
 
-            _context.QuestionTemplatesV3.Add(question);
+            _context.QuestionTemplates.Add(question);
             await _context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Created V3 question #{Number} with ID {Id}", request.QuestionNumber, question.Id);
@@ -266,11 +266,11 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
         }
     }
 
-    public async Task<Result> UpdateQuestionAsync(Guid id, UpdateQuestionTemplateV3Request request, CancellationToken cancellationToken = default)
+    public async Task<Result> UpdateQuestionAsync(Guid id, UpdateQuestionTemplateRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
-            var question = await _context.QuestionTemplatesV3.FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
+            var question = await _context.QuestionTemplates.FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
             if (question == null)
             {
                 return Result.Failure(
@@ -325,7 +325,7 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
     {
         try
         {
-            var question = await _context.QuestionTemplatesV3.FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
+            var question = await _context.QuestionTemplates.FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
             if (question == null)
             {
                 return Result.Failure(
@@ -351,7 +351,7 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
     {
         try
         {
-            var question = await _context.QuestionTemplatesV3.FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
+            var question = await _context.QuestionTemplates.FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
             if (question == null)
             {
                 return Result.Failure(
@@ -376,7 +376,7 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
     {
         try
         {
-            var question = await _context.QuestionTemplatesV3.FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
+            var question = await _context.QuestionTemplates.FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
             if (question == null)
             {
                 return Result.Failure(
@@ -405,7 +405,7 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
     {
         try
         {
-            var question = await _context.QuestionTemplatesV3.FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
+            var question = await _context.QuestionTemplates.FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
             if (question == null)
             {
                 return Result.Failure(
@@ -433,7 +433,7 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
     {
         try
         {
-            var question = await _context.QuestionTemplatesV3.FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
+            var question = await _context.QuestionTemplates.FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
             if (question == null)
             {
                 return Result.Failure<CoachSuggestionResponse>(
@@ -493,7 +493,7 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
     {
         try
         {
-            var maxNumber = await _context.QuestionTemplatesV3
+            var maxNumber = await _context.QuestionTemplates
                 .MaxAsync(q => (int?)q.QuestionNumber, cancellationToken) ?? 0;
             return Result.Success(maxNumber + 1);
         }
@@ -510,7 +510,7 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
         try
         {
             var questionIds = request.Items.Select(i => i.Id).ToList();
-            var questions = await _context.QuestionTemplatesV3
+            var questions = await _context.QuestionTemplates
                 .Where(q => q.StepNumber == stepNumber && questionIds.Contains(q.Id))
                 .ToListAsync(cancellationToken);
 
@@ -538,9 +538,9 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
 
     #region Mapping Helpers
 
-    private static QuestionTemplateV3Response MapToResponse(QuestionTemplateV3 question)
+    private static QuestionTemplateResponse MapToResponse(QuestionTemplate question)
     {
-        return new QuestionTemplateV3Response
+        return new QuestionTemplateResponse
         {
             Id = question.Id,
             QuestionNumber = question.QuestionNumber,
@@ -581,9 +581,9 @@ public class QuestionnaireServiceV3 : IQuestionnaireServiceV3
         };
     }
 
-    private static QuestionTemplateV3ListResponse MapToListResponse(QuestionTemplateV3 question)
+    private static QuestionTemplateListResponse MapToListResponse(QuestionTemplate question)
     {
-        return new QuestionTemplateV3ListResponse
+        return new QuestionTemplateListResponse
         {
             Id = question.Id,
             QuestionNumber = question.QuestionNumber,

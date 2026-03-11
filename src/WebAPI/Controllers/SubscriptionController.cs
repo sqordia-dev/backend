@@ -21,6 +21,7 @@ public class SubscriptionController : BaseApiController
     private readonly ISubscriptionService _subscriptionService;
     private readonly IStripeService _stripeService;
     private readonly IInvoicePdfService _invoicePdfService;
+    private readonly IFeatureGateService _featureGate;
     private readonly IApplicationDbContext _context;
     private readonly ILogger<SubscriptionController> _logger;
     private readonly IConfiguration _configuration;
@@ -29,6 +30,7 @@ public class SubscriptionController : BaseApiController
         ISubscriptionService subscriptionService,
         IStripeService stripeService,
         IInvoicePdfService invoicePdfService,
+        IFeatureGateService featureGate,
         IApplicationDbContext context,
         ILogger<SubscriptionController> logger,
         IConfiguration configuration)
@@ -36,6 +38,7 @@ public class SubscriptionController : BaseApiController
         _subscriptionService = subscriptionService;
         _stripeService = stripeService;
         _invoicePdfService = invoicePdfService;
+        _featureGate = featureGate;
         _context = context;
         _logger = logger;
         _configuration = configuration;
@@ -118,7 +121,23 @@ public class SubscriptionController : BaseApiController
     }
 
     /// <summary>
-    /// Change subscription plan
+    /// Preview plan change proration (shows credit, charge, net amount)
+    /// </summary>
+    [HttpPost("change-plan/preview")]
+    public async Task<IActionResult> PreviewPlanChange(
+        [FromBody] ChangePlanRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized();
+
+        var result = await _subscriptionService.PreviewPlanChangeAsync(userId.Value, request, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Change subscription plan immediately with proration
     /// </summary>
     [HttpPut("change-plan")]
     public async Task<IActionResult> ChangePlan(
@@ -127,9 +146,7 @@ public class SubscriptionController : BaseApiController
     {
         var userId = GetCurrentUserId();
         if (userId == null)
-        {
             return Unauthorized();
-        }
 
         var result = await _subscriptionService.ChangePlanAsync(userId.Value, request, cancellationToken);
         return HandleResult(result);
@@ -397,6 +414,31 @@ public class SubscriptionController : BaseApiController
             _logger.LogError(ex, "Error creating billing portal session");
             return StatusCode(500, "Internal server error");
         }
+    }
+
+    /// <summary>
+    /// Get plan features and usage for an organization (for frontend feature gating)
+    /// </summary>
+    [HttpGet("organizations/{organizationId}/plan-features")]
+    public async Task<IActionResult> GetPlanFeatures(
+        Guid organizationId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _featureGate.GetPlanFeaturesAsync(organizationId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Check if a specific feature is enabled for the organization's plan
+    /// </summary>
+    [HttpGet("organizations/{organizationId}/features/{featureKey}/check")]
+    public async Task<IActionResult> CheckFeature(
+        Guid organizationId,
+        string featureKey,
+        CancellationToken cancellationToken)
+    {
+        var result = await _featureGate.CheckUsageLimitAsync(organizationId, featureKey, cancellationToken);
+        return HandleResult(result);
     }
 }
 

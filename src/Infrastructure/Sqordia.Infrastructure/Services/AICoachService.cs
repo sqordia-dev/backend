@@ -7,6 +7,7 @@ using Sqordia.Contracts.Requests.AICoach;
 using Sqordia.Contracts.Responses.AICoach;
 using Sqordia.Domain.Entities.AICoach;
 using Sqordia.Domain.Enums;
+using Sqordia.Domain.Constants;
 using System.Text;
 using System.Text.Json;
 
@@ -18,6 +19,7 @@ public class AICoachService : IAICoachService
     private readonly IAIService _aiService;
     private readonly ISettingsService _settingsService;
     private readonly ISubscriptionService _subscriptionService;
+    private readonly IFeatureGateService _featureGate;
     private readonly ILogger<AICoachService> _logger;
 
     // Default config values (can be overridden by feature flag)
@@ -32,12 +34,14 @@ public class AICoachService : IAICoachService
         IAIService aiService,
         ISettingsService settingsService,
         ISubscriptionService subscriptionService,
+        IFeatureGateService featureGate,
         ILogger<AICoachService> logger)
     {
         _dbContext = dbContext;
         _aiService = aiService;
         _settingsService = settingsService;
         _subscriptionService = subscriptionService;
+        _featureGate = featureGate;
         _logger = logger;
     }
 
@@ -56,6 +60,24 @@ public class AICoachService : IAICoachService
             if (!accessResult.Value!.HasAccess)
                 return Result.Failure<AICoachConversationResponse>(
                     new Error("AICoach.AccessDenied", accessResult.Value.DenialReason ?? "Access denied"));
+
+            // Check monthly message limit via feature gate
+            var orgId = await _dbContext.BusinessPlans
+                .Where(bp => bp.Id == request.BusinessPlanId && !bp.IsDeleted)
+                .Select(bp => bp.OrganizationId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (orgId != Guid.Empty)
+            {
+                var usageCheck = await _featureGate.CheckUsageLimitAsync(
+                    orgId, PlanFeatures.MaxAiCoachMessagesMonthly, cancellationToken);
+                if (usageCheck.IsSuccess && !usageCheck.Value!.Allowed)
+                {
+                    return Result.Failure<AICoachConversationResponse>(
+                        Error.Failure("AICoach.MessageLimitReached",
+                            usageCheck.Value.DenialReason ?? "Monthly AI Coach message limit reached. Upgrade your plan for more."));
+                }
+            }
 
             // Check if conversation already exists for this question
             var existingConversation = await _dbContext.AICoachConversations
@@ -135,6 +157,10 @@ public class AICoachService : IAICoachService
             _dbContext.AICoachConversations.Add(conversation);
             await _dbContext.SaveChangesAsync(cancellationToken);
 
+            // Record feature gate usage
+            if (orgId != Guid.Empty)
+                await _featureGate.RecordUsageAsync(orgId, PlanFeatures.MaxAiCoachMessagesMonthly, 1, cancellationToken);
+
             _logger.LogInformation(
                 "Started AI Coach conversation {ConversationId} for user {UserId}, question {QuestionId}",
                 conversation.Id, userId, request.QuestionId);
@@ -165,7 +191,7 @@ public class AICoachService : IAICoachService
                 return Result.Failure<AICoachMessageResponse>(
                     new Error("AICoach.AccessDenied", accessResult.Value.DenialReason ?? "Access denied"));
 
-            // Get conversation
+            // Get conversation (load early so we can resolve orgId for feature gate)
             var conversation = await _dbContext.AICoachConversations
                 .Include(c => c.Messages.OrderBy(m => m.Sequence))
                 .FirstOrDefaultAsync(c =>
@@ -177,6 +203,24 @@ public class AICoachService : IAICoachService
             if (conversation == null)
                 return Result.Failure<AICoachMessageResponse>(
                     new Error("AICoach.ConversationNotFound", "Conversation not found"));
+
+            // Check monthly message limit via feature gate
+            var sendOrgId = await _dbContext.BusinessPlans
+                .Where(bp => bp.Id == conversation.BusinessPlanId && !bp.IsDeleted)
+                .Select(bp => bp.OrganizationId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (sendOrgId != Guid.Empty)
+            {
+                var msgCheck = await _featureGate.CheckUsageLimitAsync(
+                    sendOrgId, PlanFeatures.MaxAiCoachMessagesMonthly, cancellationToken);
+                if (msgCheck.IsSuccess && !msgCheck.Value!.Allowed)
+                {
+                    return Result.Failure<AICoachMessageResponse>(
+                        Error.Failure("AICoach.MessageLimitReached",
+                            msgCheck.Value.DenialReason ?? "Monthly AI Coach message limit reached. Upgrade your plan for more."));
+                }
+            }
 
             // Build questionnaire context
             var questionnaireContext = await BuildQuestionnaireContextAsync(conversation.BusinessPlanId, cancellationToken);
@@ -236,6 +280,10 @@ public class AICoachService : IAICoachService
 
             // Save changes
             await _dbContext.SaveChangesAsync(cancellationToken);
+
+            // Record feature gate usage
+            if (sendOrgId != Guid.Empty)
+                await _featureGate.RecordUsageAsync(sendOrgId, PlanFeatures.MaxAiCoachMessagesMonthly, 1, cancellationToken);
 
             _logger.LogInformation(
                 "Sent message to AI Coach conversation {ConversationId} for user {UserId}",
@@ -427,7 +475,7 @@ public class AICoachService : IAICoachService
                     FeatureEnabled = true,
                     SubscriptionTier = tierName,
                     DenialReason = "You have reached your monthly AI Coach token limit. Your limit resets at the beginning of next month.",
-                    UpgradeUrl = subscriptionTier == SubscriptionPlanType.Pro ? "/pricing" : null
+                    UpgradeUrl = subscriptionTier != SubscriptionPlanType.Enterprise ? "/pricing" : null
                 });
             }
 
@@ -460,10 +508,7 @@ public class AICoachService : IAICoachService
         sb.AppendLine("## Previous Questionnaire Responses:");
         foreach (var response in responses)
         {
-            var questionId = response.QuestionTemplateV3Id?.ToString()
-                          ?? response.QuestionTemplateV2Id?.ToString()
-                          ?? response.QuestionTemplateId?.ToString()
-                          ?? "Unknown";
+            var questionId = response.QuestionTemplateId?.ToString() ?? "Unknown";
             sb.AppendLine($"- **{questionId}**: {response.ResponseText}");
         }
 
@@ -559,8 +604,9 @@ Remember: You are a coach, not just an answer generator. Guide the user to devel
         return tier switch
         {
             SubscriptionPlanType.Enterprise => config.MaxMonthlyTokensEnterprise,
-            SubscriptionPlanType.Pro => config.MaxMonthlyTokensPro,
-            SubscriptionPlanType.Free => config.MaxMonthlyTokensPro / 10, // Free tier gets 10% of Pro limit
+            SubscriptionPlanType.Professional => config.MaxMonthlyTokensPro,
+            SubscriptionPlanType.Starter => config.MaxMonthlyTokensPro / 2,
+            SubscriptionPlanType.Free => config.MaxMonthlyTokensPro / 10,
             _ => config.MaxMonthlyTokensPro
         };
     }

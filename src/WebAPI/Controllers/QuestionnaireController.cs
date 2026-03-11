@@ -308,43 +308,100 @@ public class QuestionnaireController : BaseApiController
                 return NotFound(new { error = "Business plan not found" });
             }
 
-            // Get questionnaire questions to identify unanswered ones
-            var questionnaireResult = await _questionnaireService.GetQuestionnaireAsync(businessPlanId, cancellationToken);
-            if (!questionnaireResult.IsSuccess)
+            // V3 (STRUCTURE FINALE) is the primary source of truth for questions
+            var v3Questions = await _context.QuestionTemplates
+                .Where(qt => qt.IsActive)
+                .OrderBy(qt => qt.DisplayOrder)
+                .ToListAsync(cancellationToken);
+
+            int totalQuestions;
+            int completedQuestions;
+            List<string> unansweredQuestionIds;
+            List<RecentAnswerDto> recentAnswers;
+
+            if (v3Questions.Count > 0)
             {
-                return HandleResult(questionnaireResult);
+                // V3 path: count responses linked to V3 question IDs
+                totalQuestions = v3Questions.Count;
+                var v3QuestionIds = v3Questions.Select(q => q.Id).ToHashSet();
+
+                var v3Responses = await _context.QuestionnaireResponses
+                    .Where(qr => qr.BusinessPlanId == businessPlanId &&
+                                 qr.QuestionTemplateId.HasValue &&
+                                 v3QuestionIds.Contains(qr.QuestionTemplateId.Value))
+                    .ToListAsync(cancellationToken);
+
+                var answeredV3Ids = v3Responses
+                    .Where(r => !string.IsNullOrWhiteSpace(r.ResponseText))
+                    .Select(r => r.QuestionTemplateId!.Value)
+                    .ToHashSet();
+
+                completedQuestions = answeredV3Ids.Count;
+
+                unansweredQuestionIds = v3Questions
+                    .Where(q => !answeredV3Ids.Contains(q.Id))
+                    .Select(q => q.Id.ToString())
+                    .ToList();
+
+                recentAnswers = v3Responses
+                    .Where(r => !string.IsNullOrWhiteSpace(r.ResponseText))
+                    .OrderByDescending(r => r.LastModified)
+                    .Take(5)
+                    .Select(r =>
+                    {
+                        var q = v3Questions.FirstOrDefault(vq => vq.Id == r.QuestionTemplateId!.Value);
+                        return new RecentAnswerDto
+                        {
+                            QuestionId = r.QuestionTemplateId!.Value.ToString(),
+                            QuestionText = q?.QuestionTextFR ?? q?.QuestionTextEN ?? "",
+                            AnsweredAt = r.LastModified ?? r.Created,
+                            Answer = r.ResponseText.Length > 100
+                                ? r.ResponseText.Substring(0, 100) + "..."
+                                : r.ResponseText,
+                            IsAISuggested = false
+                        };
+                    })
+                    .ToList();
+            }
+            else
+            {
+                // V1/V2 fallback path
+                var questionnaireResult = await _questionnaireService.GetQuestionnaireAsync(businessPlanId, cancellationToken);
+                if (!questionnaireResult.IsSuccess)
+                {
+                    return HandleResult(questionnaireResult);
+                }
+
+                var questions = questionnaireResult.Value.ToList();
+                totalQuestions = questions.Count;
+                var answeredQuestions = questions.Where(q => !string.IsNullOrWhiteSpace(q.UserResponse)).ToList();
+                completedQuestions = answeredQuestions.Count;
+
+                unansweredQuestionIds = questions
+                    .Where(q => string.IsNullOrWhiteSpace(q.UserResponse))
+                    .Select(q => q.Id.ToString())
+                    .ToList();
+
+                recentAnswers = answeredQuestions
+                    .OrderByDescending(q => q.Order)
+                    .Take(5)
+                    .Select(q => new RecentAnswerDto
+                    {
+                        QuestionId = q.Id.ToString(),
+                        QuestionText = q.QuestionText ?? "",
+                        AnsweredAt = DateTime.UtcNow,
+                        Answer = q.UserResponse?.Length > 100
+                            ? q.UserResponse.Substring(0, 100) + "..."
+                            : q.UserResponse ?? "",
+                        IsAISuggested = false
+                    })
+                    .ToList();
             }
 
-            var questions = questionnaireResult.Value.ToList();
-            var totalQuestions = questions.Count;
-            var answeredQuestions = questions.Where(q => !string.IsNullOrWhiteSpace(q.UserResponse)).ToList();
-            var completedQuestions = answeredQuestions.Count;
             var remainingQuestions = totalQuestions - completedQuestions;
             var completionPercentage = totalQuestions > 0
                 ? Math.Round((decimal)completedQuestions / totalQuestions * 100, 1)
                 : 0;
-
-            // Get unanswered question IDs
-            var unansweredQuestionIds = questions
-                .Where(q => string.IsNullOrWhiteSpace(q.UserResponse))
-                .Select(q => q.Id.ToString())
-                .ToList();
-
-            // Get recent answers (last 5 with responses, ordered by question order for consistency)
-            var recentAnswers = answeredQuestions
-                .OrderByDescending(q => q.Order)
-                .Take(5)
-                .Select(q => new RecentAnswerDto
-                {
-                    QuestionId = q.Id.ToString(),
-                    QuestionText = q.QuestionText ?? "",
-                    AnsweredAt = DateTime.UtcNow, // Response timestamp not tracked in DTO
-                    Answer = q.UserResponse?.Length > 100
-                        ? q.UserResponse.Substring(0, 100) + "..."
-                        : q.UserResponse ?? "",
-                    IsAISuggested = false // AI suggestion flag not tracked in DTO
-                })
-                .ToList();
 
             // Calculate milestones
             var milestonesAchieved = new List<string>();

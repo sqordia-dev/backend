@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenAI;
 using OpenAI.Chat;
 using Sqordia.Application.Common.Interfaces;
+using Sqordia.Application.Common.Models;
 using Sqordia.Contracts.Requests.Questionnaire;
 using Sqordia.Contracts.Responses.Questionnaire;
 using Sqordia.Contracts.Requests.Sections;
@@ -22,7 +24,7 @@ namespace Sqordia.Infrastructure.Services;
 public class OpenAISettings
 {
     public string ApiKey { get; set; } = string.Empty;
-    public string Model { get; set; } = "gpt-4";
+    public string Model { get; set; } = "gpt-4.1";
 }
 
 public class OpenAIService : IAIService
@@ -188,6 +190,74 @@ public class OpenAIService : IAIService
         
         throw new InvalidOperationException(errorMessage, lastException);
     }
+
+    public async Task<AICallResult> GenerateContentWithMetadataAsync(
+        string systemPrompt,
+        string userPrompt,
+        int maxTokens = 2000,
+        float temperature = 0.7f,
+        int maxRetries = 3,
+        CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var attempt = 0;
+        Exception? lastException = null;
+
+        while (attempt < maxRetries)
+        {
+            try
+            {
+                if (_chatClient == null)
+                    throw new InvalidOperationException("OpenAI client is not initialized. Check API key configuration.");
+
+                var messages = new List<ChatMessage>
+                {
+                    ChatMessage.CreateSystemMessage(systemPrompt),
+                    ChatMessage.CreateUserMessage(userPrompt)
+                };
+
+                var options = new ChatCompletionOptions
+                {
+                    MaxOutputTokenCount = maxTokens,
+                    Temperature = temperature
+                };
+
+                var response = await _chatClient.CompleteChatAsync(messages, options, cancellationToken);
+                stopwatch.Stop();
+
+                var content = response.Value.Content[0].Text;
+                var inputTokens = response.Value.Usage?.InputTokenCount ?? EstimateTokens(systemPrompt + userPrompt);
+                var outputTokens = response.Value.Usage?.OutputTokenCount ?? EstimateTokens(content);
+
+                return new AICallResult(
+                    Content: content,
+                    InputTokens: inputTokens,
+                    OutputTokens: outputTokens,
+                    LatencyMs: stopwatch.ElapsedMilliseconds,
+                    ModelUsed: _settings.Model);
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+                attempt++;
+
+                if (attempt < maxRetries)
+                {
+                    var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt));
+                    _logger.LogWarning(ex, "Metadata attempt {Attempt}/{MaxRetries} failed. Retrying in {Delay}s...",
+                        attempt, maxRetries, delay.TotalSeconds);
+                    await Task.Delay(delay, cancellationToken);
+                }
+            }
+        }
+
+        stopwatch.Stop();
+        throw new InvalidOperationException(
+            $"Failed to generate content after {maxRetries} attempts. Error: {lastException?.Message}",
+            lastException);
+    }
+
+    private static int EstimateTokens(string text) => text.Length / 4;
 
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
     {

@@ -17,6 +17,7 @@ public class SlideDeckService : ISlideDeckService
 {
     private readonly IApplicationDbContext _context;
     private readonly IAIService _aiService;
+    private readonly IStructuredExtractionService _structuredExtraction;
     private readonly IContentAdaptationService _adaptationService;
     private readonly IExportThemeService _themeService;
     private readonly IHttpContextAccessor _httpContextAccessor;
@@ -25,6 +26,7 @@ public class SlideDeckService : ISlideDeckService
     public SlideDeckService(
         IApplicationDbContext context,
         IAIService aiService,
+        IStructuredExtractionService structuredExtraction,
         IContentAdaptationService adaptationService,
         IExportThemeService themeService,
         IHttpContextAccessor httpContextAccessor,
@@ -32,6 +34,7 @@ public class SlideDeckService : ISlideDeckService
     {
         _context = context;
         _aiService = aiService;
+        _structuredExtraction = structuredExtraction;
         _adaptationService = adaptationService;
         _themeService = themeService;
         _httpContextAccessor = httpContextAccessor;
@@ -275,6 +278,19 @@ public class SlideDeckService : ISlideDeckService
     {
         try
         {
+            // Try structured extraction first (Claude tool_use — reliable JSON)
+            var structuredResult = await _structuredExtraction.ExtractSwotAsync(competitiveAnalysis, language, ct);
+            if (structuredResult.IsSuccess)
+            {
+                var swot = structuredResult.Value!;
+                if (swot.Strengths.Count > 0 || swot.Weaknesses.Count > 0)
+                {
+                    _logger.LogInformation("SWOT extracted via structured tool_use");
+                    return (swot.Strengths, swot.Weaknesses, swot.Opportunities, swot.Threats);
+                }
+            }
+
+            // Fallback to text-based extraction
             var isAvailable = await _aiService.IsAvailableAsync(ct);
             if (!isAvailable)
             {
@@ -340,6 +356,19 @@ public class SlideDeckService : ISlideDeckService
     {
         try
         {
+            // Try structured extraction first (Claude tool_use)
+            var structuredResult = await _structuredExtraction.ExtractRiskPairsAsync(riskContent, language, ct);
+            if (structuredResult.IsSuccess && structuredResult.Value!.Pairs.Count > 0)
+            {
+                _logger.LogInformation("Risks extracted via structured tool_use ({Count} pairs)", structuredResult.Value.Pairs.Count);
+                var pairs = structuredResult.Value.Pairs.Take(4).ToList();
+                return (
+                    pairs.Select(p => p.Risk).ToList(),
+                    pairs.Select(p => p.Mitigation).ToList()
+                );
+            }
+
+            // Fallback to text-based extraction
             var isAvailable = await _aiService.IsAvailableAsync(ct);
             if (!isAvailable) return (new(), new());
 
@@ -360,7 +389,6 @@ public class SlideDeckService : ISlideDeckService
                 var riskPart = parts[0].Trim();
                 var mitigPart = parts.Length > 1 ? parts[1].Trim() : "";
 
-                // Clean prefixes
                 riskPart = Regex.Replace(riskPart, @"^(RISK|RISQUE)\s*:\s*", "", RegexOptions.IgnoreCase).Trim();
                 mitigPart = Regex.Replace(mitigPart, @"^(MITIGATION|ATTÉNUATION)\s*:\s*", "", RegexOptions.IgnoreCase).Trim();
 
@@ -386,6 +414,30 @@ public class SlideDeckService : ISlideDeckService
     {
         try
         {
+            // Try structured extraction first (Claude tool_use)
+            var structuredResult = await _structuredExtraction.ExtractFinancialMetricsAsync(financialProjections, language, ct);
+            if (structuredResult.IsSuccess)
+            {
+                var fin = structuredResult.Value!;
+                var metrics = new List<(string Label, string Value)>();
+                var revenueLabel = language == "fr" ? "Revenus" : "Revenue";
+                var expensesLabel = language == "fr" ? "Dépenses" : "Expenses";
+                var profitLabel = language == "fr" ? "Profit net" : "Net Profit";
+                var marginLabel = language == "fr" ? "Marge brute" : "Gross Margin";
+
+                if (!string.IsNullOrEmpty(fin.Revenue)) metrics.Add((revenueLabel, fin.Revenue));
+                if (!string.IsNullOrEmpty(fin.Expenses)) metrics.Add((expensesLabel, fin.Expenses));
+                if (!string.IsNullOrEmpty(fin.Profit)) metrics.Add((profitLabel, fin.Profit));
+                if (!string.IsNullOrEmpty(fin.GrossMargin)) metrics.Add((marginLabel, fin.GrossMargin));
+
+                if (metrics.Count > 0)
+                {
+                    _logger.LogInformation("Financial metrics extracted via structured tool_use ({Count} metrics)", metrics.Count);
+                    return metrics.Take(4).ToList();
+                }
+            }
+
+            // Fallback to text-based extraction
             var isAvailable = await _aiService.IsAvailableAsync(ct);
             if (!isAvailable) return new();
 
@@ -394,7 +446,7 @@ public class SlideDeckService : ISlideDeckService
 
             var aiResponse = await _aiService.GenerateContentAsync(systemPrompt, financialProjections, 300, 0.3f, ct);
 
-            var metrics = new List<(string Label, string Value)>();
+            var fallbackMetrics = new List<(string Label, string Value)>();
             foreach (var line in aiResponse.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
                 var colonIndex = line.IndexOf(':');
@@ -404,12 +456,12 @@ public class SlideDeckService : ISlideDeckService
                     var value = line[(colonIndex + 1)..].Trim();
                     if (label.Length > 0 && value.Length > 0)
                     {
-                        metrics.Add((label, value));
+                        fallbackMetrics.Add((label, value));
                     }
                 }
             }
 
-            return metrics.Take(4).ToList();
+            return fallbackMetrics.Take(4).ToList();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)

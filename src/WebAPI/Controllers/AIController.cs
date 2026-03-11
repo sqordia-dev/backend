@@ -19,17 +19,20 @@ public class AIController : BaseApiController
     private readonly IQuestionPolishService _polishService;
     private readonly IAIPythonService _pythonService;
     private readonly IAuditService _auditService;
+    private readonly IModelRegistryService _modelRegistry;
     private readonly ILogger<AIController> _logger;
 
     public AIController(
         IQuestionPolishService polishService,
         IAIPythonService pythonService,
         IAuditService auditService,
+        IModelRegistryService modelRegistry,
         ILogger<AIController> logger)
     {
         _polishService = polishService;
         _pythonService = pythonService;
         _auditService = auditService;
+        _modelRegistry = modelRegistry;
         _logger = logger;
     }
 
@@ -513,6 +516,105 @@ public class AIController : BaseApiController
 
         var result = await _auditService.AuditSectionAsync(planId, request.SectionName, request.Language, cancellationToken);
         return HandleResult(result);
+    }
+
+    // ── Model Registry Admin Endpoints ────────────────────────
+
+    /// <summary>
+    /// Get current model registry configuration (admin only)
+    /// </summary>
+    [HttpGet("models/config")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(typeof(ModelRegistrySnapshot), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetModelConfig(CancellationToken ct)
+    {
+        var result = await _modelRegistry.GetCurrentConfigAsync(ct);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Set the active AI provider (admin only)
+    /// </summary>
+    [HttpPut("models/active-provider")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SetActiveProvider([FromBody] SetActiveProviderRequest request, CancellationToken ct)
+    {
+        var result = await _modelRegistry.SetActiveProviderAsync(request.Provider, ct);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Set the model for a specific provider (admin only)
+    /// </summary>
+    [HttpPut("models/{provider}")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SetProviderModel(string provider, [FromBody] SetProviderModelRequest request, CancellationToken ct)
+    {
+        var result = await _modelRegistry.SetModelForProviderAsync(provider, request.Model, ct);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Set fallback providers (admin only)
+    /// </summary>
+    [HttpPut("models/fallbacks")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetFallbackProviders([FromBody] SetFallbackProvidersRequest request, CancellationToken ct)
+    {
+        var result = await _modelRegistry.SetFallbackProvidersAsync(request.Providers, ct);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Set section-specific model override (admin only)
+    /// </summary>
+    [HttpPut("models/section-overrides/{sectionType}")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetSectionOverride(string sectionType, [FromBody] SetSectionOverrideRequest request, CancellationToken ct)
+    {
+        var result = await _modelRegistry.SetSectionOverrideAsync(sectionType, request.Provider, request.Model, ct);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Remove section-specific model override (admin only)
+    /// </summary>
+    [HttpDelete("models/section-overrides/{sectionType}")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RemoveSectionOverride(string sectionType, CancellationToken ct)
+    {
+        var result = await _modelRegistry.RemoveSectionOverrideAsync(sectionType, ct);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get available models for a provider
+    /// </summary>
+    [HttpGet("models/{provider}/available")]
+    [ProducesResponseType(typeof(List<ModelInfo>), StatusCodes.Status200OK)]
+    public IActionResult GetAvailableModels(string provider)
+    {
+        var models = _modelRegistry.GetAvailableModels(provider);
+        return Ok(models);
+    }
+
+    /// <summary>
+    /// Force refresh model registry cache (admin only)
+    /// </summary>
+    [HttpPost("models/refresh")]
+    [Authorize(Roles = "Admin,Administrator")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public IActionResult RefreshModelCache()
+    {
+        _modelRegistry.InvalidateCache();
+        return Ok(new { message = "Model registry cache invalidated" });
     }
 
     /// <summary>

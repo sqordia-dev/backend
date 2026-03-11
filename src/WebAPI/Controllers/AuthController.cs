@@ -102,6 +102,17 @@ public class AuthController : BaseApiController
         return HandleResult(result);
     }
 
+    /// <summary>
+    /// Complete login by verifying a 2FA code after credentials were validated.
+    /// </summary>
+    [HttpPost("login/verify-2fa")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyTwoFactorLogin([FromBody] TwoFactorLoginRequest request, CancellationToken cancellationToken = default)
+    {
+        var result = await _authenticationService.VerifyTwoFactorLoginAsync(request);
+        return HandleResult(result);
+    }
+
     [HttpPost("forgot-password")]
     [AllowAnonymous]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken = default)

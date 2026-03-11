@@ -12,13 +12,16 @@ namespace Sqordia.Application.Services.Implementations;
 public class PromptSelectorService : IPromptSelectorService
 {
     private readonly IPromptRepository _repository;
+    private readonly IMLPredictionService _mlPrediction;
     private readonly ILogger<PromptSelectorService> _logger;
 
     public PromptSelectorService(
         IPromptRepository repository,
+        IMLPredictionService mlPrediction,
         ILogger<PromptSelectorService> logger)
     {
         _repository = repository;
+        _mlPrediction = mlPrediction;
         _logger = logger;
     }
 
@@ -106,6 +109,41 @@ public class PromptSelectorService : IPromptSelectorService
                     Error.NotFound(
                         "Prompt.NotFound",
                         $"No prompt template found for section '{context.SectionType}' and plan type '{context.PlanType}'"));
+            }
+
+            // ML bandit: check if a different prompt is recommended based on performance data
+            if (context.PreferHighPerformance)
+            {
+                try
+                {
+                    var recommendation = await _mlPrediction.RecommendPromptAsync(
+                        new PromptRecommendationRequest(
+                            SectionType: context.SectionType.ToString(),
+                            Industry: context.IndustryCategory,
+                            PlanType: context.PlanType.ToString(),
+                            Language: context.Language ?? "fr"),
+                        cancellationToken);
+
+                    if (recommendation.RecommendedPromptTemplateId.HasValue
+                        && recommendation.Strategy == "bandit"
+                        && recommendation.RecommendedPromptTemplateId.Value != prompt.Id)
+                    {
+                        var banditPrompt = await _repository.GetByIdAsync(
+                            recommendation.RecommendedPromptTemplateId.Value, cancellationToken);
+
+                        if (banditPrompt != null)
+                        {
+                            _logger.LogInformation(
+                                "ML bandit overriding prompt {OriginalId} with {BanditId} (expected quality: {Quality:F2})",
+                                prompt.Id, banditPrompt.Id, recommendation.ExpectedQuality);
+                            prompt = banditPrompt;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "ML prompt recommendation unavailable, using standard selection");
+                }
             }
 
             _logger.LogInformation(

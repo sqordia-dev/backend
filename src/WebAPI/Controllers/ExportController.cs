@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Services;
 using Sqordia.Contracts.Requests.Export;
+using Sqordia.Domain.Constants;
 
 namespace WebAPI.Controllers;
 
@@ -13,17 +16,26 @@ public class ExportController : BaseApiController
     private readonly IDocumentExportService _exportService;
     private readonly ISlideDeckService _slideDeckService;
     private readonly IThemedPdfService _themedPdfService;
+    private readonly IDocumentAgentService _documentAgent;
+    private readonly IFeatureGateService _featureGate;
+    private readonly IApplicationDbContext _context;
     private readonly ILogger<ExportController> _logger;
 
     public ExportController(
         IDocumentExportService exportService,
         ISlideDeckService slideDeckService,
         IThemedPdfService themedPdfService,
+        IDocumentAgentService documentAgent,
+        IFeatureGateService featureGate,
+        IApplicationDbContext context,
         ILogger<ExportController> logger)
     {
         _exportService = exportService;
         _slideDeckService = slideDeckService;
         _themedPdfService = themedPdfService;
+        _documentAgent = documentAgent;
+        _featureGate = featureGate;
+        _context = context;
         _logger = logger;
     }
 
@@ -65,11 +77,11 @@ public class ExportController : BaseApiController
         _logger.LogInformation("PDF export request for business plan {BusinessPlanId} in {Language}",
             businessPlanId, language);
 
-        // Validate language parameter
         if (language != "fr" && language != "en")
-        {
             return BadRequest(new { error = "Language must be either 'fr' or 'en'" });
-        }
+
+        var (denied, orgId) = await CheckExportFeatureAsync(businessPlanId, PlanFeatures.ExportPdf, cancellationToken);
+        if (denied != null) return denied;
 
         var result = await _exportService.ExportToPdfAsync(businessPlanId, language, cancellationToken);
 
@@ -77,6 +89,7 @@ public class ExportController : BaseApiController
             return HandleResult(result);
 
         var exportResult = result.Value!;
+        await RecordExportUsageAsync(orgId, cancellationToken, exportResult.FileData.LongLength);
 
         return File(
             exportResult.FileData,
@@ -109,9 +122,10 @@ public class ExportController : BaseApiController
             businessPlanId, language, themeId ?? "classic");
 
         if (language != "fr" && language != "en")
-        {
             return BadRequest(new { error = "Language must be either 'fr' or 'en'" });
-        }
+
+        var (denied, orgId) = await CheckExportFeatureAsync(businessPlanId, PlanFeatures.ExportPdf, cancellationToken);
+        if (denied != null) return denied;
 
         var result = await _themedPdfService.GenerateThemedPdfAsync(
             businessPlanId, themeId, language, cancellationToken);
@@ -120,6 +134,7 @@ public class ExportController : BaseApiController
             return HandleResult(result);
 
         var exportResult = result.Value!;
+        await RecordExportUsageAsync(orgId, cancellationToken, exportResult.FileData.LongLength);
         return File(exportResult.FileData, exportResult.ContentType, exportResult.FileName);
     }
 
@@ -161,11 +176,11 @@ public class ExportController : BaseApiController
         _logger.LogInformation("Word export request for business plan {BusinessPlanId} in {Language}",
             businessPlanId, language);
 
-        // Validate language parameter
         if (language != "fr" && language != "en")
-        {
             return BadRequest(new { error = "Language must be either 'fr' or 'en'" });
-        }
+
+        var (denied, orgId) = await CheckExportFeatureAsync(businessPlanId, PlanFeatures.ExportWord, cancellationToken);
+        if (denied != null) return denied;
 
         var result = await _exportService.ExportToWordAsync(businessPlanId, language, cancellationToken);
 
@@ -173,6 +188,7 @@ public class ExportController : BaseApiController
             return HandleResult(result);
 
         var exportResult = result.Value!;
+        await RecordExportUsageAsync(orgId, cancellationToken, exportResult.FileData.LongLength);
 
         return File(
             exportResult.FileData,
@@ -301,9 +317,10 @@ public class ExportController : BaseApiController
             businessPlanId, language);
 
         if (language != "fr" && language != "en")
-        {
             return BadRequest(new { error = "Language must be either 'fr' or 'en'" });
-        }
+
+        var (denied, orgId) = await CheckExportFeatureAsync(businessPlanId, PlanFeatures.ExportExcel, cancellationToken);
+        if (denied != null) return denied;
 
         var result = await _exportService.ExportToExcelAsync(businessPlanId, language, cancellationToken);
 
@@ -311,6 +328,7 @@ public class ExportController : BaseApiController
             return HandleResult(result);
 
         var exportResult = result.Value!;
+        await RecordExportUsageAsync(orgId, cancellationToken, exportResult.FileData.LongLength);
         return File(exportResult.FileData, exportResult.ContentType, exportResult.FileName);
     }
 
@@ -334,9 +352,10 @@ public class ExportController : BaseApiController
             businessPlanId, language, themeId ?? "default");
 
         if (language != "fr" && language != "en")
-        {
             return BadRequest(new { error = "Language must be either 'fr' or 'en'" });
-        }
+
+        var (denied, orgId) = await CheckExportFeatureAsync(businessPlanId, PlanFeatures.ExportPowerpoint, cancellationToken);
+        if (denied != null) return denied;
 
         // Use SlideDeckService for full AI-powered slide deck, fall back to basic export on failure
         var slideDeckResult = await _slideDeckService.GenerateSlideDeckAsync(
@@ -643,4 +662,158 @@ public class ExportController : BaseApiController
 
         return Ok(result.Value);
     }
+
+    // ── Document Agent Blueprint Endpoints ────────────────────
+
+    /// <summary>
+    /// Generate a structured Word document blueprint using the Claude document agent.
+    /// Returns a JSON blueprint (headings, paragraphs, tables, SWOT grids, callouts)
+    /// that can be rendered into a professional .docx by the frontend or backend renderer.
+    /// </summary>
+    [HttpPost("agent/word-blueprint")]
+    [ProducesResponseType(typeof(WordDocumentBlueprint), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GenerateWordBlueprint(
+        Guid businessPlanId,
+        [FromBody] DocumentAgentExportRequest request,
+        CancellationToken ct = default)
+    {
+        var agentRequest = await BuildAgentRequestAsync(businessPlanId, request.Language, ct);
+        if (agentRequest == null)
+            return NotFound(new { error = "Business plan not found or has no content" });
+
+        var result = await _documentAgent.GenerateWordBlueprintAsync(agentRequest, ct);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Generate a structured PDF document blueprint using the Claude document agent.
+    /// Returns a JSON blueprint with cover page, header/footer, sections, tables,
+    /// SWOT grids, metrics panels, chart placeholders — ready for the Puppeteer/PDF renderer.
+    /// </summary>
+    [HttpPost("agent/pdf-blueprint")]
+    [ProducesResponseType(typeof(PdfDocumentBlueprint), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GeneratePdfBlueprint(
+        Guid businessPlanId,
+        [FromBody] DocumentAgentExportRequest request,
+        CancellationToken ct = default)
+    {
+        var agentRequest = await BuildAgentRequestAsync(businessPlanId, request.Language, ct);
+        if (agentRequest == null)
+            return NotFound(new { error = "Business plan not found or has no content" });
+
+        var result = await _documentAgent.GeneratePdfBlueprintAsync(agentRequest, ct);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Generate a structured presentation blueprint using the Claude document agent.
+    /// Returns a JSON blueprint (title, content, two-column, SWOT, table, metrics slides)
+    /// with speaker notes, ready for the PPTX renderer.
+    /// </summary>
+    [HttpPost("agent/presentation-blueprint")]
+    [ProducesResponseType(typeof(PresentationBlueprint), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GeneratePresentationBlueprint(
+        Guid businessPlanId,
+        [FromBody] DocumentAgentExportRequest request,
+        CancellationToken ct = default)
+    {
+        var agentRequest = await BuildAgentRequestAsync(businessPlanId, request.Language, ct);
+        if (agentRequest == null)
+            return NotFound(new { error = "Business plan not found or has no content" });
+
+        var result = await _documentAgent.GeneratePresentationBlueprintAsync(agentRequest, ct);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Generate a structured spreadsheet blueprint using the Claude document agent.
+    /// Returns a JSON blueprint (sheets with headers, rows, summary rows, chart hints)
+    /// for the Excel renderer.
+    /// </summary>
+    [HttpPost("agent/spreadsheet-blueprint")]
+    [ProducesResponseType(typeof(SpreadsheetBlueprint), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GenerateSpreadsheetBlueprint(
+        Guid businessPlanId,
+        [FromBody] DocumentAgentExportRequest request,
+        CancellationToken ct = default)
+    {
+        var agentRequest = await BuildAgentRequestAsync(businessPlanId, request.Language, ct);
+        if (agentRequest == null)
+            return NotFound(new { error = "Business plan not found or has no content" });
+
+        var result = await _documentAgent.GenerateSpreadsheetBlueprintAsync(agentRequest, ct);
+        return HandleResult(result);
+    }
+
+    private async Task<DocumentAgentRequest?> BuildAgentRequestAsync(
+        Guid businessPlanId, string language, CancellationToken ct)
+    {
+        var bp = await _exportService.GetExportPreviewAsync(businessPlanId, ct);
+        if (!bp.IsSuccess) return null;
+
+        // Use the HTML export to get all section content
+        var htmlResult = await _exportService.ExportToHtmlAsync(businessPlanId, language, ct);
+        if (!htmlResult.IsSuccess) return null;
+
+        // Build sections dict from the business plan via a lightweight query
+        // For now, return a request with the HTML content as a single section
+        // The agent will parse and structure it
+        return new DocumentAgentRequest
+        {
+            Sections = new Dictionary<string, string>
+            {
+                ["FullPlan"] = htmlResult.Value ?? ""
+            },
+            CompanyName = bp.Value?.ToString() ?? "",
+            PlanTitle = $"Business Plan",
+            Language = language
+        };
+    }
+
+    /// <summary>
+    /// Checks whether the organization that owns the business plan has the given export feature enabled.
+    /// Returns null if allowed, or a 403 Forbidden result if denied.
+    /// Also records export usage on success.
+    /// </summary>
+    private async Task<(IActionResult? Denied, Guid OrgId)> CheckExportFeatureAsync(
+        Guid businessPlanId, string featureKey, CancellationToken ct)
+    {
+        var orgId = await _context.BusinessPlans
+            .Where(bp => bp.Id == businessPlanId && !bp.IsDeleted)
+            .Select(bp => (Guid?)bp.OrganizationId)
+            .FirstOrDefaultAsync(ct);
+
+        if (orgId == null)
+            return (NotFound(new { error = "Business plan not found" }), Guid.Empty);
+
+        var allowed = await _featureGate.IsFeatureEnabledAsync(orgId.Value, featureKey, ct);
+        if (!allowed)
+        {
+            return (StatusCode(403, new
+            {
+                error = $"Your plan does not include this export format. Upgrade to unlock it.",
+                featureKey
+            }), orgId.Value);
+        }
+
+        return (null, orgId.Value);
+    }
+
+    private async Task RecordExportUsageAsync(Guid orgId, CancellationToken ct, long fileSizeBytes = 0)
+    {
+        await _featureGate.RecordUsageAsync(orgId, PlanFeatures.ExportPdf, 1, ct);
+        if (fileSizeBytes > 0)
+        {
+            await _featureGate.RecordUsageAsync(orgId, PlanFeatures.MaxStorageMb, (int)fileSizeBytes, ct);
+        }
+    }
+}
+
+public class DocumentAgentExportRequest
+{
+    public string Language { get; set; } = "fr";
 }

@@ -26,7 +26,8 @@ public class TwoFactorAuthConfiguration : IEntityTypeConfiguration<TwoFactorAuth
             .HasMaxLength(2000);
 
         builder.Property(t => t.FailedAttempts)
-            .IsRequired();
+            .IsRequired()
+            .IsConcurrencyToken();
 
         // Relationship with User
         builder.HasOne(t => t.User)

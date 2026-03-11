@@ -628,8 +628,8 @@ public class QuestionnaireVersionService : IQuestionnaireVersionService
 
     private async Task<(string questionsSnapshot, string stepsSnapshot)> GetLiveDataSnapshotsAsync(CancellationToken ct)
     {
-        // Get all active questions from QuestionTemplatesV3 (STRUCTURE FINALE)
-        var questions = await _context.QuestionTemplatesV3
+        // Get all active questions from QuestionTemplates (STRUCTURE FINALE)
+        var questions = await _context.QuestionTemplates
             .Where(q => q.IsActive)
             .OrderBy(q => q.StepNumber)
             .ThenBy(q => q.DisplayOrder)
@@ -737,8 +737,8 @@ public class QuestionnaireVersionService : IQuestionnaireVersionService
             }
         }
 
-        // Sync questions to QuestionTemplatesV3 table (STRUCTURE FINALE)
-        var existingQuestions = await _context.QuestionTemplatesV3.ToListAsync(ct);
+        // Sync questions to QuestionTemplates table (STRUCTURE FINALE)
+        var existingQuestions = await _context.QuestionTemplates.ToListAsync(ct);
         var snapshotQuestionIds = questions.Select(q => q.Id).ToHashSet();
         var maxQuestionNumber = existingQuestions.Any() ? existingQuestions.Max(q => q.QuestionNumber) : 0;
 
@@ -791,7 +791,7 @@ public class QuestionnaireVersionService : IQuestionnaireVersionService
                     : Enum.Parse<PersonaType>(questionDto.PersonaType);
 
                 maxQuestionNumber++;
-                var newQuestion = QuestionTemplateV3.Create(
+                var newQuestion = QuestionTemplate.Create(
                     maxQuestionNumber,
                     personaType,
                     questionDto.StepNumber,
@@ -817,7 +817,7 @@ public class QuestionnaireVersionService : IQuestionnaireVersionService
                 if (!questionDto.IsActive)
                     newQuestion.Deactivate();
 
-                _context.QuestionTemplatesV3.Add(newQuestion);
+                _context.QuestionTemplates.Add(newQuestion);
             }
         }
 

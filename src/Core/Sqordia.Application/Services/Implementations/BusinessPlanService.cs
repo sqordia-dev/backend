@@ -648,7 +648,6 @@ public class BusinessPlanService : IBusinessPlanService
             var originalPlan = await _context.BusinessPlans
                 .Include(bp => bp.Organization)
                 .Include(bp => bp.QuestionnaireResponses)
-                    .ThenInclude(qr => qr.QuestionTemplate)
                 .Include(bp => bp.FinancialProjectionDetails)
                 .FirstOrDefaultAsync(bp => bp.Id == id && !bp.IsDeleted, cancellationToken);
 
@@ -694,17 +693,8 @@ public class BusinessPlanService : IBusinessPlanService
             {
                 Domain.Entities.BusinessPlan.QuestionnaireResponse newResponse;
 
-                if (originalResponse.QuestionTemplateV2Id.HasValue)
+                if (originalResponse.QuestionTemplateId.HasValue)
                 {
-                    // V2 question
-                    newResponse = Domain.Entities.BusinessPlan.QuestionnaireResponse.CreateForV2(
-                        duplicatedPlan.Id,
-                        originalResponse.QuestionTemplateV2Id.Value,
-                        originalResponse.ResponseText);
-                }
-                else if (originalResponse.QuestionTemplateId.HasValue)
-                {
-                    // V1 question
                     newResponse = new Domain.Entities.BusinessPlan.QuestionnaireResponse(
                         duplicatedPlan.Id,
                         originalResponse.QuestionTemplateId.Value,

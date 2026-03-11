@@ -15,10 +15,8 @@ public class UpdateProfileRequest
     [StringLength(50, MinimumLength = 3)]
     public string? UserName { get; set; }
 
-    [Phone]
     public string? PhoneNumber { get; set; }
 
-    [Url]
     public string? ProfilePictureUrl { get; set; }
 }
 

@@ -442,14 +442,13 @@ public class BusinessPlanGenerationServiceTests : IDisposable
         for (int i = 1; i <= count; i++)
         {
             var template = new QuestionTemplate(
-                Guid.NewGuid(), // questionnaireTemplateId
-                $"Question {i}", // questionText
-                QuestionType.ShortText, // questionType
-                i, // order
-                true, // isRequired
-                "Test Section", // section
-                "Help text", // helpText
-                null); // options
+                questionNumber: i,
+                stepNumber: 1,
+                questionTextFR: $"Question {i}",
+                questionTextEN: $"Question {i} EN",
+                questionType: QuestionType.ShortText,
+                displayOrder: i,
+                isRequired: true);
 
             // Set the template's Id using reflection
             var templateIdProperty = template.GetType().BaseType?.GetProperty("Id");

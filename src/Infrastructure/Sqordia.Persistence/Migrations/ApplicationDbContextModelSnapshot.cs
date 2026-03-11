@@ -1433,7 +1433,7 @@ namespace Sqordia.Persistence.Migrations
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("primary");
 
-                    b.Property<Guid>("QuestionTemplateV3Id")
+                    b.Property<Guid>("QuestionTemplateId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("SubSectionId")
@@ -1451,10 +1451,10 @@ namespace Sqordia.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("QuestionTemplateV3Id", "IsActive")
+                    b.HasIndex("QuestionTemplateId", "IsActive")
                         .HasDatabaseName("IX_QuestionSectionMappings_Question_Active");
 
-                    b.HasIndex("QuestionTemplateV3Id", "SubSectionId")
+                    b.HasIndex("QuestionTemplateId", "SubSectionId")
                         .IsUnique()
                         .HasDatabaseName("IX_QuestionSectionMappings_Unique");
 
@@ -1471,166 +1471,6 @@ namespace Sqordia.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ConditionalLogic")
-                        .HasColumnType("text");
-
-                    b.Property<string>("HelpText")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("HelpTextEN")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsRequired")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Options")
-                        .HasColumnType("text");
-
-                    b.Property<string>("OptionsEN")
-                        .HasColumnType("text");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("QuestionText")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("QuestionTextEN")
-                        .HasColumnType("text");
-
-                    b.Property<string>("QuestionType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<Guid>("QuestionnaireTemplateId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Section")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("ValidationRules")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("QuestionnaireTemplateId");
-
-                    b.HasIndex("QuestionnaireTemplateId", "Order");
-
-                    b.ToTable("QuestionTemplates", (string)null);
-                });
-
-            modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplateV2", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ConditionalLogic")
-                        .HasColumnType("jsonb");
-
-                    b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("HelpText")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("HelpTextEN")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("Icon")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsRequired")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastModified")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Options")
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("OptionsEN")
-                        .HasColumnType("jsonb");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("PersonaType")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("QuestionText")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("QuestionTextEN")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("QuestionType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("Section")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<int>("StepNumber")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ValidationRules")
-                        .HasColumnType("jsonb");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsActive");
-
-                    b.HasIndex("PersonaType");
-
-                    b.HasIndex("StepNumber");
-
-                    b.HasIndex("StepNumber", "Order");
-
-                    b.HasIndex("PersonaType", "StepNumber", "Order");
-
-                    b.ToTable("QuestionTemplatesV2", (string)null);
-                });
-
-            modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplateV3", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1744,22 +1584,22 @@ namespace Sqordia.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ProfileFieldKey")
-                        .HasDatabaseName("IX_QuestionTemplatesV3_ProfileFieldKey")
+                        .HasDatabaseName("IX_QuestionTemplates_ProfileFieldKey")
                         .HasFilter("\"ProfileFieldKey\" IS NOT NULL");
 
                     b.HasIndex("QuestionNumber")
-                        .HasDatabaseName("IX_QuestionTemplatesV3_QuestionNumber");
+                        .HasDatabaseName("IX_QuestionTemplates_QuestionNumber");
 
                     b.HasIndex("IsActive", "DisplayOrder")
-                        .HasDatabaseName("IX_QuestionTemplatesV3_Active_Order");
+                        .HasDatabaseName("IX_QuestionTemplates_Active_Order");
 
                     b.HasIndex("StepNumber", "DisplayOrder")
-                        .HasDatabaseName("IX_QuestionTemplatesV3_Step_Order");
+                        .HasDatabaseName("IX_QuestionTemplates_Step_Order");
 
                     b.HasIndex("PersonaType", "StepNumber", "IsActive")
-                        .HasDatabaseName("IX_QuestionTemplatesV3_Persona_Step_Active");
+                        .HasDatabaseName("IX_QuestionTemplates_Persona_Step_Active");
 
-                    b.ToTable("QuestionTemplatesV3", (string)null);
+                    b.ToTable("QuestionTemplates", (string)null);
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionnaireResponse", b =>
@@ -1808,12 +1648,6 @@ namespace Sqordia.Persistence.Migrations
                     b.Property<Guid?>("QuestionTemplateId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("QuestionTemplateV2Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("QuestionTemplateV3Id")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("ResponseText")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1827,21 +1661,9 @@ namespace Sqordia.Persistence.Migrations
 
                     b.HasIndex("QuestionTemplateId");
 
-                    b.HasIndex("QuestionTemplateV2Id");
-
-                    b.HasIndex("QuestionTemplateV3Id");
-
                     b.HasIndex("BusinessPlanId", "QuestionTemplateId")
                         .IsUnique()
                         .HasFilter("\"QuestionTemplateId\" IS NOT NULL");
-
-                    b.HasIndex("BusinessPlanId", "QuestionTemplateV2Id")
-                        .IsUnique()
-                        .HasFilter("\"QuestionTemplateV2Id\" IS NOT NULL");
-
-                    b.HasIndex("BusinessPlanId", "QuestionTemplateV3Id")
-                        .IsUnique()
-                        .HasFilter("\"QuestionTemplateV3Id\" IS NOT NULL");
 
                     b.ToTable("QuestionnaireResponses", (string)null);
                 });
@@ -1908,68 +1730,6 @@ namespace Sqordia.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("QuestionnaireSteps", (string)null);
-                });
-
-            modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionnaireTemplate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastModified")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("PlanType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<int>("Version")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(1);
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsActive");
-
-                    b.HasIndex("PlanType");
-
-                    b.HasIndex("PlanType", "IsActive", "Version");
-
-                    b.ToTable("QuestionnaireTemplates", (string)null);
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionnaireVersion", b =>
@@ -7270,9 +7030,9 @@ namespace Sqordia.Persistence.Migrations
 
             modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionSectionMapping", b =>
                 {
-                    b.HasOne("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplateV3", "QuestionTemplate")
+                    b.HasOne("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplate", "QuestionTemplate")
                         .WithMany("SectionMappings")
-                        .HasForeignKey("QuestionTemplateV3Id")
+                        .HasForeignKey("QuestionTemplateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -7287,17 +7047,6 @@ namespace Sqordia.Persistence.Migrations
                     b.Navigation("SubSection");
                 });
 
-            modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplate", b =>
-                {
-                    b.HasOne("Sqordia.Domain.Entities.BusinessPlan.QuestionnaireTemplate", "QuestionnaireTemplate")
-                        .WithMany("Questions")
-                        .HasForeignKey("QuestionnaireTemplateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("QuestionnaireTemplate");
-                });
-
             modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionnaireResponse", b =>
                 {
                     b.HasOne("Sqordia.Domain.Entities.BusinessPlan.BusinessPlan", "BusinessPlan")
@@ -7307,27 +7056,13 @@ namespace Sqordia.Persistence.Migrations
                         .IsRequired();
 
                     b.HasOne("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplate", "QuestionTemplate")
-                        .WithMany("Responses")
+                        .WithMany()
                         .HasForeignKey("QuestionTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplateV2", "QuestionTemplateV2")
-                        .WithMany()
-                        .HasForeignKey("QuestionTemplateV2Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplateV3", "QuestionTemplateV3")
-                        .WithMany()
-                        .HasForeignKey("QuestionTemplateV3Id")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("BusinessPlan");
 
                     b.Navigation("QuestionTemplate");
-
-                    b.Navigation("QuestionTemplateV2");
-
-                    b.Navigation("QuestionTemplateV3");
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.SectionPrompt", b =>
@@ -8073,17 +7808,7 @@ namespace Sqordia.Persistence.Migrations
 
             modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplate", b =>
                 {
-                    b.Navigation("Responses");
-                });
-
-            modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionTemplateV3", b =>
-                {
                     b.Navigation("SectionMappings");
-                });
-
-            modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.QuestionnaireTemplate", b =>
-                {
-                    b.Navigation("Questions");
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.BusinessPlan.SubSection", b =>

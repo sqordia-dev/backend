@@ -19,6 +19,7 @@ public class PrevisioController : BaseApiController
     private readonly IFinancingModuleService _financingService;
     private readonly IProjectCostService _projectCostService;
     private readonly IFinancialStatementsService _statementsService;
+    private readonly IFinancialForecastingService _forecastingService;
 
     public PrevisioController(
         IFinancialPlanService financialPlanService,
@@ -29,7 +30,8 @@ public class PrevisioController : BaseApiController
         ICapexModuleService capexService,
         IFinancingModuleService financingService,
         IProjectCostService projectCostService,
-        IFinancialStatementsService statementsService)
+        IFinancialStatementsService statementsService,
+        IFinancialForecastingService forecastingService)
     {
         _financialPlanService = financialPlanService;
         _salesService = salesService;
@@ -40,6 +42,7 @@ public class PrevisioController : BaseApiController
         _financingService = financingService;
         _projectCostService = projectCostService;
         _statementsService = statementsService;
+        _forecastingService = forecastingService;
     }
 
     // === Financial Plan ===
@@ -237,4 +240,18 @@ public class PrevisioController : BaseApiController
     [HttpGet("statements/ratios")]
     public async Task<IActionResult> GetRatios(Guid businessPlanId, CancellationToken ct)
         => HandleResult(await _statementsService.GetRatiosAsync(businessPlanId, ct));
+
+    // === AI Forecasting ===
+
+    [HttpPost("forecast")]
+    public async Task<IActionResult> GenerateForecast(Guid businessPlanId, [FromQuery] string language = "fr", CancellationToken ct = default)
+        => HandleResult(await _forecastingService.GenerateForecastAsync(businessPlanId, language, ct));
+
+    [HttpPost("forecast/sales-volume/{productId}")]
+    public async Task<IActionResult> ForecastSalesVolume(Guid businessPlanId, Guid productId, [FromQuery] string language = "fr", CancellationToken ct = default)
+        => HandleResult(await _forecastingService.ForecastSalesVolumeAsync(businessPlanId, productId, language, ct));
+
+    [HttpPost("forecast/analyze")]
+    public async Task<IActionResult> AnalyzeFinancials(Guid businessPlanId, [FromQuery] string language = "fr", CancellationToken ct = default)
+        => HandleResult(await _forecastingService.AnalyzeFinancialsAsync(businessPlanId, language, ct));
 }

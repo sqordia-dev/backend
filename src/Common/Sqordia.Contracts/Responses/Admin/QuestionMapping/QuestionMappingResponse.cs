@@ -6,7 +6,7 @@ namespace Sqordia.Contracts.Responses.Admin.QuestionMapping;
 public record QuestionMappingResponse
 {
     public Guid Id { get; init; }
-    public Guid QuestionTemplateV3Id { get; init; }
+    public Guid QuestionTemplateId { get; init; }
     public Guid SubSectionId { get; init; }
     public string? MappingContext { get; init; }
     public decimal? Weight { get; init; }

@@ -45,15 +45,12 @@ public interface IApplicationDbContext
     
     // Business Plan Management
     DbSet<Domain.Entities.BusinessPlan.BusinessPlan> BusinessPlans { get; }
-    DbSet<QuestionnaireTemplate> QuestionnaireTemplates { get; }
-    DbSet<QuestionTemplate> QuestionTemplates { get; }
     DbSet<QuestionnaireResponse> QuestionnaireResponses { get; }
     DbSet<Domain.Entities.BusinessPlan.FinancialProjection> BusinessPlanFinancialProjections { get; }
     DbSet<BusinessPlanShare> BusinessPlanShares { get; }
     DbSet<BusinessPlanVersion> BusinessPlanVersions { get; }
     DbSet<SmartObjective> SmartObjectives { get; }
     DbSet<PlanSectionComment> PlanSectionComments { get; }
-    DbSet<QuestionTemplateV2> QuestionTemplatesV2 { get; }
     DbSet<QuestionnaireVersion> QuestionnaireVersions { get; }
     DbSet<QuestionnaireStep> QuestionnaireSteps { get; }
     DbSet<CoverPageSettings> CoverPageSettings { get; }
@@ -99,7 +96,7 @@ public interface IApplicationDbContext
     DbSet<MainSection> MainSections { get; }
     DbSet<SubSection> SubSections { get; }
     DbSet<SectionPrompt> SectionPrompts { get; }
-    DbSet<QuestionTemplateV3> QuestionTemplatesV3 { get; }
+    DbSet<QuestionTemplate> QuestionTemplates { get; }
     DbSet<QuestionSectionMapping> QuestionSectionMappings { get; }
     
     // Audit logging

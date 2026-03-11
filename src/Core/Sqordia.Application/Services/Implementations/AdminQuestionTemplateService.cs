@@ -32,7 +32,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         CancellationToken cancellationToken = default)
     {
         // Use V3 questions (STRUCTURE FINALE with expert advice)
-        var query = _context.QuestionTemplatesV3.AsQueryable();
+        var query = _context.QuestionTemplates.AsQueryable();
 
         if (stepNumber.HasValue)
             query = query.Where(q => q.StepNumber == stepNumber.Value);
@@ -58,7 +58,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         Guid questionId,
         CancellationToken cancellationToken = default)
     {
-        var question = await _context.QuestionTemplatesV3
+        var question = await _context.QuestionTemplates
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         return question == null ? null : MapToDto(question);
@@ -80,10 +80,10 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         }
 
         // Calculate next question number
-        var maxQuestionNumber = await _context.QuestionTemplatesV3
+        var maxQuestionNumber = await _context.QuestionTemplates
             .MaxAsync(q => (int?)q.QuestionNumber, cancellationToken) ?? 0;
 
-        var entity = QuestionTemplateV3.Create(
+        var entity = QuestionTemplate.Create(
             questionNumber: maxQuestionNumber + 1,
             personaType: persona,
             stepNumber: request.StepNumber,
@@ -104,7 +104,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
             isRequired: request.IsRequired,
             icon: request.Icon);
 
-        _context.QuestionTemplatesV3.Add(entity);
+        _context.QuestionTemplates.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Created question template {QuestionId} for step {StepNumber}", entity.Id, entity.StepNumber);
@@ -116,7 +116,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         UpdateQuestionTemplateRequest request,
         CancellationToken cancellationToken = default)
     {
-        var entity = await _context.QuestionTemplatesV3
+        var entity = await _context.QuestionTemplates
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (entity == null) return false;
@@ -197,7 +197,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         Guid questionId,
         CancellationToken cancellationToken = default)
     {
-        var entity = await _context.QuestionTemplatesV3
+        var entity = await _context.QuestionTemplates
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (entity == null) return false;
@@ -214,7 +214,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         CancellationToken cancellationToken = default)
     {
         var ids = request.Items.Select(i => i.QuestionId).ToList();
-        var entities = await _context.QuestionTemplatesV3
+        var entities = await _context.QuestionTemplates
             .Where(q => ids.Contains(q.Id))
             .ToListAsync(cancellationToken);
 
@@ -234,7 +234,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         bool isActive,
         CancellationToken cancellationToken = default)
     {
-        var entity = await _context.QuestionTemplatesV3
+        var entity = await _context.QuestionTemplates
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (entity == null) return false;
@@ -252,7 +252,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         TestCoachPromptRequest request,
         CancellationToken cancellationToken = default)
     {
-        var entity = await _context.QuestionTemplatesV3
+        var entity = await _context.QuestionTemplates
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (entity == null)
@@ -411,7 +411,7 @@ public class AdminQuestionTemplateService : IAdminQuestionTemplateService
         };
     }
 
-    private static QuestionTemplateDto MapToDto(QuestionTemplateV3 entity)
+    private static QuestionTemplateDto MapToDto(QuestionTemplate entity)
     {
         return new QuestionTemplateDto
         {

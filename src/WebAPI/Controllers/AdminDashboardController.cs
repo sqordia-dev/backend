@@ -393,6 +393,23 @@ public class AdminDashboardController : BaseApiController
     }
 
     /// <summary>
+    /// Admin-level delete of a business plan (soft-delete, bypasses ownership)
+    /// </summary>
+    [HttpDelete("business-plans/{businessPlanId}")]
+    public async Task<IActionResult> AdminDeleteBusinessPlan(
+        Guid businessPlanId,
+        CancellationToken cancellationToken = default)
+    {
+        if (businessPlanId == Guid.Empty)
+        {
+            return BadRequest(new { message = "Invalid business plan ID." });
+        }
+
+        var result = await _adminDashboardService.AdminDeleteBusinessPlanAsync(businessPlanId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
     /// Get detailed user information
     /// </summary>
     [HttpGet("users/{userId}")]

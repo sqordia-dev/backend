@@ -38,6 +38,7 @@ public static class ConfigureServices
             // Business Plan services
             services.AddScoped<IBusinessPlanService, BusinessPlanService>();
             services.AddScoped<IQuestionnaireService, QuestionnaireService>();
+            services.AddScoped<IQuestionnaireContextService, QuestionnaireContextService>();
             services.AddScoped<IBusinessBriefService, BusinessBriefService>();
             services.AddScoped<IGenerationPipelineService, GenerationPipelineService>();
             services.AddScoped<IBusinessPlanGenerationService, BusinessPlanGenerationService>();
@@ -89,6 +90,7 @@ public static class ConfigureServices
             services.AddScoped<IOnboardingService, OnboardingService>();
 
             // Adaptive Interview service
+            services.AddScoped<IConditionalLogicEvaluator, ConditionalLogicEvaluator>();
             services.AddScoped<IAdaptiveInterviewService, AdaptiveInterviewService>();
 
             // CMS services
@@ -106,6 +108,7 @@ public static class ConfigureServices
             services.AddScoped<INotificationService, NotificationService>();
 
             // Previsio Financial Projections services
+            services.AddScoped<IFinancialForecastingService, FinancialForecastingService>();
             services.AddScoped<IFinancialPlanService, FinancialPlanServiceImpl>();
             services.AddScoped<ISalesModuleService, SalesModuleServiceImpl>();
             services.AddScoped<ICOGSModuleService, COGSModuleServiceImpl>();

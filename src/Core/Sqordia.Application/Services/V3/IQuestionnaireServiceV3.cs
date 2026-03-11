@@ -11,26 +11,26 @@ namespace Sqordia.Application.Services.V3;
 public interface IQuestionnaireServiceV3
 {
     // Query
-    Task<Result<List<QuestionTemplateV3ListResponse>>> GetQuestionsAsync(
-        QuestionTemplateV3FilterRequest? filter = null,
+    Task<Result<List<QuestionTemplateListResponse>>> GetQuestionsAsync(
+        QuestionTemplateFilterRequest? filter = null,
         CancellationToken cancellationToken = default);
 
-    Task<Result<QuestionTemplateV3Response>> GetQuestionByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Result<QuestionTemplateResponse>> GetQuestionByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
-    Task<Result<QuestionTemplateV3Response>> GetQuestionByNumberAsync(int questionNumber, CancellationToken cancellationToken = default);
+    Task<Result<QuestionTemplateResponse>> GetQuestionByNumberAsync(int questionNumber, CancellationToken cancellationToken = default);
 
-    Task<Result<List<QuestionTemplateV3ListResponse>>> GetQuestionsByStepAsync(
+    Task<Result<List<QuestionTemplateListResponse>>> GetQuestionsByStepAsync(
         int stepNumber,
         PersonaType? personaType = null,
         CancellationToken cancellationToken = default);
 
-    Task<Result<List<QuestionTemplateV3ListResponse>>> GetQuestionsByPersonaAsync(
+    Task<Result<List<QuestionTemplateListResponse>>> GetQuestionsByPersonaAsync(
         PersonaType personaType,
         CancellationToken cancellationToken = default);
 
     // Commands
-    Task<Result<Guid>> CreateQuestionAsync(CreateQuestionTemplateV3Request request, CancellationToken cancellationToken = default);
-    Task<Result> UpdateQuestionAsync(Guid id, UpdateQuestionTemplateV3Request request, CancellationToken cancellationToken = default);
+    Task<Result<Guid>> CreateQuestionAsync(CreateQuestionTemplateRequest request, CancellationToken cancellationToken = default);
+    Task<Result> UpdateQuestionAsync(Guid id, UpdateQuestionTemplateRequest request, CancellationToken cancellationToken = default);
     Task<Result> DeleteQuestionAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Result> ActivateQuestionAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Result> DeactivateQuestionAsync(Guid id, CancellationToken cancellationToken = default);

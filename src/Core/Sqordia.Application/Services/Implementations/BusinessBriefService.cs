@@ -16,6 +16,8 @@ public class BusinessBriefService : IBusinessBriefService
 {
     private readonly IApplicationDbContext _context;
     private readonly IAIService _aiService;
+    private readonly IAITelemetryService _telemetry;
+    private readonly IQuestionnaireContextService _questionnaireContext;
     private readonly ILogger<BusinessBriefService> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -27,10 +29,14 @@ public class BusinessBriefService : IBusinessBriefService
     public BusinessBriefService(
         IApplicationDbContext context,
         IAIService aiService,
+        IAITelemetryService telemetry,
+        IQuestionnaireContextService questionnaireContext,
         ILogger<BusinessBriefService> logger)
     {
         _context = context;
         _aiService = aiService;
+        _telemetry = telemetry;
+        _questionnaireContext = questionnaireContext;
         _logger = logger;
     }
 
@@ -47,8 +53,6 @@ public class BusinessBriefService : IBusinessBriefService
                 .Include(bp => bp.Organization)
                 .Include(bp => bp.QuestionnaireResponses)
                     .ThenInclude(qr => qr.QuestionTemplate)
-                .Include(bp => bp.QuestionnaireResponses)
-                    .ThenInclude(qr => qr.QuestionTemplateV2)
                 .FirstOrDefaultAsync(bp => bp.Id == businessPlanId && !bp.IsDeleted, cancellationToken);
 
             if (businessPlan == null)
@@ -58,7 +62,7 @@ public class BusinessBriefService : IBusinessBriefService
             }
 
             // Build complete context from ALL questionnaire answers
-            var answersByQuestionNumber = BuildAnswersDictionary(businessPlan.QuestionnaireResponses);
+            var answersByQuestionNumber = _questionnaireContext.BuildAnswersDictionary(businessPlan.QuestionnaireResponses);
             var fullContext = QuestionContextMapper.BuildFullContext(answersByQuestionNumber, language);
 
             // Build onboarding context: prefer Organization entity fields, fall back to OnboardingContextJson
@@ -72,16 +76,29 @@ public class BusinessBriefService : IBusinessBriefService
                 "Calling AI for Business Brief generation with {AnswerCount} answers and onboarding context",
                 answersByQuestionNumber.Count);
 
-            var aiResponse = await _aiService.GenerateContentWithRetryAsync(
+            var aiResult = await _aiService.GenerateContentWithMetadataAsync(
                 systemPrompt,
                 userPrompt,
-                maxTokens: 4000,
-                temperature: 0.3f, // Lower temperature for structured analysis
-                maxRetries: 2,
+                maxTokens: Common.Constants.PipelineConstants.SectionMaxTokens,
+                temperature: Common.Constants.PipelineConstants.AnalysisTemperature,
+                maxRetries: Common.Constants.PipelineConstants.ReducedMaxRetries,
                 cancellationToken);
 
+            await _telemetry.LogCallAsync(new AICallTelemetry(
+                PromptTemplateId: null,
+                Provider: aiResult.ModelUsed ?? "unknown",
+                ModelUsed: aiResult.ModelUsed ?? "unknown",
+                InputTokens: aiResult.InputTokens,
+                OutputTokens: aiResult.OutputTokens,
+                LatencyMs: aiResult.LatencyMs,
+                SectionType: null,
+                Language: language,
+                PipelinePass: Common.Constants.PipelineConstants.PipelinePass.BusinessBrief,
+                Timestamp: DateTime.UtcNow,
+                Temperature: Common.Constants.PipelineConstants.AnalysisTemperature), cancellationToken);
+
             // Parse the AI response into structured brief
-            var briefDto = ParseBriefResponse(aiResponse, businessPlanId);
+            var briefDto = ParseBriefResponse(aiResult.Content, businessPlanId);
 
             // Store the brief on the entity
             var briefJson = JsonSerializer.Serialize(briefDto, JsonOptions);
@@ -338,81 +355,6 @@ Respond ONLY with a valid JSON object following exactly the requested structure.
         }
 
         return trimmed;
-    }
-
-    /// <summary>
-    /// Converts questionnaire responses to a dictionary keyed by question number.
-    /// Mirrors the logic in BusinessPlanGenerationService.BuildAnswersDictionary.
-    /// </summary>
-    private Dictionary<int, string> BuildAnswersDictionary(
-        ICollection<Domain.Entities.BusinessPlan.QuestionnaireResponse> responses)
-    {
-        var answers = new Dictionary<int, string>();
-
-        if (responses == null || !responses.Any())
-            return answers;
-
-        var responsesWithTemplates = responses
-            .Where(r => r.QuestionTemplate != null || r.QuestionTemplateV2 != null)
-            .ToList();
-
-        if (responsesWithTemplates.Any())
-        {
-            foreach (var response in responsesWithTemplates)
-            {
-                var questionNumber = response.QuestionTemplate?.Order
-                    ?? response.QuestionTemplateV2?.Order
-                    ?? 0;
-
-                if (questionNumber <= 0) continue;
-
-                var answer = ExtractAnswerFromResponse(response);
-                if (!string.IsNullOrWhiteSpace(answer))
-                {
-                    answers[questionNumber] = answer;
-                }
-            }
-        }
-
-        if (!answers.Any())
-        {
-            var orderedResponses = responses
-                .Where(r => !string.IsNullOrWhiteSpace(r.ResponseText))
-                .OrderBy(r => r.Created)
-                .ToList();
-
-            var questionNumber = 1;
-            foreach (var response in orderedResponses)
-            {
-                if (!string.IsNullOrWhiteSpace(response.ResponseText))
-                {
-                    answers[questionNumber] = response.ResponseText;
-                }
-                questionNumber++;
-            }
-        }
-
-        return answers;
-    }
-
-    private static string ExtractAnswerFromResponse(Domain.Entities.BusinessPlan.QuestionnaireResponse response)
-    {
-        var questionType = response.QuestionTemplate?.QuestionType
-            ?? response.QuestionTemplateV2?.QuestionType
-            ?? Domain.Enums.QuestionType.LongText;
-
-        return questionType switch
-        {
-            Domain.Enums.QuestionType.ShortText or Domain.Enums.QuestionType.LongText => response.ResponseText ?? "",
-            Domain.Enums.QuestionType.Number => response.NumericValue?.ToString() ?? "",
-            Domain.Enums.QuestionType.Currency => response.NumericValue.HasValue ? $"${response.NumericValue:N2}" : "",
-            Domain.Enums.QuestionType.Percentage => response.NumericValue.HasValue ? $"{response.NumericValue}%" : "",
-            Domain.Enums.QuestionType.Date => response.DateValue?.ToString("yyyy-MM-dd") ?? "",
-            Domain.Enums.QuestionType.YesNo => response.BooleanValue?.ToString() ?? "",
-            Domain.Enums.QuestionType.SingleChoice or Domain.Enums.QuestionType.MultipleChoice => response.SelectedOptions ?? "",
-            Domain.Enums.QuestionType.Scale => response.NumericValue?.ToString() ?? "",
-            _ => response.ResponseText ?? ""
-        };
     }
 
     /// <summary>

@@ -9,22 +9,22 @@ public class QuestionnaireResponseConfiguration : IEntityTypeConfiguration<Quest
     public void Configure(EntityTypeBuilder<QuestionnaireResponse> builder)
     {
         builder.ToTable("QuestionnaireResponses");
-        
+
         builder.HasKey(qr => qr.Id);
-        
+
         builder.Property(qr => qr.ResponseText)
             .IsRequired()
             .HasColumnType("text");
-            
+
         builder.Property(qr => qr.NumericValue)
             .HasPrecision(18, 2);
-            
+
         builder.Property(qr => qr.SelectedOptions)
             .HasColumnType("text"); // JSON array
-            
+
         builder.Property(qr => qr.AiInsights)
             .HasColumnType("text");
-        
+
         // Relationships
         builder.HasOne(qr => qr.BusinessPlan)
             .WithMany(bp => bp.QuestionnaireResponses)
@@ -32,47 +32,20 @@ public class QuestionnaireResponseConfiguration : IEntityTypeConfiguration<Quest
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
 
-        // V1 question template (optional)
+        // V3 question template (STRUCTURE FINALE)
         builder.HasOne(qr => qr.QuestionTemplate)
-            .WithMany(qt => qt.Responses)
+            .WithMany()
             .HasForeignKey(qr => qr.QuestionTemplateId)
-            .IsRequired(false)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        // V2 question template (optional)
-        builder.HasOne(qr => qr.QuestionTemplateV2)
-            .WithMany()
-            .HasForeignKey(qr => qr.QuestionTemplateV2Id)
-            .IsRequired(false)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        // V3 question template (optional) - STRUCTURE FINALE questions
-        builder.HasOne(qr => qr.QuestionTemplateV3)
-            .WithMany()
-            .HasForeignKey(qr => qr.QuestionTemplateV3Id)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
         // Indexes
         builder.HasIndex(qr => qr.BusinessPlanId);
         builder.HasIndex(qr => qr.QuestionTemplateId);
-        builder.HasIndex(qr => qr.QuestionTemplateV2Id);
-        builder.HasIndex(qr => qr.QuestionTemplateV3Id);
 
-        // Unique constraint: one response per question per business plan (for V1)
+        // Unique constraint: one response per question per business plan
         builder.HasIndex(qr => new { qr.BusinessPlanId, qr.QuestionTemplateId })
             .IsUnique()
             .HasFilter("\"QuestionTemplateId\" IS NOT NULL");
-
-        // Unique constraint: one response per question per business plan (for V2)
-        builder.HasIndex(qr => new { qr.BusinessPlanId, qr.QuestionTemplateV2Id })
-            .IsUnique()
-            .HasFilter("\"QuestionTemplateV2Id\" IS NOT NULL");
-
-        // Unique constraint: one response per question per business plan (for V3)
-        builder.HasIndex(qr => new { qr.BusinessPlanId, qr.QuestionTemplateV3Id })
-            .IsUnique()
-            .HasFilter("\"QuestionTemplateV3Id\" IS NOT NULL");
     }
 }
-

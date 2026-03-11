@@ -11,7 +11,7 @@ public class QuestionSectionMapping : BaseEntity
     /// <summary>
     /// Reference to the V3 question template
     /// </summary>
-    public Guid QuestionTemplateV3Id { get; private set; }
+    public Guid QuestionTemplateId { get; private set; }
 
     /// <summary>
     /// Reference to the target sub-section
@@ -48,7 +48,7 @@ public class QuestionSectionMapping : BaseEntity
     public int DisplayOrder { get; private set; }
 
     // Navigation properties
-    public virtual QuestionTemplateV3 QuestionTemplate { get; private set; } = null!;
+    public virtual QuestionTemplate QuestionTemplate { get; private set; } = null!;
     public virtual SubSection SubSection { get; private set; } = null!;
 
     private QuestionSectionMapping() { } // EF Core constructor
@@ -64,7 +64,7 @@ public class QuestionSectionMapping : BaseEntity
         if (weight < 0 || weight > 1)
             throw new ArgumentException("Weight must be between 0 and 1", nameof(weight));
 
-        QuestionTemplateV3Id = questionTemplateV3Id;
+        QuestionTemplateId = questionTemplateV3Id;
         SubSectionId = subSectionId;
         MappingContext = mappingContext ?? "primary";
         Weight = weight;

@@ -575,6 +575,22 @@ public static class QuestionContextMapper
         return $"{header}\n\n{string.Join("\n\n", contextParts)}";
     }
 
+    /// <summary>
+    /// Converts kebab-case section name to PascalCase for mapping lookups.
+    /// e.g., "executive-summary" → "ExecutiveSummary"
+    /// </summary>
+    public static string ToPascalCase(string sectionName)
+    {
+        if (string.IsNullOrEmpty(sectionName) || !sectionName.Contains('-'))
+            return sectionName;
+
+        return string.Concat(
+            sectionName.Split('-')
+                .Select(part => string.IsNullOrEmpty(part)
+                    ? part
+                    : char.ToUpperInvariant(part[0]) + part[1..]));
+    }
+
     private static string TruncateAnswer(string answer, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(answer))

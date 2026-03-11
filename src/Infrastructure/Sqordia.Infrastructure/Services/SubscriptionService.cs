@@ -6,6 +6,7 @@ using Sqordia.Application.Common.Models;
 using Sqordia.Application.Contracts.Requests;
 using Sqordia.Application.Contracts.Responses;
 using Sqordia.Application.Services;
+using Sqordia.Domain.Constants;
 using Sqordia.Domain.Entities;
 using Sqordia.Domain.Enums;
 using System.Text.Json;
@@ -42,6 +43,7 @@ public class SubscriptionService : ISubscriptionService
         try
         {
             var plans = await _context.SubscriptionPlans
+                .Include(p => p.FeatureLimits.Where(f => !f.IsDeleted))
                 .Where(p => p.IsActive && !p.IsDeleted)
                 .OrderBy(p => p.PlanType)
                 .ToListAsync(cancellationToken);
@@ -189,79 +191,170 @@ public class SubscriptionService : ISubscriptionService
         }
     }
 
+    public async Task<Result<PlanChangePreviewDto>> PreviewPlanChangeAsync(Guid userId, ChangePlanRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var (subscription, newPlan, error) = await GetChangeContext(userId, request.NewPlanId, cancellationToken);
+            if (error != null)
+                return Result.Failure<PlanChangePreviewDto>(error);
+
+            var preview = CalculateProration(subscription!, newPlan!, request.IsYearly);
+            return Result<PlanChangePreviewDto>.Success(preview);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error previewing plan change for user {UserId}", userId);
+            return Result.Failure<PlanChangePreviewDto>("Failed to preview plan change");
+        }
+    }
+
     public async Task<Result<SubscriptionDto>> ChangePlanAsync(Guid userId, ChangePlanRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
-            // Get current subscription
-            var currentSubscription = await _context.Subscriptions
-                .Include(s => s.Plan)
-                .Where(s => s.UserId == userId && 
-                           s.Status == SubscriptionStatus.Active && 
-                           !s.IsDeleted)
-                .OrderByDescending(s => s.StartDate)
-                .FirstOrDefaultAsync(cancellationToken);
+            var (subscription, newPlan, error) = await GetChangeContext(userId, request.NewPlanId, cancellationToken);
+            if (error != null)
+                return Result.Failure<SubscriptionDto>(error);
 
-            if (currentSubscription == null)
+            var currentSubscription = subscription!;
+            var preview = CalculateProration(currentSubscription, newPlan!, request.IsYearly);
+
+            // --- Stripe-managed subscription: update via Stripe API ---
+            if (!string.IsNullOrEmpty(currentSubscription.StripeSubscriptionId))
             {
-                return Result.Failure<SubscriptionDto>("No active subscription found");
+                var planType = newPlan!.PlanType.ToString();
+                var billingCycle = request.IsYearly ? "Yearly" : "Monthly";
+                var priceId = _configuration[$"Stripe:PriceIds:{planType}:{billingCycle}"];
+
+                if (string.IsNullOrEmpty(priceId))
+                    return Result.Failure<SubscriptionDto>($"Stripe price not configured for {planType} {billingCycle}");
+
+                var stripeResult = await _stripeService.UpdateSubscriptionAsync(
+                    currentSubscription.StripeSubscriptionId, priceId, cancellationToken);
+
+                if (!stripeResult.IsSuccess)
+                    return Result.Failure<SubscriptionDto>(stripeResult.Error?.Message ?? "Failed to update Stripe subscription");
+
+                // Sync local record with Stripe
+                var stripeInfo = await _stripeService.GetSubscriptionAsync(
+                    currentSubscription.StripeSubscriptionId, cancellationToken);
+
+                if (stripeInfo.IsSuccess)
+                {
+                    currentSubscription.SetStripeIds(
+                        stripeInfo.Value!.CustomerId,
+                        stripeInfo.Value.SubscriptionId,
+                        priceId);
+                }
             }
 
-            // Get new plan
-            var newPlan = await _context.SubscriptionPlans
-                .FirstOrDefaultAsync(p => p.Id == request.NewPlanId && p.IsActive && !p.IsDeleted, cancellationToken);
+            // --- Update local subscription immediately ---
+            currentSubscription.ChangePlan(request.NewPlanId, preview.NewRecurringAmount, request.IsYearly);
 
-            if (newPlan == null)
-            {
-                return Result.Failure<SubscriptionDto>("Subscription plan not found");
-            }
-
-            // Cancel current subscription at end of billing period
-            currentSubscription.Cancel(currentSubscription.EndDate);
-
-            // Calculate new subscription dates
-            var startDate = currentSubscription.EndDate;
-            var endDate = request.IsYearly 
-                ? startDate.AddYears(1) 
-                : startDate.AddMonths(1);
-
-            // Calculate price
-            var price = request.IsYearly && newPlan.BillingCycle == BillingCycle.Monthly
-                ? newPlan.Price * 12
-                : request.IsYearly && newPlan.BillingCycle == BillingCycle.Yearly
-                    ? newPlan.Price
-                    : newPlan.BillingCycle == BillingCycle.Monthly
-                        ? newPlan.Price
-                        : newPlan.Price / 12;
-
-            // Create new subscription
-            var newSubscription = new Subscription(
-                userId,
-                currentSubscription.OrganizationId,
-                request.NewPlanId,
-                request.IsYearly,
-                price,
-                startDate,
-                endDate,
-                isTrial: newPlan.PlanType == SubscriptionPlanType.Free,
-                currency: newPlan.Currency);
-
-            _context.Subscriptions.Add(newSubscription);
             await _context.SaveChangesAsync(cancellationToken);
 
-            // Reload subscription with plan for DTO mapping
-            var newSubscriptionWithPlan = await _context.Subscriptions
-                .Include(s => s.Plan)
-                .FirstOrDefaultAsync(s => s.Id == newSubscription.Id, cancellationToken);
+            _logger.LogInformation(
+                "User {UserId} changed from {OldPlan} to {NewPlan}. Net proration: {Net} {Currency}",
+                userId, preview.CurrentPlanType, preview.NewPlanType, preview.NetAmount, preview.Currency);
 
-            var dto = MapToDto(newSubscriptionWithPlan!);
-            return Result<SubscriptionDto>.Success(dto);
+            // Reload with navigation
+            var updated = await _context.Subscriptions
+                .Include(s => s.Plan)
+                .FirstOrDefaultAsync(s => s.Id == currentSubscription.Id, cancellationToken);
+
+            return Result<SubscriptionDto>.Success(MapToDto(updated!));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error changing plan for user {UserId}", userId);
             return Result.Failure<SubscriptionDto>("Failed to change subscription plan");
         }
+    }
+
+    // ── Plan change helpers ──────────────────────────────
+
+    private async Task<(Subscription?, SubscriptionPlan?, string?)> GetChangeContext(
+        Guid userId, Guid newPlanId, CancellationToken ct)
+    {
+        var currentSubscription = await _context.Subscriptions
+            .Include(s => s.Plan)
+            .Where(s => s.UserId == userId &&
+                       s.Status == SubscriptionStatus.Active &&
+                       !s.IsDeleted)
+            .OrderByDescending(s => s.StartDate)
+            .FirstOrDefaultAsync(ct);
+
+        if (currentSubscription == null)
+            return (null, null, "No active subscription found");
+
+        if (currentSubscription.SubscriptionPlanId == newPlanId)
+            return (null, null, "You are already on this plan");
+
+        var newPlan = await _context.SubscriptionPlans
+            .FirstOrDefaultAsync(p => p.Id == newPlanId && p.IsActive && !p.IsDeleted, ct);
+
+        if (newPlan == null)
+            return (null, null, "Subscription plan not found");
+
+        return (currentSubscription, newPlan, null);
+    }
+
+    private static PlanChangePreviewDto CalculateProration(
+        Subscription current, SubscriptionPlan newPlan, bool isYearly)
+    {
+        var now = DateTime.UtcNow;
+        var totalDays = (int)Math.Max((current.EndDate - current.StartDate).TotalDays, 1);
+        var remainingDays = (int)Math.Max((current.EndDate - now).TotalDays, 0);
+
+        // Current plan daily rate
+        var currentDailyRate = current.Amount / totalDays;
+
+        // New plan full-period price
+        var newFullPrice = isYearly && newPlan.BillingCycle == BillingCycle.Monthly
+            ? newPlan.Price * 12
+            : isYearly && newPlan.BillingCycle == BillingCycle.Yearly
+                ? newPlan.Price
+                : newPlan.BillingCycle == BillingCycle.Monthly
+                    ? newPlan.Price
+                    : newPlan.Price / 12;
+
+        // New plan total days for the upcoming period
+        var newTotalDays = isYearly ? 365 : 30;
+        var newDailyRate = newFullPrice / newTotalDays;
+
+        // Proration
+        var credit = Math.Round(currentDailyRate * remainingDays, 2);
+        var charge = Math.Round(newDailyRate * remainingDays, 2);
+        var netAmount = Math.Round(charge - credit, 2);
+
+        var isUpgrade = newPlan.PlanType > current.Plan.PlanType;
+
+        // Tax (13% HST, 0% for free plans)
+        var taxRate = newPlan.PlanType == SubscriptionPlanType.Free ? 0m : 0.13m;
+        var taxOnNet = netAmount > 0 ? Math.Round(netAmount * taxRate, 2) : 0m;
+
+        return new PlanChangePreviewDto
+        {
+            CurrentPlanName = current.Plan.Name,
+            NewPlanName = newPlan.Name,
+            CurrentPlanType = current.Plan.PlanType.ToString(),
+            NewPlanType = newPlan.PlanType.ToString(),
+            IsUpgrade = isUpgrade,
+            RemainingDays = remainingDays,
+            TotalDays = totalDays,
+            CurrentPeriodEnd = current.EndDate,
+            CreditAmount = credit,
+            ChargeAmount = charge,
+            NetAmount = netAmount,
+            NewRecurringAmount = newFullPrice,
+            Currency = current.Currency,
+            IsYearly = isYearly,
+            EffectiveDate = now,
+            NewPeriodEnd = current.EndDate, // Keeps same end date for current period
+            TaxAmount = taxOnNet,
+            TotalWithTax = netAmount + taxOnNet
+        };
     }
 
     public async Task<Result<bool>> CancelSubscriptionAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -413,63 +506,49 @@ public class SubscriptionService : ISubscriptionService
     {
         var features = ParseFeatures(plan.Features);
         var planType = plan.PlanType;
-        
-        // Map features to boolean flags based on plan type and features
-        // Pro and Enterprise plans have export options
-        var hasExportPDF = planType != SubscriptionPlanType.Free;
-        var hasExportWord = planType != SubscriptionPlanType.Free;
-        var hasExportExcel = planType != SubscriptionPlanType.Free;
-        
-        // Advanced AI is available for Pro and Enterprise
-        var hasAdvancedAI = planType != SubscriptionPlanType.Free;
-        
-        // Priority support for Pro and Enterprise (Dedicated for Enterprise)
-        var hasPrioritySupport = features.Any(f => f.Contains("Priority", StringComparison.OrdinalIgnoreCase) || 
-                                                    f.Contains("Dedicated", StringComparison.OrdinalIgnoreCase)) ||
-                                 planType != SubscriptionPlanType.Free;
-        
-        // Custom branding only for Enterprise
-        var hasCustomBranding = features.Any(f => f.Contains("Branding", StringComparison.OrdinalIgnoreCase) || 
-                                                   f.Contains("Custom", StringComparison.OrdinalIgnoreCase)) ||
-                                planType == SubscriptionPlanType.Enterprise;
-        
-        // API Access only for Enterprise
-        var hasAPIAccess = features.Any(f => f.Contains("API", StringComparison.OrdinalIgnoreCase)) ||
-                          planType == SubscriptionPlanType.Enterprise;
-        
-        // Determine max organizations and team members based on plan type
-        int maxOrganizations;
-        int maxTeamMembers;
-        
-        switch (planType)
+
+        // Load feature limits from PlanFeatureLimits (if eager-loaded) or use tier defaults
+        var featureLimits = plan.FeatureLimits?.ToDictionary(f => f.FeatureKey, f => f.Value)
+                            ?? new Dictionary<string, string>();
+
+        int GetNumericFeature(string key, int fallback) =>
+            featureLimits.TryGetValue(key, out var v) && int.TryParse(v, out var i) ? i : fallback;
+
+        bool GetBoolFeature(string key, bool fallback) =>
+            featureLimits.TryGetValue(key, out var v) ? bool.TryParse(v, out var b) && b : fallback;
+
+        string GetStringFeature(string key, string fallback) =>
+            featureLimits.TryGetValue(key, out var v) ? v : fallback;
+
+        // Tier-based defaults when PlanFeatureLimits not yet seeded
+        var (defMaxOrg, defMaxMembers, defMaxPlans, defMaxGenMo, defMaxCoachMo, defStorageMb) = planType switch
         {
-            case SubscriptionPlanType.Free:
-                maxOrganizations = 1;
-                maxTeamMembers = 1;
-                break;
-            case SubscriptionPlanType.Pro:
-                maxOrganizations = 5;
-                maxTeamMembers = plan.MaxUsers;
-                break;
-            case SubscriptionPlanType.Enterprise:
-                maxOrganizations = 999999; // Unlimited
-                maxTeamMembers = plan.MaxUsers;
-                break;
-            default:
-                maxOrganizations = 1;
-                maxTeamMembers = plan.MaxUsers;
-                break;
-        }
-        
-        // Determine display order
+            SubscriptionPlanType.Free => (1, 1, 1, 1, 10, 100),
+            SubscriptionPlanType.Starter => (2, 3, 5, 5, 50, 1024),
+            SubscriptionPlanType.Professional => (5, 15, 30, 15, 200, 5120),
+            SubscriptionPlanType.Enterprise => (-1, -1, -1, -1, -1, 51200),
+            _ => (1, 1, 1, 1, 10, 100)
+        };
+
+        var maxOrganizations = GetNumericFeature(PlanFeatures.MaxOrganizations, defMaxOrg);
+        var maxTeamMembers = GetNumericFeature(PlanFeatures.MaxTeamMembers, defMaxMembers);
+        var maxBusinessPlans = GetNumericFeature(PlanFeatures.MaxBusinessPlans, defMaxPlans);
+        var maxAiGenMonthly = GetNumericFeature(PlanFeatures.MaxAiGenerationsMonthly, defMaxGenMo);
+        var maxCoachMonthly = GetNumericFeature(PlanFeatures.MaxAiCoachMessagesMonthly, defMaxCoachMo);
+
+        var isPaid = planType != SubscriptionPlanType.Free;
+        var isPro = planType >= SubscriptionPlanType.Professional;
+        var isEnterprise = planType == SubscriptionPlanType.Enterprise;
+
         int? displayOrder = planType switch
         {
             SubscriptionPlanType.Free => 0,
-            SubscriptionPlanType.Pro => 1,
-            SubscriptionPlanType.Enterprise => 2,
+            SubscriptionPlanType.Starter => 1,
+            SubscriptionPlanType.Professional => 2,
+            SubscriptionPlanType.Enterprise => 3,
             _ => null
         };
-        
+
         return new SubscriptionPlanDto
         {
             Id = plan.Id,
@@ -480,20 +559,42 @@ public class SubscriptionService : ISubscriptionService
             YearlyPrice = plan.BillingCycle == BillingCycle.Yearly ? plan.Price : plan.Price * 12,
             Currency = plan.Currency,
             MaxUsers = plan.MaxUsers,
-            MaxBusinessPlans = plan.MaxBusinessPlans,
+            MaxBusinessPlans = maxBusinessPlans,
             MaxStorageGB = plan.MaxStorageGB,
-            Features = features,
             IsActive = plan.IsActive,
+            DisplayOrder = displayOrder,
+
+            // Numeric limits
             MaxOrganizations = maxOrganizations,
             MaxTeamMembers = maxTeamMembers,
-            HasAdvancedAI = hasAdvancedAI,
-            HasExportPDF = hasExportPDF,
-            HasExportWord = hasExportWord,
-            HasExportExcel = hasExportExcel,
-            HasPrioritySupport = hasPrioritySupport,
-            HasCustomBranding = hasCustomBranding,
-            HasAPIAccess = hasAPIAccess,
-            DisplayOrder = displayOrder
+            MaxAiGenerationsMonthly = maxAiGenMonthly,
+            MaxAiCoachMessagesMonthly = maxCoachMonthly,
+
+            // Exports
+            HasExportHtml = true,
+            HasExportPDF = GetBoolFeature(PlanFeatures.ExportPdf, isPaid),
+            HasExportWord = GetBoolFeature(PlanFeatures.ExportWord, isPaid),
+            HasExportPowerpoint = GetBoolFeature(PlanFeatures.ExportPowerpoint, isPro),
+            HasExportExcel = GetBoolFeature(PlanFeatures.ExportExcel, isPro),
+            HasExportAgentBlueprints = GetBoolFeature(PlanFeatures.ExportAgentBlueprints, isPaid),
+
+            // AI
+            AiProviderTier = GetStringFeature(PlanFeatures.AiProviderTier, isEnterprise ? "claude" : isPro ? "blended" : "gemini"),
+            HasAdvancedAI = isPaid,
+            HasPrioritySectionsClaude = GetBoolFeature(PlanFeatures.PrioritySectionsClaude, isPro),
+
+            // Financial
+            HasFinancialProjectionsBasic = true,
+            HasFinancialProjectionsAdvanced = GetBoolFeature(PlanFeatures.FinancialProjectionsAdvanced, isPro),
+
+            // Premium
+            HasCustomBranding = GetBoolFeature(PlanFeatures.CustomBranding, isEnterprise),
+            HasAPIAccess = GetBoolFeature(PlanFeatures.ApiAccess, isEnterprise),
+            HasPrioritySupport = GetBoolFeature(PlanFeatures.PrioritySupport, isPro),
+            HasDedicatedSupport = GetBoolFeature(PlanFeatures.DedicatedSupport, isEnterprise),
+            HasWhiteLabel = GetBoolFeature(PlanFeatures.WhiteLabel, isEnterprise),
+
+            Features = features
         };
     }
 

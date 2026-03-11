@@ -61,8 +61,6 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
                 .Include(bp => bp.Organization)
                 .Include(bp => bp.QuestionnaireResponses)
                     .ThenInclude(qr => qr.QuestionTemplate)
-                .Include(bp => bp.QuestionnaireResponses)
-                    .ThenInclude(qr => qr.QuestionTemplateV2)
                 .FirstOrDefaultAsync(bp => bp.Id == businessPlanId && !bp.IsDeleted, cancellationToken);
 
             if (businessPlan == null)
@@ -71,27 +69,22 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
             }
 
             // Check if questionnaire is complete
-            // StartGeneration requires QuestionnaireComplete status, but we allow Draft if questionnaire is actually complete
             if (businessPlan.Status == BusinessPlanStatus.Draft)
             {
-                // Check if all required questions are actually answered
-                var template = await _context.QuestionnaireTemplates
-                    .Include(qt => qt.Questions)
-                    .Where(qt => qt.PlanType == businessPlan.PlanType && qt.IsActive)
-                    .OrderByDescending(qt => qt.Version)
-                    .FirstOrDefaultAsync(cancellationToken);
+                var requiredQuestionIds = await _context.QuestionTemplates
+                    .Where(qt => qt.IsActive && qt.IsRequired)
+                    .Select(qt => qt.Id)
+                    .ToListAsync(cancellationToken);
 
-                if (template != null)
+                if (requiredQuestionIds.Count > 0)
                 {
-                    var requiredQuestions = template.Questions.Where(q => q.IsRequired).Select(q => q.Id).ToList();
                     var answeredRequiredQuestions = await _context.QuestionnaireResponses
                         .Where(qr => qr.BusinessPlanId == businessPlanId &&
                                      qr.QuestionTemplateId.HasValue &&
-                                     requiredQuestions.Contains(qr.QuestionTemplateId.Value))
+                                     requiredQuestionIds.Contains(qr.QuestionTemplateId.Value))
                         .CountAsync(cancellationToken);
 
-                    // If all required questions are answered, mark as complete
-                    if (answeredRequiredQuestions == requiredQuestions.Count && requiredQuestions.Count > 0)
+                    if (answeredRequiredQuestions >= requiredQuestionIds.Count)
                     {
                         businessPlan.MarkQuestionnaireComplete();
                         await _context.SaveChangesAsync(cancellationToken);
@@ -304,8 +297,6 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
             var businessPlan = await _context.BusinessPlans
                 .Include(bp => bp.QuestionnaireResponses)
                     .ThenInclude(qr => qr.QuestionTemplate)
-                .Include(bp => bp.QuestionnaireResponses)
-                    .ThenInclude(qr => qr.QuestionTemplateV2)
                 .FirstOrDefaultAsync(bp => bp.Id == businessPlanId && !bp.IsDeleted, cancellationToken);
 
             if (businessPlan == null)
@@ -380,8 +371,6 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
             var businessPlan = await _context.BusinessPlans
                 .Include(bp => bp.QuestionnaireResponses)
                     .ThenInclude(qr => qr.QuestionTemplate)
-                .Include(bp => bp.QuestionnaireResponses)
-                    .ThenInclude(qr => qr.QuestionTemplateV2)
                 .FirstOrDefaultAsync(bp => bp.Id == businessPlanId && !bp.IsDeleted, cancellationToken);
 
             if (businessPlan == null)
@@ -619,9 +608,9 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
             return answers;
         }
 
-        // First, try to use responses with templates (preferred)
+        // Use responses with V3 templates (preferred)
         var responsesWithTemplates = responses
-            .Where(r => r.QuestionTemplate != null || r.QuestionTemplateV2 != null)
+            .Where(r => r.QuestionTemplate != null)
             .ToList();
 
         if (responsesWithTemplates.Any())
@@ -630,10 +619,8 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
 
             foreach (var response in responsesWithTemplates)
             {
-                // Get question number from template Order field
-                var questionNumber = response.QuestionTemplate?.Order
-                    ?? response.QuestionTemplateV2?.Order
-                    ?? 0;
+                // Get question number from V3 template
+                var questionNumber = response.QuestionTemplate?.QuestionNumber ?? 0;
 
                 if (questionNumber <= 0)
                     continue;
@@ -685,9 +672,7 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
     /// </summary>
     private string ExtractAnswerFromResponse(QuestionnaireResponse response)
     {
-        // Get question type from V1 or V2 template
         var questionType = response.QuestionTemplate?.QuestionType
-            ?? response.QuestionTemplateV2?.QuestionType
             ?? QuestionType.LongText;
 
         return questionType switch

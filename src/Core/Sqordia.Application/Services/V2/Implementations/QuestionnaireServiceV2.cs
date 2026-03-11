@@ -40,7 +40,7 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
                 personaType?.ToString() ?? "All", language);
 
             // Use V3 table which has expert advice and coach prompts
-            var query = _context.QuestionTemplatesV3.AsQueryable();
+            var query = _context.QuestionTemplates.AsQueryable();
 
             // Filter by persona: include universal questions (NULL PersonaType) plus persona-specific ones
             if (personaType.HasValue)
@@ -112,7 +112,7 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
                 stepNumber, personaType?.ToString() ?? "All");
 
             // Use V3 table
-            var query = _context.QuestionTemplatesV3
+            var query = _context.QuestionTemplates
                 .Where(q => q.StepNumber == stepNumber && q.IsActive);
 
             // Include universal questions (NULL PersonaType) plus persona-specific ones
@@ -162,7 +162,7 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
             _logger.LogInformation("Getting V3 question {QuestionId}", questionId);
 
             // Use V3 table
-            var question = await _context.QuestionTemplatesV3
+            var question = await _context.QuestionTemplates
                 .FirstOrDefaultAsync(q => q.Id == questionId && q.IsActive, cancellationToken);
 
             if (question == null)
@@ -198,7 +198,7 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
                 .ToListAsync(cancellationToken);
 
             // Get question counts per step from V3 table
-            var questionCounts = await _context.QuestionTemplatesV3
+            var questionCounts = await _context.QuestionTemplates
                 .Where(q => q.IsActive)
                 .GroupBy(q => q.StepNumber)
                 .Select(g => new { StepNumber = g.Key, Count = g.Count() })
@@ -225,7 +225,7 @@ public class QuestionnaireServiceV2 : IQuestionnaireServiceV2
         }
     }
 
-    private static PersonaQuestionResponse MapToResponseV3(QuestionTemplateV3 question, bool isEnglish)
+    private static PersonaQuestionResponse MapToResponseV3(QuestionTemplate question, bool isEnglish)
     {
         var questionText = isEnglish && !string.IsNullOrWhiteSpace(question.QuestionTextEN)
             ? question.QuestionTextEN

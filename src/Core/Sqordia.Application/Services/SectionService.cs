@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Sqordia.Application.Common.Constants;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Contracts.Requests.BusinessPlan;
 using Sqordia.Contracts.Responses.BusinessPlan;
@@ -15,15 +16,18 @@ public class SectionService : ISectionService
     private readonly ILogger<SectionService> _logger;
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IMLDataCollector _mlDataCollector;
 
     public SectionService(
         ILogger<SectionService> logger,
         IApplicationDbContext context,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IMLDataCollector mlDataCollector)
     {
         _logger = logger;
         _context = context;
         _currentUserService = currentUserService;
+        _mlDataCollector = mlDataCollector;
     }
 
     public async Task<BusinessPlanSectionsDto> GetSectionsAsync(Guid businessPlanId, CancellationToken cancellationToken = default)
@@ -163,8 +167,9 @@ public class SectionService : ISectionService
         {
             _logger.LogInformation("Updating section {SectionName} for business plan {BusinessPlanId}", sectionName, businessPlanId);
 
-            // Get the business plan
+            // Get the business plan (include Organization for ML edit tracking)
             var businessPlan = await _context.BusinessPlans
+                .Include(bp => bp.Organization)
                 .FirstOrDefaultAsync(bp => bp.Id == businessPlanId, cancellationToken);
 
             if (businessPlan == null)
@@ -180,6 +185,9 @@ public class SectionService : ISectionService
                 throw new ArgumentException($"Section '{sectionName}' is not valid for plan type '{businessPlan.PlanType}'.");
             }
 
+            // Capture existing content before update for ML edit tracking
+            var previousContent = GetSectionContent(businessPlan, sectionName);
+
             // Update the section content
             UpdateSectionContent(businessPlan, sectionName, request.Content);
 
@@ -189,6 +197,30 @@ public class SectionService : ISectionService
 
             // Save changes
             await _context.SaveChangesAsync(cancellationToken);
+
+            // Record section edit diff for ML training (non-blocking)
+            if (!string.IsNullOrWhiteSpace(previousContent) && !string.IsNullOrWhiteSpace(request.Content))
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _mlDataCollector.RecordSectionEditAsync(
+                            businessPlanId,
+                            sectionName,
+                            aiGeneratedContent: previousContent,
+                            userEditedContent: request.Content,
+                            language: "fr", // Default; could be derived from plan settings
+                            industry: businessPlan.Organization?.Industry,
+                            planType: businessPlan.PlanType.ToString(),
+                            cancellationToken: CancellationToken.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Failed to record section edit for ML training");
+                    }
+                });
+            }
 
             // Get updated section
             return await GetSectionAsync(businessPlanId, sectionName, cancellationToken);
@@ -510,45 +542,67 @@ public class SectionService : ISectionService
         };
     }
 
-    private string? GetSectionContent(Domain.Entities.BusinessPlan.BusinessPlan businessPlan, string sectionName)
+    private static string? GetSectionContent(Domain.Entities.BusinessPlan.BusinessPlan businessPlan, string sectionName)
     {
-        return sectionName.ToLower() switch
+        return sectionName.ToLowerInvariant() switch
         {
-            "executive-summary" => businessPlan.ExecutiveSummary,
-            "problem-statement" => businessPlan.ProblemStatement,
-            "solution" => businessPlan.Solution,
-            "market-analysis" => businessPlan.MarketAnalysis,
-            "competitive-analysis" => businessPlan.CompetitiveAnalysis,
-            "swot-analysis" => businessPlan.SwotAnalysis,
-            "business-model" => businessPlan.BusinessModel,
-            "marketing-strategy" => businessPlan.MarketingStrategy,
-            "branding-strategy" => businessPlan.BrandingStrategy,
-            "operations-plan" => businessPlan.OperationsPlan,
-            "management-team" => businessPlan.ManagementTeam,
-            "financial-projections" => businessPlan.FinancialProjections,
-            "funding-requirements" => businessPlan.FundingRequirements,
-            "risk-analysis" => businessPlan.RiskAnalysis,
-            "exit-strategy" => businessPlan.ExitStrategy,
-            "appendix-data" => businessPlan.AppendixData,
-            "mission-statement" => businessPlan.MissionStatement,
-            "social-impact" => businessPlan.SocialImpact,
-            "beneficiary-profile" => businessPlan.BeneficiaryProfile,
-            "grant-strategy" => businessPlan.GrantStrategy,
-            "sustainability-plan" => businessPlan.SustainabilityPlan,
+            SectionNames.ExecutiveSummary => businessPlan.ExecutiveSummary,
+            SectionNames.ProblemStatement => businessPlan.ProblemStatement,
+            SectionNames.Solution => businessPlan.Solution,
+            SectionNames.MarketAnalysis => businessPlan.MarketAnalysis,
+            SectionNames.CompetitiveAnalysis => businessPlan.CompetitiveAnalysis,
+            SectionNames.SwotAnalysis => businessPlan.SwotAnalysis,
+            SectionNames.BusinessModel => businessPlan.BusinessModel,
+            SectionNames.MarketingStrategy => businessPlan.MarketingStrategy,
+            SectionNames.BrandingStrategy => businessPlan.BrandingStrategy,
+            SectionNames.OperationsPlan => businessPlan.OperationsPlan,
+            SectionNames.ManagementTeam => businessPlan.ManagementTeam,
+            SectionNames.FinancialProjections => businessPlan.FinancialProjections,
+            SectionNames.FundingRequirements => businessPlan.FundingRequirements,
+            SectionNames.RiskAnalysis => businessPlan.RiskAnalysis,
+            SectionNames.ExitStrategy => businessPlan.ExitStrategy,
+            SectionNames.AppendixData => businessPlan.AppendixData,
+            SectionNames.MissionStatement => businessPlan.MissionStatement,
+            SectionNames.SocialImpact => businessPlan.SocialImpact,
+            SectionNames.BeneficiaryProfile => businessPlan.BeneficiaryProfile,
+            SectionNames.GrantStrategy => businessPlan.GrantStrategy,
+            SectionNames.SustainabilityPlan => businessPlan.SustainabilityPlan,
             _ => null
         };
     }
 
     private void UpdateSectionContent(Domain.Entities.BusinessPlan.BusinessPlan businessPlan, string sectionName, string content)
     {
-        // Note: Section updates are handled via BusinessPlan entity update methods
-        _logger.LogInformation("Updating section {SectionName} for business plan {BusinessPlanId} with content length {ContentLength}", 
+        _logger.LogInformation("Updating section {SectionName} for business plan {BusinessPlanId} with content length {ContentLength}",
             sectionName, businessPlan.Id, content.Length);
-        
-        // In a real implementation, this would call methods like:
-        // businessPlan.UpdateExecutiveSummary(content);
-        // businessPlan.UpdateMarketAnalysis(content);
-        // etc.
+
+        switch (sectionName.ToLowerInvariant())
+        {
+            case SectionNames.ExecutiveSummary: businessPlan.UpdateExecutiveSummary(content); break;
+            case SectionNames.ProblemStatement: businessPlan.UpdateProblemStatement(content); break;
+            case SectionNames.Solution: businessPlan.UpdateSolution(content); break;
+            case SectionNames.MarketAnalysis: businessPlan.UpdateMarketAnalysis(content); break;
+            case SectionNames.CompetitiveAnalysis: businessPlan.UpdateCompetitiveAnalysis(content); break;
+            case SectionNames.SwotAnalysis: businessPlan.UpdateSwotAnalysis(content); break;
+            case SectionNames.BusinessModel: businessPlan.UpdateBusinessModel(content); break;
+            case SectionNames.MarketingStrategy: businessPlan.UpdateMarketingStrategy(content); break;
+            case SectionNames.BrandingStrategy: businessPlan.UpdateBrandingStrategy(content); break;
+            case SectionNames.OperationsPlan: businessPlan.UpdateOperationsPlan(content); break;
+            case SectionNames.ManagementTeam: businessPlan.UpdateManagementTeam(content); break;
+            case SectionNames.FinancialProjections: businessPlan.UpdateFinancialProjections(content); break;
+            case SectionNames.FundingRequirements: businessPlan.UpdateFundingRequirements(content); break;
+            case SectionNames.RiskAnalysis: businessPlan.UpdateRiskAnalysis(content); break;
+            case SectionNames.ExitStrategy: businessPlan.UpdateExitStrategy(content); break;
+            case SectionNames.AppendixData: businessPlan.UpdateAppendixData(content); break;
+            case SectionNames.MissionStatement: businessPlan.UpdateMissionStatement(content); break;
+            case SectionNames.SocialImpact: businessPlan.UpdateSocialImpact(content); break;
+            case SectionNames.BeneficiaryProfile: businessPlan.UpdateBeneficiaryProfile(content); break;
+            case SectionNames.GrantStrategy: businessPlan.UpdateGrantStrategy(content); break;
+            case SectionNames.SustainabilityPlan: businessPlan.UpdateSustainabilityPlan(content); break;
+            default:
+                _logger.LogWarning("Unknown section name {SectionName} for business plan {BusinessPlanId}", sectionName, businessPlan.Id);
+                break;
+        }
     }
 
     private bool IsAIGenerated(Domain.Entities.BusinessPlan.BusinessPlan businessPlan, string sectionName)

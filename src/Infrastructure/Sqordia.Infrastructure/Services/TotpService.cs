@@ -62,11 +62,34 @@ public class TotpService : ITotpService
         return backupCodes;
     }
 
+    public string HashBackupCode(string code)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(code.ToUpperInvariant());
+        var hash = SHA256.HashData(bytes);
+        return Convert.ToHexString(hash);
+    }
+
+    public string? FindMatchingBackupCode(string code, List<string> hashedCodes)
+    {
+        var inputHash = HashBackupCode(code);
+        // Use constant-time comparison via CryptographicOperations
+        foreach (var storedHash in hashedCodes)
+        {
+            if (CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.UTF8.GetBytes(inputHash),
+                System.Text.Encoding.UTF8.GetBytes(storedHash)))
+            {
+                return storedHash;
+            }
+        }
+        return null;
+    }
+
     private static string GenerateRandomCode(int length)
     {
         const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         var code = new char[length];
-        
+
         for (int i = 0; i < length; i++)
         {
             code[i] = chars[RandomNumberGenerator.GetInt32(chars.Length)];

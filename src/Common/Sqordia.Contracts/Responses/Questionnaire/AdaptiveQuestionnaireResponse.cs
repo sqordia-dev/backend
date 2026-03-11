@@ -4,6 +4,7 @@ public class AdaptiveQuestionnaireResponse
 {
     public required IReadOnlyList<AdaptiveQuestionDto> Questions { get; set; }
     public required IReadOnlyList<SkippedQuestionDto> SkippedQuestions { get; set; }
+    public required IReadOnlyList<HiddenQuestionDto> HiddenQuestions { get; set; }
     public int TotalQuestions { get; set; }
     public int RemainingQuestions { get; set; }
     public int ProfileCompletenessScore { get; set; }
@@ -37,4 +38,15 @@ public class SkippedQuestionDto
     public required string QuestionText { get; set; }
     public required string ProfileFieldKey { get; set; }
     public required string ProfileFieldValue { get; set; }
+}
+
+/// <summary>
+/// A question hidden by conditional logic (depends on another question's answer).
+/// </summary>
+public class HiddenQuestionDto
+{
+    public Guid Id { get; set; }
+    public int QuestionNumber { get; set; }
+    public required string QuestionText { get; set; }
+    public int DependsOnQuestion { get; set; }
 }

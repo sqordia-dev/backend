@@ -24,6 +24,7 @@ public class AuthenticationService : IAuthenticationService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<AuthenticationService> _logger;
     private readonly ILocalizationService _localizationService;
+    private readonly ITotpService _totpService;
 
     public AuthenticationService(
         IApplicationDbContext context,
@@ -33,7 +34,8 @@ public class AuthenticationService : IAuthenticationService
         ISecurityService securityService,
         IHttpContextAccessor httpContextAccessor,
         ILogger<AuthenticationService> logger,
-        ILocalizationService localizationService)
+        ILocalizationService localizationService,
+        ITotpService totpService)
     {
         _context = context;
         _mapper = mapper;
@@ -43,6 +45,7 @@ public class AuthenticationService : IAuthenticationService
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
         _localizationService = localizationService;
+        _totpService = totpService;
     }
 
     private string GetClientIpAddress()
@@ -182,19 +185,26 @@ public class AuthenticationService : IAuthenticationService
                     
                     _logger.LogWarning("Account locked due to failed login attempts: {UserId}", user.Id);
                     
-                    // Send account lockout email
-                    try
+                    // Fire-and-forget: send lockout email (non-blocking)
+                    var lockoutEmail = user.Email.Value;
+                    var lockoutFirstName = user.FirstName;
+                    _ = Task.Run(async () =>
                     {
-                        await _emailService.SendAccountLockoutNotificationAsync(user.Email.Value, user.FirstName, lockoutDuration, DateTime.UtcNow);
-                    }
-                    catch (Exception emailEx)
-                    {
-                        _logger.LogError(emailEx, "Failed to send account lockout email to {Email}", user.Email.Value);
-                    }
+                        try
+                        {
+                            await _emailService.SendAccountLockoutNotificationAsync(lockoutEmail, lockoutFirstName, lockoutDuration, DateTime.UtcNow);
+                        }
+                        catch (Exception emailEx)
+                        {
+                            _logger.LogError(emailEx, "Failed to send account lockout email to {Email}", lockoutEmail);
+                        }
+                    });
                 }
-                
+
+                // Batch: save failed attempt count + login history in one call
+                var failedLoginHistory = new LoginHistory(user.Id, false, ipAddress, userAgent, "Invalid password");
+                _context.LoginHistories.Add(failedLoginHistory);
                 await _context.SaveChangesAsync(cancellationToken);
-                await RecordLoginAttempt(user.Id, false, ipAddress, userAgent, "Invalid password", cancellationToken);
                 
                 return Result.Failure<AuthResponse>(Error.Unauthorized("Auth.Error.InvalidCredentials", _localizationService.GetString("Auth.Error.InvalidCredentials")));
             }
@@ -228,13 +238,29 @@ public class AuthenticationService : IAuthenticationService
                     $"Your password has expired. Passwords must be changed every {passwordExpiryDays} days. Please use the password reset functionality."));
             }
 
-            // Successful login - reset failed attempts
+            // Check if user has 2FA enabled
+            var twoFactorAuth = await _context.TwoFactorAuths
+                .FirstOrDefaultAsync(t => t.UserId == user.Id && t.IsEnabled, cancellationToken);
+
+            if (twoFactorAuth != null)
+            {
+                // Credentials valid but 2FA required — reset failed attempts, save, return challenge
+                user.ResetAccessFailedCount();
+                await _context.SaveChangesAsync(cancellationToken);
+
+                var twoFactorToken = _jwtTokenService.GenerateTwoFactorToken(user.Id);
+                _logger.LogInformation("2FA required for user {UserId}, issuing challenge token", user.Id);
+
+                return Result.Success(new AuthResponse
+                {
+                    RequiresTwoFactor = true,
+                    TwoFactorToken = twoFactorToken
+                });
+            }
+
+            // Successful login (no 2FA) - reset failed attempts
             user.ResetAccessFailedCount();
             user.UpdateLastLogin();
-            await _context.SaveChangesAsync(cancellationToken);
-            
-            // Record successful login
-            await RecordLoginAttempt(user.Id, true, ipAddress, userAgent, null, cancellationToken);
 
             // Revoke all active refresh tokens for this user to prevent duplicate key conflicts
             var activeTokens = await _context.RefreshTokens
@@ -248,7 +274,6 @@ public class AuthenticationService : IAuthenticationService
 
             if (activeTokens.Count > 0)
             {
-                await _context.SaveChangesAsync(cancellationToken);
                 _logger.LogInformation("Revoked {Count} active refresh tokens for user {UserId}", activeTokens.Count, user.Id);
             }
 
@@ -256,19 +281,35 @@ public class AuthenticationService : IAuthenticationService
             var accessToken = await _jwtTokenService.GenerateAccessTokenAsync(user);
             var refreshToken = await _jwtTokenService.GenerateRefreshTokenAsync(user.Id, ipAddress);
 
-            // Save refresh token (will be saved along with active session)
-            // Create active session (this also saves changes, so refresh token will be saved)
-            await CreateActiveSession(user.Id, refreshToken.Token, refreshToken.ExpiresAt, ipAddress, userAgent, cancellationToken);
+            // Record login attempt + create active session + save all changes in ONE batch
+            var loginHistory = new LoginHistory(user.Id, true, ipAddress, userAgent, null);
+            _context.LoginHistories.Add(loginHistory);
 
-            // Send login alert email (optional)
-            try
+            var activeSession = new ActiveSession(user.Id, refreshToken.Token, refreshToken.ExpiresAt, ipAddress, userAgent);
+            if (!string.IsNullOrEmpty(userAgent))
             {
-                await _emailService.SendLoginAlertAsync(user.Email.Value, user.UserName, ipAddress, DateTime.UtcNow);
+                var (deviceType, browser, os) = ParseUserAgent(userAgent);
+                activeSession.SetDeviceInfo(deviceType, browser, os);
             }
-            catch (Exception emailEx)
+            _context.ActiveSessions.Add(activeSession);
+
+            // Single SaveChangesAsync for: user update, token revocations, login history, active session
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Fire-and-forget: send login alert email (non-blocking)
+            var userEmail = user.Email.Value;
+            var userName = user.UserName;
+            _ = Task.Run(async () =>
             {
-                _logger.LogError(emailEx, "Failed to send login alert email to {Email}", user.Email.Value);
-            }
+                try
+                {
+                    await _emailService.SendLoginAlertAsync(userEmail, userName, ipAddress, DateTime.UtcNow);
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogError(emailEx, "Failed to send login alert email to {Email}", userEmail);
+                }
+            });
 
             var response = new AuthResponse
             {
@@ -283,6 +324,176 @@ public class AuthenticationService : IAuthenticationService
         catch (Exception ex)
         {
             return Result.Failure<AuthResponse>(Error.Failure("Authentication.Login.Failed", $"Login failed: {ex.Message}"));
+        }
+    }
+
+    public async Task<Result<AuthResponse>> VerifyTwoFactorLoginAsync(TwoFactorLoginRequest request, CancellationToken cancellationToken = default)
+    {
+        var ipAddress = GetClientIpAddress();
+        var userAgent = _httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString();
+
+        try
+        {
+            // Validate the 2FA token
+            var userId = _jwtTokenService.ValidateTwoFactorToken(request.TwoFactorToken);
+            if (userId == null)
+            {
+                return Result.Failure<AuthResponse>(Error.Unauthorized(
+                    "TwoFactor.Error.TokenExpired",
+                    _localizationService.GetString("TwoFactor.Error.TokenExpired", "Your verification session has expired. Please log in again.")));
+            }
+
+            // Load user
+            var user = await _context.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.Id == userId.Value && !u.IsDeleted, cancellationToken);
+
+            if (user == null)
+            {
+                return Result.Failure<AuthResponse>(Error.NotFound("Auth.Error.UserNotFound", _localizationService.GetString("Auth.Error.UserNotFound")));
+            }
+
+            // Load 2FA config
+            var twoFactor = await _context.TwoFactorAuths
+                .FirstOrDefaultAsync(t => t.UserId == userId.Value && t.IsEnabled, cancellationToken);
+
+            if (twoFactor == null)
+            {
+                return Result.Failure<AuthResponse>(Error.NotFound("TwoFactor.Error.NotEnabled", _localizationService.GetString("TwoFactor.Error.NotEnabled")));
+            }
+
+            // Check lockout from too many failed attempts
+            if (twoFactor.FailedAttempts >= 5)
+            {
+                var lockoutTime = twoFactor.LastAttemptAt?.AddMinutes(15);
+                if (lockoutTime > DateTime.UtcNow)
+                {
+                    return Result.Failure<AuthResponse>(Error.Forbidden(
+                        "TwoFactor.Error.LockedOut",
+                        _localizationService.GetString("TwoFactor.Error.LockedOut", "Too many failed attempts. Please try again later.")));
+                }
+                else
+                {
+                    twoFactor.ResetFailedAttempts();
+                }
+            }
+
+            // Try TOTP code first
+            var codeValid = false;
+            var usedBackupCode = false;
+
+            if (_totpService.VerifyCode(twoFactor.SecretKey, request.Code))
+            {
+                codeValid = true;
+            }
+            else if (!string.IsNullOrEmpty(twoFactor.BackupCodes))
+            {
+                // Try backup code (stored as hashes)
+                try
+                {
+                    var hashedCodes = Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(twoFactor.BackupCodes);
+                    if (hashedCodes != null)
+                    {
+                        var matchedHash = _totpService.FindMatchingBackupCode(request.Code, hashedCodes);
+                        if (matchedHash != null)
+                        {
+                            hashedCodes.Remove(matchedHash);
+                            twoFactor.RegenerateBackupCodes(Newtonsoft.Json.JsonConvert.SerializeObject(hashedCodes));
+                            codeValid = true;
+                            usedBackupCode = true;
+
+                            _logger.LogInformation("Backup code used during 2FA login for user {UserId}. Remaining: {Count}", userId, hashedCodes.Count);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error checking backup codes for user {UserId}", userId);
+                }
+            }
+
+            if (!codeValid)
+            {
+                twoFactor.RecordFailedAttempt();
+                await _context.SaveChangesAsync(cancellationToken);
+
+                _logger.LogWarning("Failed 2FA login verification for user {UserId}. Failed attempts: {Count}", userId, twoFactor.FailedAttempts);
+                return Result.Failure<AuthResponse>(Error.Validation(
+                    "TwoFactor.Error.InvalidCode",
+                    _localizationService.GetString("TwoFactor.Error.InvalidCode", "Invalid verification code. Please try again.")));
+            }
+
+            // 2FA verified — complete login
+            twoFactor.ResetFailedAttempts();
+            user.UpdateLastLogin();
+
+            // Revoke old refresh tokens
+            var activeTokens = await _context.RefreshTokens
+                .Where(rt => rt.UserId == user.Id && rt.RevokedAt == null && rt.ExpiresAt > DateTime.UtcNow)
+                .ToListAsync(cancellationToken);
+
+            foreach (var oldToken in activeTokens)
+            {
+                oldToken.Revoke(ipAddress, "Revoked due to new login (2FA)");
+            }
+
+            // Generate tokens
+            var accessToken = await _jwtTokenService.GenerateAccessTokenAsync(user);
+            var refreshToken = await _jwtTokenService.GenerateRefreshTokenAsync(user.Id, ipAddress);
+
+            // Record login + session
+            var loginHistory = new LoginHistory(user.Id, true, ipAddress, userAgent, usedBackupCode ? "2FA login (backup code)" : "2FA login");
+            _context.LoginHistories.Add(loginHistory);
+
+            var activeSession = new ActiveSession(user.Id, refreshToken.Token, refreshToken.ExpiresAt, ipAddress, userAgent);
+            if (!string.IsNullOrEmpty(userAgent))
+            {
+                var (deviceType, browser, os) = ParseUserAgent(userAgent);
+                activeSession.SetDeviceInfo(deviceType, browser, os);
+            }
+            _context.ActiveSessions.Add(activeSession);
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("2FA login successful for user {UserId}", userId);
+
+            // Fire-and-forget: send login alert
+            var userEmail = user.Email.Value;
+            var userName = user.UserName;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _emailService.SendLoginAlertAsync(userEmail, userName, ipAddress, DateTime.UtcNow);
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogError(emailEx, "Failed to send login alert email to {Email}", userEmail);
+                }
+            });
+
+            return Result.Success(new AuthResponse
+            {
+                Token = accessToken,
+                RefreshToken = refreshToken.Token,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(60),
+                User = _mapper.Map<UserDto>(user)
+            });
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _logger.LogWarning("Concurrency conflict during 2FA login verification — rejecting attempt");
+            return Result.Failure<AuthResponse>(Error.Validation(
+                "TwoFactor.Error.InvalidCode",
+                _localizationService.GetString("TwoFactor.Error.InvalidCode", "Invalid verification code. Please try again.")));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during 2FA login verification");
+            return Result.Failure<AuthResponse>(Error.InternalServerError(
+                "Authentication.TwoFactor.Failed",
+                _localizationService.GetString("General.InternalServerError")));
         }
     }
 

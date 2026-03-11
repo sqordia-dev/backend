@@ -42,14 +42,15 @@ public class TwoFactorController : BaseApiController
     }
 
     /// <summary>
-    /// Disable two-factor authentication
+    /// Disable two-factor authentication (requires a valid TOTP or backup code)
     /// </summary>
+    /// <param name="request">TOTP code or backup code to verify identity</param>
     /// <returns>Success or failure</returns>
     [HttpPost("disable")]
     [Authorize]
-    public async Task<IActionResult> Disable(CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Disable([FromBody] DisableTwoFactorRequest request, CancellationToken cancellationToken = default)
     {
-        var result = await _twoFactorService.DisableTwoFactorAsync();
+        var result = await _twoFactorService.DisableTwoFactorAsync(request);
         return HandleResult(result);
     }
 

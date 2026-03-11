@@ -177,9 +177,9 @@ public class AIAnalysisService : IAIAnalysisService
         if (businessPlan.QuestionnaireResponses.Any())
         {
             sb.AppendLine("\nQuestionnaire Responses:");
-            foreach (var response in businessPlan.QuestionnaireResponses.OrderBy(r => r.QuestionTemplate.Order))
+            foreach (var response in businessPlan.QuestionnaireResponses.Where(r => r.QuestionTemplate != null).OrderBy(r => r.QuestionTemplate!.QuestionNumber))
             {
-                sb.AppendLine($"Q: {response.QuestionTemplate.QuestionText}");
+                sb.AppendLine($"Q: {response.QuestionTemplate!.QuestionTextFR}");
                 sb.AppendLine($"A: {response.ResponseText}");
                 if (!string.IsNullOrEmpty(response.AiInsights))
                 {

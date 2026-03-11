@@ -89,6 +89,9 @@ public static class DatabaseSeedExtensions
 
             // Seed/Update Section prompts for AI content generation
             await SeedSectionPromptsAsync(services, logger);
+
+            // Seed subscription plans and feature limits (4 tiers × 21 features)
+            await SeedSubscriptionPlansAsync(services, logger);
         }
         catch (PostgresException pgEx)
         {
@@ -237,6 +240,26 @@ public static class DatabaseSeedExtensions
         {
             logger.LogError(ex, "An error occurred while seeding Section Prompts. Application will continue.");
             // Don't throw - allow application to continue
+        }
+    }
+
+    private static async Task SeedSubscriptionPlansAsync(IServiceProvider services, ILogger logger)
+    {
+        try
+        {
+            logger.LogInformation("Starting subscription plan seeding...");
+
+            var context = services.GetRequiredService<ApplicationDbContext>();
+            var seederLogger = services.GetRequiredService<ILoggerFactory>().CreateLogger<SubscriptionPlanSeeder>();
+            var seeder = new SubscriptionPlanSeeder(context, seederLogger);
+
+            await seeder.SeedAsync();
+
+            logger.LogInformation("Subscription plan seeding completed successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An error occurred while seeding subscription plans. Application will continue.");
         }
     }
 }

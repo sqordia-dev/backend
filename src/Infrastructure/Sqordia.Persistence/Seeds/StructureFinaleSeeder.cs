@@ -28,7 +28,7 @@ public class StructureFinaleSeeder
         _logger.LogInformation("Starting STRUCTURE FINALE seeding...");
 
         await SeedMainSectionsAsync(cancellationToken);
-        await SeedQuestionTemplatesV3Async(cancellationToken);
+        await SeedQuestionTemplatesAsync(cancellationToken);
         await SeedDefaultMappingsAsync(cancellationToken);
 
         _logger.LogInformation("STRUCTURE FINALE seeding completed.");
@@ -54,20 +54,20 @@ public class StructureFinaleSeeder
         _logger.LogInformation("Seeded {Count} main sections with sub-sections.", sections.Count);
     }
 
-    private async Task SeedQuestionTemplatesV3Async(CancellationToken cancellationToken)
+    private async Task SeedQuestionTemplatesAsync(CancellationToken cancellationToken)
     {
-        var existingCount = await _context.QuestionTemplatesV3.CountAsync(cancellationToken);
+        var existingCount = await _context.QuestionTemplates.CountAsync(cancellationToken);
         if (existingCount > 0)
         {
             _logger.LogInformation("Question templates V3 already exist ({Count} found). Skipping.", existingCount);
             return;
         }
 
-        var questions = GetQuestionTemplatesV3();
+        var questions = GetQuestionTemplates();
 
         foreach (var question in questions)
         {
-            _context.QuestionTemplatesV3.Add(question);
+            _context.QuestionTemplates.Add(question);
         }
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -84,7 +84,7 @@ public class StructureFinaleSeeder
         }
 
         // Load questions and sub-sections for mapping
-        var questions = await _context.QuestionTemplatesV3.ToListAsync(cancellationToken);
+        var questions = await _context.QuestionTemplates.ToListAsync(cancellationToken);
         var subSections = await _context.SubSections.Include(s => s.MainSection).ToListAsync(cancellationToken);
 
         var mappings = CreateDefaultMappings(questions, subSections);
@@ -317,9 +317,9 @@ public class StructureFinaleSeeder
         }
     }
 
-    private List<QuestionTemplateV3> GetQuestionTemplatesV3()
+    private List<QuestionTemplate> GetQuestionTemplates()
     {
-        var questions = new List<QuestionTemplateV3>();
+        var questions = new List<QuestionTemplate>();
 
         // Step 1: Le Projet (The Project)
         questions.Add(CreateQuestion(1, 1, QuestionType.ShortText,
@@ -530,7 +530,7 @@ public class StructureFinaleSeeder
         return questions;
     }
 
-    private QuestionTemplateV3 CreateQuestion(
+    private QuestionTemplate CreateQuestion(
         int questionNumber,
         int stepNumber,
         QuestionType questionType,
@@ -543,7 +543,7 @@ public class StructureFinaleSeeder
         string? optionsFR = null,
         string? optionsEN = null)
     {
-        return QuestionTemplateV3.Create(
+        return QuestionTemplate.Create(
             questionNumber: questionNumber,
             personaType: null, // Universal for all personas
             stepNumber: stepNumber,
@@ -567,7 +567,7 @@ public class StructureFinaleSeeder
     }
 
     private List<QuestionSectionMapping> CreateDefaultMappings(
-        List<QuestionTemplateV3> questions,
+        List<QuestionTemplate> questions,
         List<SubSection> subSections)
     {
         var mappings = new List<QuestionSectionMapping>();
@@ -644,7 +644,7 @@ public class StructureFinaleSeeder
 
     private void MapQuestion(
         List<QuestionSectionMapping> mappings,
-        List<QuestionTemplateV3> questions,
+        List<QuestionTemplate> questions,
         int questionNumber,
         string[] subSectionCodes,
         List<SubSection> allSubSections)
