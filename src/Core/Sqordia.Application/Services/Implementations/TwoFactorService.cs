@@ -129,12 +129,13 @@ public class TwoFactorService : ITwoFactorService
                 return Result.Failure<BackupCodesResponse>(Error.Validation("TwoFactor.Error.InvalidCode", _localizationService.GetString("TwoFactor.Error.InvalidCode")));
             }
 
-            // Generate backup codes
+            // Generate backup codes — return plaintext to user, store hashes
             var backupCodes = _totpService.GenerateBackupCodes();
-            var backupCodesJson = JsonConvert.SerializeObject(backupCodes);
+            var hashedCodes = backupCodes.Select(c => _totpService.HashBackupCode(c)).ToList();
+            var hashedCodesJson = JsonConvert.SerializeObject(hashedCodes);
 
             // Enable 2FA
-            twoFactor.Enable(backupCodesJson);
+            twoFactor.Enable(hashedCodesJson);
             twoFactor.ResetFailedAttempts();
             await _context.SaveChangesAsync(cancellationToken);
 
@@ -149,7 +150,7 @@ public class TwoFactorService : ITwoFactorService
         }
     }
 
-    public async Task<Result> DisableTwoFactorAsync(CancellationToken cancellationToken = default)
+    public async Task<Result> DisableTwoFactorAsync(DisableTwoFactorRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -170,6 +171,29 @@ public class TwoFactorService : ITwoFactorService
             if (!twoFactor.IsEnabled)
             {
                 return Result.Failure(Error.Conflict("TwoFactor.Error.NotEnabled", _localizationService.GetString("TwoFactor.Error.NotEnabled")));
+            }
+
+            // Verify TOTP code or backup code before disabling
+            var codeValid = _totpService.VerifyCode(twoFactor.SecretKey, request.Code);
+            if (!codeValid && !string.IsNullOrEmpty(twoFactor.BackupCodes))
+            {
+                try
+                {
+                    var hashedCodes = JsonConvert.DeserializeObject<List<string>>(twoFactor.BackupCodes);
+                    if (hashedCodes != null)
+                    {
+                        var matchedHash = _totpService.FindMatchingBackupCode(request.Code, hashedCodes);
+                        codeValid = matchedHash != null;
+                    }
+                }
+                catch { /* ignore parse errors */ }
+            }
+
+            if (!codeValid)
+            {
+                twoFactor.RecordFailedAttempt();
+                await _context.SaveChangesAsync(cancellationToken);
+                return Result.Failure(Error.Validation("TwoFactor.Error.InvalidCode", _localizationService.GetString("TwoFactor.Error.InvalidCode")));
             }
 
             twoFactor.Disable();
@@ -255,11 +279,12 @@ public class TwoFactorService : ITwoFactorService
                 return Result.Failure<BackupCodesResponse>(Error.NotFound("TwoFactor.Error.NotEnabled", _localizationService.GetString("TwoFactor.Error.NotEnabled")));
             }
 
-            // Generate new backup codes
+            // Generate new backup codes — return plaintext to user, store hashes
             var backupCodes = _totpService.GenerateBackupCodes();
-            var backupCodesJson = JsonConvert.SerializeObject(backupCodes);
+            var hashedCodes = backupCodes.Select(c => _totpService.HashBackupCode(c)).ToList();
+            var hashedCodesJson = JsonConvert.SerializeObject(hashedCodes);
 
-            twoFactor.RegenerateBackupCodes(backupCodesJson);
+            twoFactor.RegenerateBackupCodes(hashedCodesJson);
             await _context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Backup codes regenerated for user {UserId}", userId);
@@ -274,6 +299,25 @@ public class TwoFactorService : ITwoFactorService
     }
 
     public async Task<Result> VerifyTwoFactorCodeAsync(VerifyTwoFactorRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await VerifyTwoFactorCodeInternalAsync(request, cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Concurrent request modified FailedAttempts — another verification is in flight
+            _logger.LogWarning("Concurrency conflict during 2FA verification — rejecting attempt");
+            return Result.Failure(Error.Validation("TwoFactor.Error.InvalidCode", _localizationService.GetString("TwoFactor.Error.InvalidCode")));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error verifying 2FA code");
+            return Result.Failure(Error.InternalServerError("General.InternalServerError", _localizationService.GetString("General.InternalServerError")));
+        }
+    }
+
+    private async Task<Result> VerifyTwoFactorCodeInternalAsync(VerifyTwoFactorRequest request, CancellationToken cancellationToken)
     {
         try
         {
@@ -313,22 +357,26 @@ public class TwoFactorService : ITwoFactorService
                 return Result.Success();
             }
 
-            // Try to verify with backup code
+            // Try to verify with backup code (stored as hashes)
             if (!string.IsNullOrEmpty(twoFactor.BackupCodes))
             {
                 try
                 {
-                    var backupCodes = JsonConvert.DeserializeObject<List<string>>(twoFactor.BackupCodes);
-                    if (backupCodes != null && backupCodes.Contains(request.Code))
+                    var hashedCodes = JsonConvert.DeserializeObject<List<string>>(twoFactor.BackupCodes);
+                    if (hashedCodes != null)
                     {
-                        // Remove used backup code
-                        backupCodes.Remove(request.Code);
-                        twoFactor.RegenerateBackupCodes(JsonConvert.SerializeObject(backupCodes));
-                        twoFactor.ResetFailedAttempts();
-                        await _context.SaveChangesAsync(cancellationToken);
+                        var matchedHash = _totpService.FindMatchingBackupCode(request.Code, hashedCodes);
+                        if (matchedHash != null)
+                        {
+                            // Remove used backup code hash
+                            hashedCodes.Remove(matchedHash);
+                            twoFactor.RegenerateBackupCodes(JsonConvert.SerializeObject(hashedCodes));
+                            twoFactor.ResetFailedAttempts();
+                            await _context.SaveChangesAsync(cancellationToken);
 
-                        _logger.LogInformation("Backup code used for user {UserId}. Remaining codes: {RemainingCodes}", userId, backupCodes.Count);
-                        return Result.Success();
+                            _logger.LogInformation("Backup code used for user {UserId}. Remaining codes: {RemainingCodes}", userId, hashedCodes.Count);
+                            return Result.Success();
+                        }
                     }
                 }
                 catch (Exception ex)
