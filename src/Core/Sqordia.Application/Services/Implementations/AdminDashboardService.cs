@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Models;
 using Sqordia.Application.Common.Security;
+using Sqordia.Domain.Entities;
 using Sqordia.Domain.Entities.Identity;
 using Sqordia.Domain.Enums;
 using Sqordia.Domain.ValueObjects;
@@ -355,9 +356,23 @@ public class AdminDashboardService : IAdminDashboardService
                 .GroupBy(bp => bp.OrganizationId)
                 .ToDictionaryAsync(g => g.Key, g => new { Total = g.Count(), Completed = g.Count(bp => bp.CompletionPercentage >= 100) }, cancellationToken);
 
+            // Resolve owner info from members with Owner role
+            var ownerUserIds = organizationsData
+                .SelectMany(o => o.Members.Where(m => m.Role == Domain.Enums.OrganizationRole.Owner))
+                .Select(m => m.UserId)
+                .Distinct()
+                .ToList();
+            var ownerUsers = ownerUserIds.Count > 0
+                ? await _context.Users.AsNoTracking()
+                    .Where(u => ownerUserIds.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id, u => u, cancellationToken)
+                : new Dictionary<Guid, Domain.Entities.User>();
+
             var organizations = organizationsData.Select(o =>
             {
                 var bpCounts = businessPlanCounts.TryGetValue(o.Id, out var counts) ? counts : new { Total = 0, Completed = 0 };
+                var ownerMember = o.Members.FirstOrDefault(m => m.Role == Domain.Enums.OrganizationRole.Owner);
+                var ownerUser = ownerMember != null && ownerUsers.TryGetValue(ownerMember.UserId, out var u) ? u : null;
                 return new AdminOrganizationInfo
                 {
                     Id = o.Id,
@@ -366,9 +381,9 @@ public class AdminDashboardService : IAdminDashboardService
                     OrganizationType = o.OrganizationType.ToString(),
                     IsActive = o.IsActive,
                     CreatedAt = o.Created,
-                    OwnerId = Guid.Empty, // Would need to parse CreatedBy or find owner member
-                    OwnerEmail = o.CreatedBy ?? "Unknown",
-                    OwnerName = "Unknown",
+                    OwnerId = ownerMember?.UserId ?? Guid.Empty,
+                    OwnerEmail = ownerUser?.Email ?? o.CreatedBy ?? "Unknown",
+                    OwnerName = ownerUser != null ? $"{ownerUser.FirstName} {ownerUser.LastName}".Trim() : "Unknown",
                     MemberCount = o.Members.Count,
                     BusinessPlanCount = bpCounts.Total,
                     CompletedBusinessPlanCount = bpCounts.Completed,
@@ -1269,6 +1284,216 @@ public class AdminDashboardService : IAdminDashboardService
         {
             _logger.LogError(ex, "Error performing bulk user status update");
             return Result.Failure<AdminBulkActionResult>("Failed to perform bulk status update.");
+        }
+    }
+
+    public async Task<Result<AdminOrganizationDetail>> GetOrganizationDetailAsync(Guid organizationId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var org = await _context.Organizations
+                .Include(o => o.Members.Where(m => !m.IsDeleted))
+                    .ThenInclude(m => m.User)
+                .FirstOrDefaultAsync(o => o.Id == organizationId && !o.IsDeleted, cancellationToken);
+
+            if (org == null)
+                return Result.Failure<AdminOrganizationDetail>(Error.NotFound("Admin.Organization.NotFound", "Organization not found"));
+
+            var businessPlanCount = await _context.BusinessPlans
+                .CountAsync(bp => bp.OrganizationId == organizationId && !bp.IsDeleted, cancellationToken);
+
+            var pendingInvitationCount = await _context.OrganizationInvitations
+                .CountAsync(i => i.OrganizationId == organizationId
+                    && i.Status == Domain.Enums.InvitationStatus.Pending
+                    && !i.IsDeleted, cancellationToken);
+
+            // Get subscription plan name
+            var subscription = await _context.Subscriptions
+                .Include(s => s.Plan)
+                .FirstOrDefaultAsync(s => s.OrganizationId == organizationId
+                    && s.Status == Domain.Enums.SubscriptionStatus.Active
+                    && !s.IsDeleted, cancellationToken);
+
+            return Result.Success(new AdminOrganizationDetail
+            {
+                Id = org.Id,
+                Name = org.Name,
+                Description = org.Description ?? "",
+                OrganizationType = org.OrganizationType.ToString(),
+                Website = org.Website,
+                LogoUrl = org.LogoUrl,
+                IsActive = org.IsActive,
+                CreatedAt = org.Created,
+                DeactivatedAt = org.DeactivatedAt,
+                MaxMembers = org.MaxMembers,
+                AllowMemberInvites = org.AllowMemberInvites,
+                RequireEmailVerification = org.RequireEmailVerification,
+                Industry = org.Industry,
+                Sector = org.Sector,
+                TeamSize = org.TeamSize,
+                City = org.City,
+                Province = org.Province,
+                Country = org.Country,
+                ProfileCompletenessScore = org.ProfileCompletenessScore,
+                MemberCount = org.Members.Count(m => m.IsActive),
+                BusinessPlanCount = businessPlanCount,
+                PendingInvitationCount = pendingInvitationCount,
+                SubscriptionPlan = subscription?.Plan?.Name,
+                Members = org.Members
+                    .Where(m => m.IsActive)
+                    .Select(m => new AdminOrgMemberInfo
+                    {
+                        Id = m.Id,
+                        UserId = m.UserId,
+                        FirstName = m.User?.FirstName ?? "",
+                        LastName = m.User?.LastName ?? "",
+                        Email = m.User?.Email?.ToString() ?? "",
+                        Role = m.Role.ToString(),
+                        IsActive = m.IsActive,
+                        JoinedAt = m.JoinedAt
+                    })
+                    .ToList()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting organization detail for admin {OrganizationId}", organizationId);
+            return Result.Failure<AdminOrganizationDetail>(Error.Failure("Admin.Organization.Error", "Failed to get organization details"));
+        }
+    }
+
+    public async Task<Result<Guid>> AdminCreateOrganizationAsync(AdminCreateOrganizationRequest request, CancellationToken ct = default)
+    {
+        try
+        {
+            _logger.LogInformation("Admin creating organization: {Name}", request.Name);
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+                return Result.Failure<Guid>(Error.Validation("Admin.Organization.Validation", "Organization name is required."));
+
+            if (!Enum.TryParse<OrganizationType>(request.OrganizationType, true, out var orgType))
+                return Result.Failure<Guid>(Error.Validation("Admin.Organization.Validation", $"Invalid organization type: {request.OrganizationType}. Valid values: Startup, OBNL, ConsultingFirm, Company."));
+
+            var organization = new Organization(request.Name, orgType, request.Description, request.Website);
+            organization.UpdateSettings(request.MaxMembers, request.AllowMemberInvites, request.RequireEmailVerification);
+
+            _context.Organizations.Add(organization);
+
+            if (request.OwnerUserId.HasValue)
+            {
+                var user = await _context.Users.FindAsync(new object[] { request.OwnerUserId.Value }, ct);
+                if (user == null)
+                    return Result.Failure<Guid>(Error.NotFound("Admin.Organization.OwnerNotFound", $"User {request.OwnerUserId.Value} not found."));
+
+                var member = new OrganizationMember(organization.Id, user.Id, OrganizationRole.Owner);
+                _context.OrganizationMembers.Add(member);
+            }
+
+            await _context.SaveChangesAsync(ct);
+
+            _logger.LogInformation("Admin created organization {OrganizationId}: {Name}", organization.Id, request.Name);
+            return Result.Success(organization.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating organization from admin panel");
+            return Result.Failure<Guid>(Error.Failure("Admin.Organization.CreateError", "Failed to create organization."));
+        }
+    }
+
+    public async Task<Result> AdminUpdateOrganizationAsync(Guid organizationId, AdminUpdateOrganizationRequest request, CancellationToken ct = default)
+    {
+        try
+        {
+            _logger.LogInformation("Admin updating organization {OrganizationId}", organizationId);
+
+            var org = await _context.Organizations
+                .FirstOrDefaultAsync(o => o.Id == organizationId && !o.IsDeleted, ct);
+
+            if (org == null)
+                return Result.Failure(Error.NotFound("Admin.Organization.NotFound", "Organization not found."));
+
+            if (request.Name != null)
+            {
+                if (string.IsNullOrWhiteSpace(request.Name))
+                    return Result.Failure(Error.Validation("Admin.Organization.Validation", "Organization name cannot be empty."));
+
+                org.UpdateDetails(request.Name, request.Description ?? org.Description, request.Website ?? org.Website);
+            }
+            else if (request.Description != null || request.Website != null)
+            {
+                org.UpdateDetails(org.Name, request.Description ?? org.Description, request.Website ?? org.Website);
+            }
+
+            if (request.OrganizationType != null)
+            {
+                if (!Enum.TryParse<OrganizationType>(request.OrganizationType, true, out var orgType))
+                    return Result.Failure(Error.Validation("Admin.Organization.Validation", $"Invalid organization type: {request.OrganizationType}. Valid values: Startup, OBNL, ConsultingFirm, Company."));
+
+                org.UpdateOrganizationType(orgType);
+            }
+
+            if (request.MaxMembers.HasValue || request.AllowMemberInvites.HasValue || request.RequireEmailVerification.HasValue)
+            {
+                org.UpdateSettings(
+                    request.MaxMembers ?? org.MaxMembers,
+                    request.AllowMemberInvites ?? org.AllowMemberInvites,
+                    request.RequireEmailVerification ?? org.RequireEmailVerification);
+            }
+
+            await _context.SaveChangesAsync(ct);
+
+            _logger.LogInformation("Admin updated organization {OrganizationId}", organizationId);
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating organization {OrganizationId} from admin panel", organizationId);
+            return Result.Failure(Error.Failure("Admin.Organization.UpdateError", "Failed to update organization."));
+        }
+    }
+
+    public async Task<Result> AdminDeleteOrganizationAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        try
+        {
+            _logger.LogInformation("Admin deleting organization {OrganizationId}", organizationId);
+
+            var org = await _context.Organizations
+                .FirstOrDefaultAsync(o => o.Id == organizationId && !o.IsDeleted, ct);
+
+            if (org == null)
+                return Result.Failure(Error.NotFound("Admin.Organization.NotFound", "Organization not found."));
+
+            var hasBusinessPlans = await _context.BusinessPlans
+                .AnyAsync(bp => bp.OrganizationId == organizationId && !bp.IsDeleted, ct);
+
+            if (hasBusinessPlans)
+                return Result.Failure(Error.Validation("Admin.Organization.HasBusinessPlans", "Cannot delete organization with existing business plans. Deactivate instead."));
+
+            var members = await _context.OrganizationMembers
+                .Where(m => m.OrganizationId == organizationId)
+                .ToListAsync(ct);
+
+            _context.OrganizationMembers.RemoveRange(members);
+
+            var invitations = await _context.OrganizationInvitations
+                .Where(i => i.OrganizationId == organizationId)
+                .ToListAsync(ct);
+
+            _context.OrganizationInvitations.RemoveRange(invitations);
+
+            _context.Organizations.Remove(org);
+
+            await _context.SaveChangesAsync(ct);
+
+            _logger.LogInformation("Admin deleted organization {OrganizationId}", organizationId);
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting organization {OrganizationId} from admin panel", organizationId);
+            return Result.Failure(Error.Failure("Admin.Organization.DeleteError", "Failed to delete organization."));
         }
     }
 }

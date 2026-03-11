@@ -120,6 +120,67 @@ public class AdminDashboardController : BaseApiController
     }
 
     /// <summary>
+    /// Get detailed organization info
+    /// </summary>
+    [HttpGet("organizations/{organizationId:guid}")]
+    public async Task<IActionResult> GetOrganizationDetail(
+        Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (organizationId == Guid.Empty)
+            return BadRequest(new { message = "Invalid organization ID." });
+
+        var result = await _adminDashboardService.GetOrganizationDetailAsync(organizationId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Create a new organization from admin panel
+    /// </summary>
+    [HttpPost("organizations")]
+    public async Task<IActionResult> CreateOrganization(
+        [FromBody] AdminCreateOrganizationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new { message = "Organization name is required." });
+
+        var result = await _adminDashboardService.AdminCreateOrganizationAsync(request, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Update organization from admin panel
+    /// </summary>
+    [HttpPut("organizations/{organizationId:guid}")]
+    public async Task<IActionResult> UpdateOrganization(
+        Guid organizationId,
+        [FromBody] AdminUpdateOrganizationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (organizationId == Guid.Empty)
+            return BadRequest(new { message = "Invalid organization ID." });
+
+        var result = await _adminDashboardService.AdminUpdateOrganizationAsync(organizationId, request, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Delete organization from admin panel
+    /// </summary>
+    [HttpDelete("organizations/{organizationId:guid}")]
+    public async Task<IActionResult> DeleteOrganization(
+        Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (organizationId == Guid.Empty)
+            return BadRequest(new { message = "Invalid organization ID." });
+
+        var result = await _adminDashboardService.AdminDeleteOrganizationAsync(organizationId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
     /// Get paginated list of business plans with comprehensive filtering
     /// </summary>
     [HttpGet("business-plans")]

@@ -7,6 +7,7 @@ using Sqordia.Domain.Entities.BusinessPlan;
 using Sqordia.Domain.Entities.Cms;
 using Sqordia.Domain.Entities.Financial;
 using Sqordia.Domain.Entities.Identity;
+using Sqordia.Domain.Entities.ML;
 
 namespace Sqordia.Persistence.Contexts;
 
@@ -42,6 +43,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     // Organization Management
     public DbSet<Organization> Organizations { get; set; }
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }
+    public DbSet<OrganizationInvitation> OrganizationInvitations { get; set; }
     
     // Business Plan Management
     public DbSet<Domain.Entities.BusinessPlan.BusinessPlan> BusinessPlans { get; set; }
@@ -108,7 +110,11 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     // Subscription Management
     public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
     public DbSet<Subscription> Subscriptions { get; set; }
-    
+    public DbSet<PlanFeatureLimit> PlanFeatureLimits { get; set; }
+    public DbSet<OrganizationUsage> OrganizationUsages { get; set; }
+    public DbSet<Coupon> Coupons { get; set; }
+    public DbSet<CouponRedemption> CouponRedemptions { get; set; }
+
     // Application Settings
     public DbSet<Settings> Settings { get; set; }
     
@@ -143,6 +149,11 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     // Notifications
     public DbSet<Notification> Notifications { get; set; }
+
+    // ML Training Data
+    public DbSet<AICallTelemetryRecord> AICallTelemetryRecords { get; set; }
+    public DbSet<SectionEditHistory> SectionEditHistories { get; set; }
+    public DbSet<LearnedPreference> LearnedPreferences { get; set; }
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {

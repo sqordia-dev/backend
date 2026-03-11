@@ -92,6 +92,26 @@ public interface IAdminDashboardService
     Task<Result<AdminAIUsageStats>> GetAIUsageStatsAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get detailed organization info for admin management
+    /// </summary>
+    Task<Result<AdminOrganizationDetail>> GetOrganizationDetailAsync(Guid organizationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Create a new organization from admin panel
+    /// </summary>
+    Task<Result<Guid>> AdminCreateOrganizationAsync(AdminCreateOrganizationRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Update organization from admin panel
+    /// </summary>
+    Task<Result> AdminUpdateOrganizationAsync(Guid organizationId, AdminUpdateOrganizationRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Delete organization from admin panel
+    /// </summary>
+    Task<Result> AdminDeleteOrganizationAsync(Guid organizationId, CancellationToken ct = default);
+
+    /// <summary>
     /// Force business plan regeneration for specific user/organization
     /// </summary>
     /// <param name="businessPlanId">Business plan ID</param>
@@ -648,4 +668,85 @@ public class AdminBulkActionResult
     public int SuccessCount { get; set; }
     public int FailedCount { get; set; }
     public List<string> Errors { get; set; } = new();
+}
+
+/// <summary>
+/// Detailed organization info for admin management
+/// </summary>
+public class AdminOrganizationDetail
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string OrganizationType { get; set; } = string.Empty;
+    public string? Website { get; set; }
+    public string? LogoUrl { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? DeactivatedAt { get; set; }
+    public int MaxMembers { get; set; }
+    public bool AllowMemberInvites { get; set; }
+    public bool RequireEmailVerification { get; set; }
+
+    // Business context
+    public string? Industry { get; set; }
+    public string? Sector { get; set; }
+    public string? TeamSize { get; set; }
+    public string? City { get; set; }
+    public string? Province { get; set; }
+    public string? Country { get; set; }
+    public double ProfileCompletenessScore { get; set; }
+
+    // Aggregate stats
+    public int MemberCount { get; set; }
+    public int BusinessPlanCount { get; set; }
+    public int PendingInvitationCount { get; set; }
+    public string? SubscriptionPlan { get; set; }
+
+    // Members
+    public List<AdminOrgMemberInfo> Members { get; set; } = new();
+}
+
+/// <summary>
+/// Member info within admin organization detail
+/// </summary>
+public class AdminOrgMemberInfo
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+    public DateTime JoinedAt { get; set; }
+}
+
+/// <summary>
+/// Request to create organization from admin panel
+/// </summary>
+public class AdminCreateOrganizationRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string OrganizationType { get; set; } = "Startup";
+    public string? Website { get; set; }
+    public Guid? OwnerUserId { get; set; }
+    public int MaxMembers { get; set; } = 10;
+    public bool AllowMemberInvites { get; set; } = true;
+    public bool RequireEmailVerification { get; set; }
+}
+
+/// <summary>
+/// Request to update organization from admin panel
+/// </summary>
+public class AdminUpdateOrganizationRequest
+{
+    public string? Name { get; set; }
+    public string? Description { get; set; }
+    public string? OrganizationType { get; set; }
+    public string? Website { get; set; }
+    public int? MaxMembers { get; set; }
+    public bool? AllowMemberInvites { get; set; }
+    public bool? RequireEmailVerification { get; set; }
 }

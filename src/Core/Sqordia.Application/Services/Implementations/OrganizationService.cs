@@ -4,6 +4,7 @@ using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Models;
 using Sqordia.Contracts.Requests.Organization;
 using Sqordia.Contracts.Responses.Organization;
+using Sqordia.Domain.Constants;
 using Sqordia.Domain.Entities;
 using Sqordia.Domain.Enums;
 
@@ -17,6 +18,7 @@ public class OrganizationService : IOrganizationService
     private readonly ILocalizationService _localizationService;
     private readonly IOrganizationMembershipCache _membershipCache;
     private readonly INotificationService _notificationService;
+    private readonly IFeatureGateService _featureGate;
 
     public OrganizationService(
         IApplicationDbContext context,
@@ -24,7 +26,8 @@ public class OrganizationService : IOrganizationService
         ILogger<OrganizationService> logger,
         ILocalizationService localizationService,
         IOrganizationMembershipCache membershipCache,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IFeatureGateService featureGate)
     {
         _context = context;
         _currentUserService = currentUserService;
@@ -32,6 +35,7 @@ public class OrganizationService : IOrganizationService
         _localizationService = localizationService;
         _membershipCache = membershipCache;
         _notificationService = notificationService;
+        _featureGate = featureGate;
     }
 
     public async Task<Result<OrganizationResponse>> CreateOrganizationAsync(CreateOrganizationRequest request, CancellationToken cancellationToken = default)
@@ -48,6 +52,27 @@ public class OrganizationService : IOrganizationService
             if (user == null)
             {
                 return Result.Failure<OrganizationResponse>(Error.NotFound("Auth.Error.UserNotFound", _localizationService.GetString("Auth.Error.UserNotFound")));
+            }
+
+            // Check max organizations limit
+            var userOrgCount = await _context.OrganizationMembers
+                .CountAsync(om => om.UserId == userId.Value && om.IsActive, cancellationToken);
+
+            if (userOrgCount > 0)
+            {
+                var primaryOrgId = await _context.OrganizationMembers
+                    .Where(om => om.UserId == userId.Value && om.IsActive)
+                    .OrderBy(om => om.Created)
+                    .Select(om => om.OrganizationId)
+                    .FirstAsync(cancellationToken);
+
+                var orgLimit = await _featureGate.GetLimitAsync(primaryOrgId, PlanFeatures.MaxOrganizations, cancellationToken);
+                if (orgLimit != -1 && userOrgCount >= orgLimit)
+                {
+                    return Result.Failure<OrganizationResponse>(Error.Validation(
+                        "Organization.Error.MaxOrganizationsReached",
+                        $"Your plan allows a maximum of {orgLimit} organization(s). Upgrade your plan to create more."));
+                }
             }
 
             // Parse organization type
@@ -464,10 +489,14 @@ public class OrganizationService : IOrganizationService
                 return Result.Failure<OrganizationMemberResponse>(Error.Forbidden("Organization.Error.Forbidden", _localizationService.GetString("Organization.Error.Forbidden")));
             }
 
-            // Check if organization can add more members
-            if (!organization.CanAddMoreMembers())
+            // Check team member limit via feature gate
+            var memberLimit = await _featureGate.GetLimitAsync(organizationId, PlanFeatures.MaxTeamMembers, cancellationToken);
+            var activeMemberCount = organization.Members.Count(m => m.IsActive);
+            if (memberLimit != -1 && activeMemberCount >= memberLimit)
             {
-                return Result.Failure<OrganizationMemberResponse>(Error.Validation("Organization.Error.MaxMembersReached", _localizationService.GetString("Organization.Error.MaxMembersReached")));
+                return Result.Failure<OrganizationMemberResponse>(Error.Validation(
+                    "Organization.Error.MaxMembersReached",
+                    $"Your plan allows a maximum of {memberLimit} team member(s). Upgrade your plan to add more."));
             }
 
             // Check if user exists
@@ -718,6 +747,272 @@ public class OrganizationService : IOrganizationService
     {
         var role = await _membershipCache.GetUserRoleAsync(organizationId, userId, cancellationToken);
         return role == OrganizationRole.Owner.ToString() || role == OrganizationRole.Admin.ToString();
+    }
+
+    // ── Invitation Management ────────────────────────────────────────────────
+
+    public async Task<Result<InvitationResponse>> InviteMemberByEmailAsync(
+        Guid organizationId, InviteMemberByEmailRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var userId = _currentUserService.GetUserIdAsGuid();
+            if (userId == null)
+                return Result.Failure<InvitationResponse>(Error.Unauthorized("Organization.Error.Unauthorized", "User not authenticated"));
+
+            if (!await IsUserOwnerOrAdminAsync(organizationId, userId.Value, cancellationToken))
+                return Result.Failure<InvitationResponse>(Error.Forbidden("Organization.Error.Forbidden", "Only owners and admins can invite members"));
+
+            var organization = await _context.Organizations
+                .Include(o => o.Members.Where(m => m.IsActive))
+                .FirstOrDefaultAsync(o => o.Id == organizationId && !o.IsDeleted, cancellationToken);
+
+            if (organization == null)
+                return Result.Failure<InvitationResponse>(Error.NotFound("Organization.Error.NotFound", "Organization not found"));
+
+            var email = request.Email.ToLowerInvariant();
+
+            // Check if user is already a member
+            var existingMember = await _context.OrganizationMembers
+                .Include(m => m.User)
+                .FirstOrDefaultAsync(m => m.OrganizationId == organizationId
+                    && m.User.Email != null && m.User.Email.Value.ToLower() == email
+                    && m.IsActive && !m.IsDeleted, cancellationToken);
+
+            if (existingMember != null)
+                return Result.Failure<InvitationResponse>(Error.Conflict("Organization.Error.MemberAlreadyExists", "User is already a member of this organization"));
+
+            // Check for existing pending invitation
+            var existingInvitation = await _context.OrganizationInvitations
+                .FirstOrDefaultAsync(i => i.OrganizationId == organizationId
+                    && i.Email == email
+                    && i.Status == InvitationStatus.Pending
+                    && !i.IsDeleted, cancellationToken);
+
+            if (existingInvitation != null)
+                return Result.Failure<InvitationResponse>(Error.Conflict("Organization.Error.InvitationAlreadyPending", "An invitation is already pending for this email"));
+
+            // Check member limit
+            if (!organization.CanAddMoreMembers())
+            {
+                var limitCheck = await _featureGate.CheckUsageLimitAsync(organizationId, PlanFeatures.MaxTeamMembers, cancellationToken);
+                if (limitCheck.IsSuccess && !limitCheck.Value!.Allowed)
+                    return Result.Failure<InvitationResponse>(Error.Validation("Organization.Error.MaxMembersReached", "Organization has reached its member limit"));
+            }
+
+            // Parse role
+            if (!Enum.TryParse<OrganizationRole>(request.Role, true, out var role))
+                return Result.Failure<InvitationResponse>(Error.Validation("Organization.Error.InvalidRole", "Invalid role. Must be: Admin, Member, or Viewer"));
+
+            // Prevent inviting as Owner
+            if (role == OrganizationRole.Owner)
+                return Result.Failure<InvitationResponse>(Error.Validation("Organization.Error.CannotInviteAsOwner", "Cannot invite users as Owner. Use role transfer instead."));
+
+            var invitation = new OrganizationInvitation(organizationId, email, role, userId.Value);
+            _context.OrganizationInvitations.Add(invitation);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Send notification
+            try
+            {
+                var inviter = await _context.Users.FindAsync(new object[] { userId.Value }, cancellationToken);
+                var inviterName = inviter != null ? $"{inviter.FirstName} {inviter.LastName}".Trim() : "A team member";
+
+                await _notificationService.CreateNotificationAsync(
+                    userId.Value,
+                    NotificationType.OrganizationInvitation,
+                    NotificationCategory.Organization,
+                    titleFr: $"Invitation envoyée à {email}",
+                    titleEn: $"Invitation sent to {email}",
+                    messageFr: $"{inviterName} a invité {email} à rejoindre {organization.Name}.",
+                    messageEn: $"{inviterName} invited {email} to join {organization.Name}.",
+                    actionUrl: "/dashboard",
+                    relatedEntityId: organizationId,
+                    cancellationToken: cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send invitation notification for {Email}", email);
+            }
+
+            var invitedBy = await _context.Users.FindAsync(new object[] { userId.Value }, cancellationToken);
+
+            return Result.Success(new InvitationResponse
+            {
+                Id = invitation.Id,
+                OrganizationId = organizationId,
+                Email = invitation.Email,
+                Role = invitation.Role.ToString(),
+                Status = invitation.Status.ToString(),
+                InvitedByName = invitedBy != null ? $"{invitedBy.FirstName} {invitedBy.LastName}".Trim() : "",
+                CreatedAt = invitation.Created,
+                ExpiresAt = invitation.ExpiresAt
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inviting member by email to organization {OrganizationId}", organizationId);
+            return Result.Failure<InvitationResponse>(Error.Failure("Organization.Error.InviteFailed", "Failed to send invitation"));
+        }
+    }
+
+    public async Task<Result<IEnumerable<InvitationResponse>>> GetPendingInvitationsAsync(
+        Guid organizationId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var userId = _currentUserService.GetUserIdAsGuid();
+            if (userId == null)
+                return Result.Failure<IEnumerable<InvitationResponse>>(Error.Unauthorized("Organization.Error.Unauthorized", "User not authenticated"));
+
+            if (!await IsUserOwnerOrAdminAsync(organizationId, userId.Value, cancellationToken))
+                return Result.Failure<IEnumerable<InvitationResponse>>(Error.Forbidden("Organization.Error.Forbidden", "Only owners and admins can view invitations"));
+
+            var invitations = await _context.OrganizationInvitations
+                .Include(i => i.InvitedByUser)
+                .Where(i => i.OrganizationId == organizationId
+                    && i.Status == InvitationStatus.Pending
+                    && !i.IsDeleted)
+                .OrderByDescending(i => i.Created)
+                .ToListAsync(cancellationToken);
+
+            // Auto-expire
+            foreach (var inv in invitations.Where(i => i.IsExpired()))
+            {
+                inv.MarkExpired();
+            }
+            await _context.SaveChangesAsync(cancellationToken);
+
+            var result = invitations
+                .Where(i => i.Status == InvitationStatus.Pending)
+                .Select(i => new InvitationResponse
+                {
+                    Id = i.Id,
+                    OrganizationId = i.OrganizationId,
+                    Email = i.Email,
+                    Role = i.Role.ToString(),
+                    Status = i.Status.ToString(),
+                    InvitedByName = i.InvitedByUser != null ? $"{i.InvitedByUser.FirstName} {i.InvitedByUser.LastName}".Trim() : "",
+                    CreatedAt = i.Created,
+                    ExpiresAt = i.ExpiresAt
+                });
+
+            return Result.Success(result.AsEnumerable());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting pending invitations for organization {OrganizationId}", organizationId);
+            return Result.Failure<IEnumerable<InvitationResponse>>(Error.Failure("Organization.Error.GetInvitationsFailed", "Failed to get invitations"));
+        }
+    }
+
+    public async Task<Result> CancelInvitationAsync(
+        Guid organizationId, Guid invitationId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var userId = _currentUserService.GetUserIdAsGuid();
+            if (userId == null)
+                return Result.Failure(Error.Unauthorized("Organization.Error.Unauthorized", "User not authenticated"));
+
+            if (!await IsUserOwnerOrAdminAsync(organizationId, userId.Value, cancellationToken))
+                return Result.Failure(Error.Forbidden("Organization.Error.Forbidden", "Only owners and admins can cancel invitations"));
+
+            var invitation = await _context.OrganizationInvitations
+                .FirstOrDefaultAsync(i => i.Id == invitationId
+                    && i.OrganizationId == organizationId
+                    && !i.IsDeleted, cancellationToken);
+
+            if (invitation == null)
+                return Result.Failure(Error.NotFound("Organization.Error.InvitationNotFound", "Invitation not found"));
+
+            if (invitation.Status != InvitationStatus.Pending)
+                return Result.Failure(Error.Validation("Organization.Error.InvitationNotPending", "Only pending invitations can be cancelled"));
+
+            invitation.Cancel();
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cancelling invitation {InvitationId}", invitationId);
+            return Result.Failure(Error.Failure("Organization.Error.CancelInvitationFailed", "Failed to cancel invitation"));
+        }
+    }
+
+    public async Task<Result<OrganizationMemberResponse>> AcceptInvitationAsync(
+        Guid token, Guid userId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var invitation = await _context.OrganizationInvitations
+                .Include(i => i.Organization)
+                .FirstOrDefaultAsync(i => i.Token == token && !i.IsDeleted, cancellationToken);
+
+            if (invitation == null)
+                return Result.Failure<OrganizationMemberResponse>(Error.NotFound("Organization.Error.InvitationNotFound", "Invitation not found or has been revoked"));
+
+            if (invitation.Status != InvitationStatus.Pending)
+                return Result.Failure<OrganizationMemberResponse>(Error.Validation("Organization.Error.InvitationNotPending", $"This invitation has been {invitation.Status.ToString().ToLower()}"));
+
+            if (invitation.IsExpired())
+            {
+                invitation.MarkExpired();
+                await _context.SaveChangesAsync(cancellationToken);
+                return Result.Failure<OrganizationMemberResponse>(Error.Validation("Organization.Error.InvitationExpired", "This invitation has expired"));
+            }
+
+            // Verify user email matches invitation
+            var user = await _context.Users.FindAsync(new object[] { userId }, cancellationToken);
+            if (user == null)
+                return Result.Failure<OrganizationMemberResponse>(Error.NotFound("Organization.Error.UserNotFound", "User not found"));
+
+            if (user.Email?.ToString().ToLowerInvariant() != invitation.Email)
+                return Result.Failure<OrganizationMemberResponse>(Error.Validation("Organization.Error.EmailMismatch", "Your email does not match the invitation"));
+
+            // Check if already a member
+            var existingMember = await _context.OrganizationMembers
+                .FirstOrDefaultAsync(m => m.OrganizationId == invitation.OrganizationId
+                    && m.UserId == userId
+                    && m.IsActive && !m.IsDeleted, cancellationToken);
+
+            if (existingMember != null)
+            {
+                invitation.Accept(userId);
+                await _context.SaveChangesAsync(cancellationToken);
+                return Result.Failure<OrganizationMemberResponse>(Error.Conflict("Organization.Error.MemberAlreadyExists", "You are already a member of this organization"));
+            }
+
+            // Create membership
+            var member = new OrganizationMember(invitation.OrganizationId, userId, invitation.Role, invitation.InvitedByUserId);
+            _context.OrganizationMembers.Add(member);
+
+            invitation.Accept(userId);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Invalidate cache
+            _membershipCache.InvalidateMembership(invitation.OrganizationId, userId);
+
+            return Result.Success(new OrganizationMemberResponse
+            {
+                Id = member.Id,
+                OrganizationId = member.OrganizationId,
+                UserId = member.UserId,
+                Role = member.Role.ToString(),
+                IsActive = member.IsActive,
+                JoinedAt = member.JoinedAt,
+                InvitedBy = member.InvitedBy,
+                FirstName = user.FirstName ?? "",
+                LastName = user.LastName ?? "",
+                Email = user.Email?.ToString() ?? ""
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error accepting invitation {Token}", token);
+            return Result.Failure<OrganizationMemberResponse>(Error.Failure("Organization.Error.AcceptInvitationFailed", "Failed to accept invitation"));
+        }
     }
 
     private static OrganizationResponse MapToOrganizationResponse(Organization organization)

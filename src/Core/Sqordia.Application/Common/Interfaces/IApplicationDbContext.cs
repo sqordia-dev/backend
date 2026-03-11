@@ -5,6 +5,7 @@ using Sqordia.Domain.Entities.BusinessPlan;
 using Sqordia.Domain.Entities.Cms;
 using Sqordia.Domain.Entities.Financial;
 using Sqordia.Domain.Entities.Identity;
+using Sqordia.Domain.Entities.ML;
 
 namespace Sqordia.Application.Common.Interfaces;
 
@@ -40,6 +41,7 @@ public interface IApplicationDbContext
     // Organization Management
     DbSet<Organization> Organizations { get; }
     DbSet<OrganizationMember> OrganizationMembers { get; }
+    DbSet<OrganizationInvitation> OrganizationInvitations { get; }
     
     // Business Plan Management
     DbSet<Domain.Entities.BusinessPlan.BusinessPlan> BusinessPlans { get; }
@@ -106,6 +108,10 @@ public interface IApplicationDbContext
     // Subscription Management
     DbSet<SubscriptionPlan> SubscriptionPlans { get; }
     DbSet<Subscription> Subscriptions { get; }
+    DbSet<PlanFeatureLimit> PlanFeatureLimits { get; }
+    DbSet<OrganizationUsage> OrganizationUsages { get; }
+    DbSet<Coupon> Coupons { get; }
+    DbSet<CouponRedemption> CouponRedemptions { get; }
     
     // Application Settings
     DbSet<Settings> Settings { get; }
@@ -141,6 +147,11 @@ public interface IApplicationDbContext
 
     // Notifications
     DbSet<Notification> Notifications { get; }
+
+    // ML Training Data
+    DbSet<AICallTelemetryRecord> AICallTelemetryRecords { get; }
+    DbSet<SectionEditHistory> SectionEditHistories { get; }
+    DbSet<LearnedPreference> LearnedPreferences { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default);

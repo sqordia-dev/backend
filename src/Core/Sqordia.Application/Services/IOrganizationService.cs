@@ -15,14 +15,20 @@ public interface IOrganizationService
     Task<Result> DeleteOrganizationAsync(Guid organizationId, CancellationToken cancellationToken = default);
     Task<Result> DeactivateOrganizationAsync(Guid organizationId, CancellationToken cancellationToken = default);
     Task<Result> ReactivateOrganizationAsync(Guid organizationId, CancellationToken cancellationToken = default);
-    
+
     // Organization Settings
     Task<Result<OrganizationResponse>> UpdateOrganizationSettingsAsync(Guid organizationId, UpdateOrganizationSettingsRequest request, CancellationToken cancellationToken = default);
-    
+
     // Member Management
     Task<Result<OrganizationMemberResponse>> AddMemberAsync(Guid organizationId, AddOrganizationMemberRequest request, CancellationToken cancellationToken = default);
     Task<Result<IEnumerable<OrganizationMemberResponse>>> GetMembersAsync(Guid organizationId, CancellationToken cancellationToken = default);
     Task<Result<OrganizationMemberResponse>> UpdateMemberRoleAsync(Guid organizationId, Guid memberId, UpdateMemberRoleRequest request, CancellationToken cancellationToken = default);
     Task<Result> RemoveMemberAsync(Guid organizationId, Guid memberId, CancellationToken cancellationToken = default);
+
+    // Invitation Management
+    Task<Result<InvitationResponse>> InviteMemberByEmailAsync(Guid organizationId, InviteMemberByEmailRequest request, CancellationToken cancellationToken = default);
+    Task<Result<IEnumerable<InvitationResponse>>> GetPendingInvitationsAsync(Guid organizationId, CancellationToken cancellationToken = default);
+    Task<Result> CancelInvitationAsync(Guid organizationId, Guid invitationId, CancellationToken cancellationToken = default);
+    Task<Result<OrganizationMemberResponse>> AcceptInvitationAsync(Guid token, Guid userId, CancellationToken cancellationToken = default);
 }
 

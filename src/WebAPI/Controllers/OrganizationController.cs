@@ -146,4 +146,60 @@ public class OrganizationController : BaseApiController
         var result = await _organizationService.RemoveMemberAsync(organizationId, memberId);
         return HandleResult(result);
     }
+
+    // ── Invitation Management ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Invite a member by email
+    /// </summary>
+    [HttpPost("{organizationId:guid}/invitations")]
+    public async Task<IActionResult> InviteMemberByEmail(
+        Guid organizationId,
+        [FromBody] InviteMemberByEmailRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _organizationService.InviteMemberByEmailAsync(organizationId, request, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get pending invitations for an organization
+    /// </summary>
+    [HttpGet("{organizationId:guid}/invitations")]
+    public async Task<IActionResult> GetPendingInvitations(
+        Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _organizationService.GetPendingInvitationsAsync(organizationId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Cancel a pending invitation
+    /// </summary>
+    [HttpDelete("{organizationId:guid}/invitations/{invitationId:guid}")]
+    public async Task<IActionResult> CancelInvitation(
+        Guid organizationId,
+        Guid invitationId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _organizationService.CancelInvitationAsync(organizationId, invitationId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Accept an invitation by token
+    /// </summary>
+    [HttpPost("invitations/{token:guid}/accept")]
+    public async Task<IActionResult> AcceptInvitation(
+        Guid token,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized();
+
+        var result = await _organizationService.AcceptInvitationAsync(token, userId.Value, cancellationToken);
+        return HandleResult(result);
+    }
 }
