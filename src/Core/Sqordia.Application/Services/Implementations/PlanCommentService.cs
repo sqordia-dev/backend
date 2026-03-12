@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
+using Sqordia.Application.Common.Models;
 using Sqordia.Application.Services;
 using Sqordia.Contracts.Requests.Comment;
 using Sqordia.Contracts.Responses.Comment;
@@ -78,16 +79,17 @@ public class PlanCommentService : IPlanCommentService
                 planOwnerId != currentUserId)
             {
                 await _notificationService.CreateNotificationAsync(
-                    planOwnerId,
-                    NotificationType.CommentAdded,
-                    NotificationCategory.Collaboration,
-                    titleFr: $"Nouveau commentaire sur {businessPlan.Title}",
-                    titleEn: $"New comment on {businessPlan.Title}",
-                    messageFr: $"Un commentaire a été ajouté à la section {request.SectionName}.",
-                    messageEn: $"A comment was added to section {request.SectionName}.",
-                    actionUrl: $"/business-plan/{request.BusinessPlanId}/preview",
-                    relatedEntityId: request.BusinessPlanId,
-                    cancellationToken: cancellationToken);
+                    new CreateNotificationCommand(
+                        planOwnerId,
+                        NotificationType.CommentAdded,
+                        NotificationCategory.Collaboration,
+                        $"Nouveau commentaire sur {businessPlan.Title}",
+                        $"New comment on {businessPlan.Title}",
+                        $"Un commentaire a été ajouté à la section {request.SectionName}.",
+                        $"A comment was added to section {request.SectionName}.",
+                        ActionUrl: $"/business-plan/{request.BusinessPlanId}/preview",
+                        RelatedEntityId: request.BusinessPlanId),
+                    cancellationToken);
             }
         }
         catch (Exception notifEx)

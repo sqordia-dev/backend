@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Sqordia.Application.Common.Interfaces;
+using Sqordia.Application.Common.Models;
 using Sqordia.Application.Services;
 using Sqordia.Contracts.Requests.Export;
 using Sqordia.Domain.Constants;
@@ -22,6 +24,7 @@ public class ExportController : BaseApiController
     private readonly INotificationService _notificationService;
     private readonly IApplicationDbContext _context;
     private readonly ILogger<ExportController> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public ExportController(
         IDocumentExportService exportService,
@@ -31,7 +34,8 @@ public class ExportController : BaseApiController
         IFeatureGateService featureGate,
         INotificationService notificationService,
         IApplicationDbContext context,
-        ILogger<ExportController> logger)
+        ILogger<ExportController> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _exportService = exportService;
         _slideDeckService = slideDeckService;
@@ -41,6 +45,7 @@ public class ExportController : BaseApiController
         _notificationService = notificationService;
         _context = context;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     /// <summary>
@@ -833,18 +838,21 @@ public class ExportController : BaseApiController
         {
             try
             {
-                await _notificationService.CreateNotificationAsync(
-                    userId.Value,
-                    NotificationType.ExportCompleted,
-                    NotificationCategory.BusinessPlan,
-                    $"Export {format} terminé : {fileName}",
-                    $"{format} export completed: {fileName}",
-                    "Votre document est prêt.",
-                    "Your document is ready.",
-                    actionUrl: $"/business-plan/{businessPlanId}/preview",
-                    relatedEntityId: businessPlanId,
-                    groupKey: $"export-{businessPlanId}",
-                    cancellationToken: CancellationToken.None);
+                using var scope = _scopeFactory.CreateScope();
+                var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                await notificationService.CreateNotificationAsync(
+                    new CreateNotificationCommand(
+                        userId.Value,
+                        NotificationType.ExportCompleted,
+                        NotificationCategory.BusinessPlan,
+                        $"Export {format} terminé : {fileName}",
+                        $"{format} export completed: {fileName}",
+                        "Votre document est prêt.",
+                        "Your document is ready.",
+                        ActionUrl: $"/business-plan/{businessPlanId}/preview",
+                        RelatedEntityId: businessPlanId,
+                        GroupKey: $"export-{businessPlanId}"),
+                    CancellationToken.None);
             }
             catch { /* Non-critical */ }
         });

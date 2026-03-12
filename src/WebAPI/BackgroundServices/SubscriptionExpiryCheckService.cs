@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sqordia.Application.Common.Interfaces;
+using Sqordia.Application.Common.Models;
 using Sqordia.Application.Services;
 using Sqordia.Domain.Entities;
 using Sqordia.Domain.Enums;
@@ -76,17 +77,18 @@ public class SubscriptionExpiryCheckService : BackgroundService
             var priority = daysLeft <= 2 ? NotificationPriority.High : NotificationPriority.Normal;
 
             await notificationService.CreateNotificationAsync(
-                sub.UserId,
-                NotificationType.SubscriptionExpiring,
-                NotificationCategory.Subscription,
-                $"Votre abonnement {planName} expire dans {daysLeft} jour(s)",
-                $"Your {planName} subscription expires in {daysLeft} day(s)",
-                $"Renouvelez votre abonnement pour continuer à profiter de toutes les fonctionnalités.",
-                $"Renew your subscription to continue enjoying all features.",
-                actionUrl: "/settings/subscription",
-                relatedEntityId: sub.Id,
-                priority: priority,
-                cancellationToken: ct);
+                new CreateNotificationCommand(
+                    sub.UserId,
+                    NotificationType.SubscriptionExpiring,
+                    NotificationCategory.Subscription,
+                    $"Votre abonnement {planName} expire dans {daysLeft} jour(s)",
+                    $"Your {planName} subscription expires in {daysLeft} day(s)",
+                    $"Renouvelez votre abonnement pour continuer à profiter de toutes les fonctionnalités.",
+                    $"Renew your subscription to continue enjoying all features.",
+                    ActionUrl: "/settings/subscription",
+                    RelatedEntityId: sub.Id,
+                    Priority: priority),
+                ct);
 
             _logger.LogInformation(
                 "Sent subscription expiry notification to user {UserId}, {DaysLeft} days remaining",

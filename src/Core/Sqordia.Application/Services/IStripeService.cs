@@ -55,6 +55,11 @@ public interface IStripeService
     /// Get subscription by ID
     /// </summary>
     Task<Result<StripeSubscriptionInfo>> GetSubscriptionAsync(string subscriptionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get invoices for a Stripe subscription
+    /// </summary>
+    Task<Result<List<StripeInvoiceInfo>>> GetInvoicesForSubscriptionAsync(string stripeSubscriptionId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -69,5 +74,18 @@ public class StripeSubscriptionInfo
     public DateTime? CurrentPeriodStart { get; set; }
     public DateTime? CurrentPeriodEnd { get; set; }
     public bool CancelAtPeriodEnd { get; set; }
+}
+
+/// <summary>
+/// Stripe invoice information
+/// </summary>
+public class StripeInvoiceInfo
+{
+    public string InvoiceId { get; set; } = string.Empty;
+    public string? PdfUrl { get; set; }
+    public string? HostedUrl { get; set; }
+    public DateTime PeriodStart { get; set; }
+    public DateTime PeriodEnd { get; set; }
+    public string? Status { get; set; }
 }
 

@@ -534,16 +534,17 @@ public class OrganizationService : IOrganizationService
             try
             {
                 await _notificationService.CreateNotificationAsync(
-                    request.UserId,
-                    NotificationType.OrganizationInvitation,
-                    NotificationCategory.Organization,
-                    titleFr: $"Vous avez été ajouté à {organization.Name}",
-                    titleEn: $"You have been added to {organization.Name}",
-                    messageFr: $"Vous avez rejoint l'organisation {organization.Name} en tant que {role}.",
-                    messageEn: $"You have joined the organization {organization.Name} as {role}.",
-                    actionUrl: "/dashboard",
-                    relatedEntityId: organizationId,
-                    cancellationToken: cancellationToken);
+                    new CreateNotificationCommand(
+                        request.UserId,
+                        NotificationType.OrganizationInvitation,
+                        NotificationCategory.Organization,
+                        $"Vous avez été ajouté à {organization.Name}",
+                        $"You have been added to {organization.Name}",
+                        $"Vous avez rejoint l'organisation {organization.Name} en tant que {role}.",
+                        $"You have joined the organization {organization.Name} as {role}.",
+                        ActionUrl: "/dashboard",
+                        RelatedEntityId: organizationId),
+                    cancellationToken);
             }
             catch (Exception notifEx)
             {
@@ -819,16 +820,17 @@ public class OrganizationService : IOrganizationService
                 var inviterName = inviter != null ? $"{inviter.FirstName} {inviter.LastName}".Trim() : "A team member";
 
                 await _notificationService.CreateNotificationAsync(
-                    userId.Value,
-                    NotificationType.OrganizationInvitation,
-                    NotificationCategory.Organization,
-                    titleFr: $"Invitation envoyée à {email}",
-                    titleEn: $"Invitation sent to {email}",
-                    messageFr: $"{inviterName} a invité {email} à rejoindre {organization.Name}.",
-                    messageEn: $"{inviterName} invited {email} to join {organization.Name}.",
-                    actionUrl: "/dashboard",
-                    relatedEntityId: organizationId,
-                    cancellationToken: cancellationToken);
+                    new CreateNotificationCommand(
+                        userId.Value,
+                        NotificationType.OrganizationInvitation,
+                        NotificationCategory.Organization,
+                        $"Invitation envoyée à {email}",
+                        $"Invitation sent to {email}",
+                        $"{inviterName} a invité {email} à rejoindre {organization.Name}.",
+                        $"{inviterName} invited {email} to join {organization.Name}.",
+                        ActionUrl: "/dashboard",
+                        RelatedEntityId: organizationId),
+                    cancellationToken);
             }
             catch (Exception ex)
             {

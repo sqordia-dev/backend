@@ -39,17 +39,21 @@ public class NotificationPreferenceServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPreferencesAsync_WhenNoPreferencesExist_CreatesDefaultsForAllTypes()
+    public async Task GetPreferencesAsync_WhenNoPreferencesExist_ReturnsDefaultsForAllTypes()
     {
         var result = await _sut.GetPreferencesAsync();
 
         result.IsSuccess.Should().BeTrue();
         var allTypes = Enum.GetValues<NotificationType>();
         result.Value.Preferences.Should().HaveCount(allTypes.Length);
+
+        // Defaults should NOT be persisted to DB (no write-on-read)
+        var dbCount = await _context.NotificationPreferences.CountAsync();
+        dbCount.Should().Be(0);
     }
 
     [Fact]
-    public async Task GetPreferencesAsync_WithExistingPreferences_DoesNotDuplicate()
+    public async Task GetPreferencesAsync_WithExistingPreferences_MergesWithDefaults()
     {
         // Arrange — seed one preference
         _context.NotificationPreferences.Add(
@@ -59,16 +63,16 @@ public class NotificationPreferenceServiceTests : IDisposable
         // Act
         var result = await _sut.GetPreferencesAsync();
 
-        // Assert
+        // Assert — all types returned (1 from DB + rest as in-memory defaults)
         result.IsSuccess.Should().BeTrue();
         var allTypes = Enum.GetValues<NotificationType>();
         result.Value.Preferences.Should().HaveCount(allTypes.Length);
 
-        // Verify no duplicates in DB
+        // Only 1 preference should be in DB (no write-on-read for defaults)
         var dbCount = await _context.NotificationPreferences
             .Where(p => p.UserId == _userId)
             .CountAsync();
-        dbCount.Should().Be(allTypes.Length);
+        dbCount.Should().Be(1);
     }
 
     [Fact]

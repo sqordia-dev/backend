@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Sqordia.Application.Common.Interfaces;
+using Sqordia.Application.Common.Models;
 using Sqordia.Application.Services;
 using Sqordia.Application.Services.Implementations;
 using Sqordia.Domain.Entities;
@@ -67,17 +68,18 @@ public class NotificationServiceTests : IDisposable
     public async Task CreateNotificationAsync_WithValidData_CreatesNotification()
     {
         var result = await _sut.CreateNotificationAsync(
-            _userId,
-            NotificationType.ExportCompleted,
-            NotificationCategory.BusinessPlan,
-            "Export terminé", "Export completed",
-            "Votre export est prêt", "Your export is ready");
+            new CreateNotificationCommand(
+                _userId,
+                NotificationType.ExportCompleted,
+                NotificationCategory.BusinessPlan,
+                "Export terminé", "Export completed",
+                "Votre export est prêt", "Your export is ready"));
 
         // Allow fire-and-forget SignalR push to complete (avoids DbContext concurrency)
         await Task.Delay(150);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Type.Should().Be("ExportCompleted");
+        result.Value.Type.Should().Be(NotificationType.ExportCompleted);
 
         var count = await _context.Notifications.CountAsync();
         count.Should().Be(1);
@@ -87,16 +89,17 @@ public class NotificationServiceTests : IDisposable
     public async Task CreateNotificationAsync_WithPriority_SetsPriorityCorrectly()
     {
         var result = await _sut.CreateNotificationAsync(
-            _userId,
-            NotificationType.SubscriptionExpiring,
-            NotificationCategory.System,
-            "Abonnement", "Subscription",
-            "Expire bientôt", "Expiring soon",
-            priority: NotificationPriority.High);
+            new CreateNotificationCommand(
+                _userId,
+                NotificationType.SubscriptionExpiring,
+                NotificationCategory.System,
+                "Abonnement", "Subscription",
+                "Expire bientôt", "Expiring soon",
+                Priority: NotificationPriority.High));
 
         await Task.Delay(150);
         result.IsSuccess.Should().BeTrue();
-        result.Value.Priority.Should().Be("High");
+        result.Value.Priority.Should().Be(NotificationPriority.High);
     }
 
     [Fact]
@@ -107,11 +110,12 @@ public class NotificationServiceTests : IDisposable
             .ReturnsAsync(false);
 
         var result = await _sut.CreateNotificationAsync(
-            _userId,
-            NotificationType.ExportCompleted,
-            NotificationCategory.BusinessPlan,
-            "Export", "Export",
-            "Message FR", "Message EN");
+            new CreateNotificationCommand(
+                _userId,
+                NotificationType.ExportCompleted,
+                NotificationCategory.BusinessPlan,
+                "Export", "Export",
+                "Message FR", "Message EN"));
 
         result.IsSuccess.Should().BeTrue();
         var count = await _context.Notifications.CountAsync();
@@ -123,24 +127,26 @@ public class NotificationServiceTests : IDisposable
     {
         // First notification
         await _sut.CreateNotificationAsync(
-            _userId,
-            NotificationType.AICoachReply,
-            NotificationCategory.AI,
-            "Coach", "Coach",
-            "Message 1", "Message 1",
-            groupKey: "ai-coach-123");
+            new CreateNotificationCommand(
+                _userId,
+                NotificationType.AICoachReply,
+                NotificationCategory.AI,
+                "Coach", "Coach",
+                "Message 1", "Message 1",
+                GroupKey: "ai-coach-123"));
 
         // Allow fire-and-forget SignalR push to complete (avoids DbContext concurrency)
         await Task.Delay(150);
 
         // Second notification with same group key (within 2-min window)
         var result = await _sut.CreateNotificationAsync(
-            _userId,
-            NotificationType.AICoachReply,
-            NotificationCategory.AI,
-            "Coach", "Coach",
-            "Message 2", "Message 2",
-            groupKey: "ai-coach-123");
+            new CreateNotificationCommand(
+                _userId,
+                NotificationType.AICoachReply,
+                NotificationCategory.AI,
+                "Coach", "Coach",
+                "Message 2", "Message 2",
+                GroupKey: "ai-coach-123"));
 
         result.IsSuccess.Should().BeTrue();
 
@@ -205,8 +211,8 @@ public class NotificationServiceTests : IDisposable
         var result = await _sut.GetNotificationsAsync();
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Items[0].Priority.Should().Be("Urgent");
-        result.Value.Items[1].Priority.Should().Be("Normal");
+        result.Value.Items[0].Priority.Should().Be(NotificationPriority.Urgent);
+        result.Value.Items[1].Priority.Should().Be(NotificationPriority.Normal);
     }
 
     [Fact]
@@ -323,10 +329,12 @@ public class NotificationServiceTests : IDisposable
 
         var result = await _sut.CreateBulkNotificationsAsync(
             userIds,
-            NotificationType.SystemAnnouncement,
-            NotificationCategory.System,
-            "Annonce", "Announcement",
-            "Message FR", "Message EN");
+            new CreateNotificationCommand(
+                Guid.Empty,
+                NotificationType.SystemAnnouncement,
+                NotificationCategory.System,
+                "Annonce", "Announcement",
+                "Message FR", "Message EN"));
 
         result.IsSuccess.Should().BeTrue();
         var count = await _context.Notifications.CountAsync();

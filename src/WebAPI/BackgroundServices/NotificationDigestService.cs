@@ -90,18 +90,21 @@ public class NotificationDigestService : BackgroundService
                     continue;
 
                 // Get unread notifications of those types within the lookback window
-                var notifications = await context.Notifications
+                var digestQuery = context.Notifications
                     .Where(n => n.UserId == userPref.UserId
                         && !n.IsRead
                         && userPref.Types.Contains(n.Type)
-                        && n.Created >= since)
+                        && n.Created >= since);
+
+                var totalCount = await digestQuery.CountAsync(ct);
+                if (totalCount == 0) continue;
+
+                var notifications = await digestQuery
                     .OrderByDescending(n => n.Created)
                     .Take(50)
                     .ToListAsync(ct);
 
-                if (notifications.Count == 0) continue;
-
-                var html = BuildDigestHtml(notifications, frequency);
+                var html = BuildDigestHtml(notifications, frequency, totalCount);
                 var frequencyLabel = frequency == NotificationFrequency.DailyDigest
                     ? "Daily" : "Weekly";
 
@@ -123,7 +126,8 @@ public class NotificationDigestService : BackgroundService
 
     private static string BuildDigestHtml(
         List<Notification> notifications,
-        NotificationFrequency frequency)
+        NotificationFrequency frequency,
+        int totalCount)
     {
         var sb = new StringBuilder();
         var periodLabel = frequency == NotificationFrequency.DailyDigest
@@ -134,7 +138,7 @@ public class NotificationDigestService : BackgroundService
                 <div style="background: linear-gradient(135deg, #3b82f6, #6366f1); padding: 24px; border-radius: 12px 12px 0 0;">
                     <h1 style="color: white; margin: 0; font-size: 20px;">Sqordia Notifications</h1>
                     <p style="color: rgba(255,255,255,0.8); margin: 4px 0 0; font-size: 14px;">
-                        {notifications.Count} notification(s) from the {periodLabel}
+                        {totalCount} notification(s) from the {periodLabel}
                     </p>
                 </div>
                 <div style="border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px; padding: 16px;">
@@ -162,6 +166,16 @@ public class NotificationDigestService : BackgroundService
                         <p style="color: #9ca3af; font-size: 11px; margin: 4px 0 0;">
                             {n.Created:MMM dd, yyyy HH:mm} UTC
                         </p>
+                    </div>
+                """);
+        }
+
+        var remaining = totalCount - notifications.Count;
+        if (remaining > 0)
+        {
+            sb.AppendLine($"""
+                    <div style="padding: 12px 0; text-align: center; color: #6b7280; font-size: 13px; font-style: italic;">
+                        ...and {remaining} more notification(s). View all in the app.
                     </div>
                 """);
         }

@@ -246,22 +246,14 @@ public class NotificationService : INotificationService
     }
 
     public async Task<Result<NotificationResponse>> CreateNotificationAsync(
-        Guid userId,
-        NotificationType type,
-        NotificationCategory category,
-        string titleFr,
-        string titleEn,
-        string messageFr,
-        string messageEn,
-        string? actionUrl = null,
-        string? metadataJson = null,
-        Guid? relatedEntityId = null,
-        NotificationPriority priority = NotificationPriority.Normal,
-        string? groupKey = null,
+        CreateNotificationCommand command,
         CancellationToken cancellationToken = default)
     {
         try
         {
+            var (userId, type, category, titleFr, titleEn, messageFr, messageEn,
+                actionUrl, metadataJson, relatedEntityId, priority, groupKey) = command;
+
             // Check user preferences for in-app
             var shouldSendInApp = await _preferenceService.ShouldSendInAppAsync(userId, type, cancellationToken);
             if (!shouldSendInApp)
@@ -329,7 +321,7 @@ public class NotificationService : INotificationService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating notification for user {UserId}", userId);
+            _logger.LogError(ex, "Error creating notification for user {UserId}", command.UserId);
             return Result.Failure<NotificationResponse>(
                 Error.Failure("Notification.Error.CreateFailed", "Failed to create notification"));
         }
@@ -337,22 +329,14 @@ public class NotificationService : INotificationService
 
     public async Task<Result> CreateBulkNotificationsAsync(
         IEnumerable<Guid> userIds,
-        NotificationType type,
-        NotificationCategory category,
-        string titleFr,
-        string titleEn,
-        string messageFr,
-        string messageEn,
-        string? actionUrl = null,
-        string? metadataJson = null,
-        Guid? relatedEntityId = null,
-        NotificationPriority priority = NotificationPriority.Normal,
-        string? groupKey = null,
+        CreateNotificationCommand command,
         CancellationToken cancellationToken = default)
     {
         try
         {
             var userIdList = userIds.ToList();
+            var (_, type, category, titleFr, titleEn, messageFr, messageEn,
+                actionUrl, metadataJson, relatedEntityId, priority, groupKey) = command;
 
             // Batch preference check — single query instead of N+1
             var disabledUsers = await _preferenceService.GetUsersWithInAppDisabledAsync(
@@ -382,9 +366,9 @@ public class NotificationService : INotificationService
             // Push via SignalR for each user (fire-and-forget)
             var response = new NotificationResponse
             {
-                Type = type.ToString(),
-                Category = category.ToString(),
-                Priority = priority.ToString(),
+                Type = type,
+                Category = category,
+                Priority = priority,
                 TitleFr = titleFr,
                 TitleEn = titleEn,
                 MessageFr = messageFr,
@@ -436,15 +420,17 @@ public class NotificationService : INotificationService
             if (userIds.Count == 0)
                 return Result.Success();
 
-            return await CreateBulkNotificationsAsync(
-                userIds,
+            var command = new CreateNotificationCommand(
+                Guid.Empty, // UserId is per-user in bulk
                 NotificationType.SystemAnnouncement,
                 NotificationCategory.System,
                 titleFr, titleEn,
                 messageFr, messageEn,
                 actionUrl,
-                priority: priority,
-                cancellationToken: cancellationToken);
+                Priority: priority);
+
+            return await CreateBulkNotificationsAsync(
+                userIds, command, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -507,9 +493,9 @@ public class NotificationService : INotificationService
         return new NotificationResponse
         {
             Id = notification.Id,
-            Type = notification.Type.ToString(),
-            Category = notification.Category.ToString(),
-            Priority = notification.Priority.ToString(),
+            Type = notification.Type,
+            Category = notification.Category,
+            Priority = notification.Priority,
             TitleFr = notification.TitleFr,
             TitleEn = notification.TitleEn,
             MessageFr = notification.MessageFr,

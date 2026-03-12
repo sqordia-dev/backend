@@ -288,18 +288,13 @@ public class OrganizationServiceInvitationTests : IDisposable
         // Assert
         _notificationServiceMock.Verify(
             x => x.CreateNotificationAsync(
-                _ownerId,
-                NotificationType.OrganizationInvitation,
-                NotificationCategory.Organization,
-                It.Is<string>(s => s.Contains("newuser@test.com")),
-                It.Is<string>(s => s.Contains("newuser@test.com")),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                "/dashboard",
-                It.IsAny<string?>(),
-                _organizationId,
-                It.IsAny<NotificationPriority>(),
-                It.IsAny<string?>(),
+                It.Is<CreateNotificationCommand>(c =>
+                    c.UserId == _ownerId &&
+                    c.Type == NotificationType.OrganizationInvitation &&
+                    c.Category == NotificationCategory.Organization &&
+                    c.TitleFr.Contains("newuser@test.com") &&
+                    c.TitleEn.Contains("newuser@test.com") &&
+                    c.RelatedEntityId == _organizationId),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -311,10 +306,8 @@ public class OrganizationServiceInvitationTests : IDisposable
         await SeedOrganizationWithOwnerAsync();
         _notificationServiceMock
             .Setup(x => x.CreateNotificationAsync(
-                It.IsAny<Guid>(), It.IsAny<NotificationType>(), It.IsAny<NotificationCategory>(),
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Guid?>(),
-                It.IsAny<NotificationPriority>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                It.IsAny<CreateNotificationCommand>(),
+                It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("Notification service down"));
 
         var sut = BuildService();

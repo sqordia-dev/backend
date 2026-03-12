@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Sqordia.Application.Services;
 using Sqordia.Contracts.Requests.Notification;
 using Sqordia.Contracts.Responses.Notification;
-using Sqordia.Domain.Enums;
 
 namespace WebAPI.Controllers;
 
@@ -133,13 +132,11 @@ public class NotificationsController : BaseApiController
         CancellationToken cancellationToken = default)
     {
         var preferences = request.Preferences
-            .Where(p => Enum.TryParse<NotificationType>(p.NotificationType, true, out _))
             .Select(p => (
-                Type: Enum.Parse<NotificationType>(p.NotificationType, true),
+                Type: p.NotificationType,
                 p.InAppEnabled,
                 p.EmailEnabled,
-                EmailFrequency: Enum.TryParse<NotificationFrequency>(p.EmailFrequency, true, out var freq)
-                    ? freq : NotificationFrequency.Instant,
+                p.EmailFrequency,
                 p.SoundEnabled
             ));
 
@@ -175,13 +172,10 @@ public class NotificationsController : BaseApiController
         [FromBody] CreateSystemAnnouncementRequest request,
         CancellationToken cancellationToken = default)
     {
-        var priority = Enum.TryParse<NotificationPriority>(request.Priority, true, out var p)
-            ? p : NotificationPriority.Normal;
-
         var result = await _notificationService.CreateSystemAnnouncementAsync(
             request.TitleFr, request.TitleEn,
             request.MessageFr, request.MessageEn,
-            priority, request.ActionUrl,
+            request.Priority, request.ActionUrl,
             cancellationToken);
 
         return HandleResult(result);

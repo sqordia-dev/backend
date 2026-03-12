@@ -39,28 +39,25 @@ public class NotificationPreferenceService : INotificationPreferenceService
                 .AsNoTracking()
                 .ToListAsync(cancellationToken);
 
-            // Ensure all notification types have preferences (create defaults for missing)
+            // Return defaults in-memory for missing types (no DB write on GET)
             var allTypes = Enum.GetValues<NotificationType>();
             var existingTypes = existing.Select(p => p.NotificationType).ToHashSet();
-            var missing = allTypes.Where(t => !existingTypes.Contains(t)).ToList();
+            var defaults = allTypes
+                .Where(t => !existingTypes.Contains(t))
+                .Select(t => NotificationPreference.CreateDefault(userId.Value, t))
+                .ToList();
 
-            if (missing.Count > 0)
-            {
-                var defaults = missing.Select(t => NotificationPreference.CreateDefault(userId.Value, t)).ToList();
-                _context.NotificationPreferences.AddRange(defaults);
-                await _context.SaveChangesAsync(cancellationToken);
-                existing.AddRange(defaults);
-            }
+            var allPreferences = existing.Concat(defaults).ToList();
 
             var response = new NotificationPreferencesListResponse
             {
-                Preferences = existing.Select(p => new NotificationPreferenceResponse
+                Preferences = allPreferences.Select(p => new NotificationPreferenceResponse
                 {
                     Id = p.Id,
-                    NotificationType = p.NotificationType.ToString(),
+                    NotificationType = p.NotificationType,
                     InAppEnabled = p.InAppEnabled,
                     EmailEnabled = p.EmailEnabled,
-                    EmailFrequency = p.EmailFrequency.ToString(),
+                    EmailFrequency = p.EmailFrequency,
                     SoundEnabled = p.SoundEnabled
                 }).ToList()
             };

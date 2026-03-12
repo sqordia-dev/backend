@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Models;
@@ -20,7 +21,7 @@ public class AICoachService : IAICoachService
     private readonly ISettingsService _settingsService;
     private readonly ISubscriptionService _subscriptionService;
     private readonly IFeatureGateService _featureGate;
-    private readonly INotificationService _notificationService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<AICoachService> _logger;
 
     // Default config values (can be overridden by feature flag)
@@ -36,7 +37,7 @@ public class AICoachService : IAICoachService
         ISettingsService settingsService,
         ISubscriptionService subscriptionService,
         IFeatureGateService featureGate,
-        INotificationService notificationService,
+        IServiceScopeFactory scopeFactory,
         ILogger<AICoachService> logger)
     {
         _dbContext = dbContext;
@@ -44,7 +45,7 @@ public class AICoachService : IAICoachService
         _settingsService = settingsService;
         _subscriptionService = subscriptionService;
         _featureGate = featureGate;
-        _notificationService = notificationService;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -292,24 +293,27 @@ public class AICoachService : IAICoachService
                 "Sent message to AI Coach conversation {ConversationId} for user {UserId}",
                 conversation.Id, userId);
 
-            // Fire-and-forget notification
+            // Fire-and-forget notification (new scope to avoid disposed DbContext)
             _ = Task.Run(async () =>
             {
                 try
                 {
+                    using var scope = _scopeFactory.CreateScope();
+                    var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
                     var preview = aiResponse.Length > 100 ? aiResponse[..100] + "..." : aiResponse;
-                    await _notificationService.CreateNotificationAsync(
-                        userId,
-                        NotificationType.AICoachReply,
-                        NotificationCategory.AI,
-                        $"Nouveau message du coach IA",
-                        $"New AI Coach message",
-                        preview,
-                        preview,
-                        actionUrl: $"/ai-coach/{conversation.Id}",
-                        relatedEntityId: conversation.Id,
-                        groupKey: $"ai-coach-{conversation.Id}",
-                        cancellationToken: CancellationToken.None);
+                    await notificationService.CreateNotificationAsync(
+                        new CreateNotificationCommand(
+                            userId,
+                            NotificationType.AICoachReply,
+                            NotificationCategory.AI,
+                            "Nouveau message du coach IA",
+                            "New AI Coach message",
+                            preview,
+                            preview,
+                            ActionUrl: $"/ai-coach/{conversation.Id}",
+                            RelatedEntityId: conversation.Id,
+                            GroupKey: $"ai-coach-{conversation.Id}"),
+                        CancellationToken.None);
                 }
                 catch { /* Non-critical */ }
             }, CancellationToken.None);
