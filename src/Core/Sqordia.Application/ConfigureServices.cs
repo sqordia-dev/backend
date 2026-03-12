@@ -107,6 +107,9 @@ public static class ConfigureServices
             // Notification service
             services.AddScoped<INotificationService, NotificationService>();
 
+            // Newsletter service
+            services.AddScoped<INewsletterSubscriberService, NewsletterSubscriberService>();
+
             // Previsio Financial Projections services
             services.AddScoped<IFinancialForecastingService, FinancialForecastingService>();
             services.AddScoped<IFinancialPlanService, FinancialPlanServiceImpl>();

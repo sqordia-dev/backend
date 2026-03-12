@@ -150,6 +150,9 @@ public interface IApplicationDbContext
     DbSet<SectionEditHistory> SectionEditHistories { get; }
     DbSet<LearnedPreference> LearnedPreferences { get; }
 
+    // Newsletter
+    DbSet<NewsletterSubscriber> NewsletterSubscribers { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default);
 }

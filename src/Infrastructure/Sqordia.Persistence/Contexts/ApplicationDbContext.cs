@@ -152,6 +152,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<SectionEditHistory> SectionEditHistories { get; set; }
     public DbSet<LearnedPreference> LearnedPreferences { get; set; }
 
+    // Newsletter
+    public DbSet<NewsletterSubscriber> NewsletterSubscribers { get; set; }
+
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {
     }
