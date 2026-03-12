@@ -44,6 +44,9 @@ public class NotificationServiceTests : IDisposable
         _preferenceService
             .Setup(s => s.ShouldSendEmailAsync(It.IsAny<Guid>(), It.IsAny<NotificationType>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
+        _preferenceService
+            .Setup(s => s.GetUsersWithInAppDisabledAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<NotificationType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<Guid>());
 
         var logger = new Mock<ILogger<NotificationService>>();
 

@@ -27,37 +27,42 @@ public class NotificationAnalyticsService : INotificationAnalyticsService
         {
             var since = DateTime.UtcNow.AddDays(-days);
 
-            var notifications = await _context.Notifications
-                .IgnoreQueryFilters() // Include soft-deleted for accurate analytics
-                .Where(n => n.Created >= since)
-                .Select(n => new
-                {
-                    n.Type,
-                    n.Priority,
-                    n.IsRead,
-                    n.Created,
-                    n.ReadAt,
-                    n.UserId
-                })
-                .ToListAsync(cancellationToken);
+            var baseQuery = _context.Notifications
+                .IgnoreQueryFilters()
+                .Where(n => n.Created >= since);
 
-            var totalSent = notifications.Count;
-            var totalRead = notifications.Count(n => n.IsRead);
+            // Aggregate totals in SQL
+            var totals = await baseQuery
+                .GroupBy(_ => 1)
+                .Select(g => new
+                {
+                    TotalSent = g.Count(),
+                    TotalRead = g.Count(n => n.IsRead),
+                    ActiveUsers = g.Select(n => n.UserId).Distinct().Count()
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var totalSent = totals?.TotalSent ?? 0;
+            var totalRead = totals?.TotalRead ?? 0;
             var readRate = totalSent > 0 ? Math.Round((double)totalRead / totalSent * 100, 1) : 0;
 
-            var readNotifications = notifications.Where(n => n.IsRead && n.ReadAt.HasValue).ToList();
-            var avgTimeToRead = readNotifications.Count > 0
-                ? Math.Round(readNotifications.Average(n => (n.ReadAt!.Value - n.Created).TotalMinutes), 1)
+            // Average time-to-read — project timestamps and compute in-memory
+            // (EF/PostgreSQL doesn't support DateDiff directly in aggregate)
+            var readTimestamps = await baseQuery
+                .Where(n => n.IsRead && n.ReadAt != null)
+                .Select(n => new { n.Created, ReadAt = n.ReadAt!.Value })
+                .ToListAsync(cancellationToken);
+
+            var avgTimeToRead = readTimestamps.Count > 0
+                ? readTimestamps.Average(n => (n.ReadAt - n.Created).TotalMinutes)
                 : 0;
 
-            var activeUsers = notifications.Select(n => n.UserId).Distinct().Count();
-
-            // Stats by type
-            var byType = notifications
-                .GroupBy(n => n.Type.ToString())
+            // Stats by type in SQL
+            var byType = await baseQuery
+                .GroupBy(n => n.Type)
                 .Select(g => new NotificationTypeStats
                 {
-                    Type = g.Key,
+                    Type = g.Key.ToString(),
                     Sent = g.Count(),
                     Read = g.Count(n => n.IsRead),
                     ReadRate = g.Count() > 0
@@ -65,14 +70,14 @@ public class NotificationAnalyticsService : INotificationAnalyticsService
                         : 0
                 })
                 .OrderByDescending(s => s.Sent)
-                .ToList();
+                .ToListAsync(cancellationToken);
 
-            // Stats by priority
-            var byPriority = notifications
-                .GroupBy(n => n.Priority.ToString())
+            // Stats by priority in SQL
+            var byPriority = await baseQuery
+                .GroupBy(n => n.Priority)
                 .Select(g => new NotificationPriorityStats
                 {
-                    Priority = g.Key,
+                    Priority = g.Key.ToString(),
                     Sent = g.Count(),
                     Read = g.Count(n => n.IsRead),
                     ReadRate = g.Count() > 0
@@ -80,10 +85,10 @@ public class NotificationAnalyticsService : INotificationAnalyticsService
                         : 0
                 })
                 .OrderByDescending(s => s.Sent)
-                .ToList();
+                .ToListAsync(cancellationToken);
 
-            // Daily trend
-            var dailyTrend = notifications
+            // Daily trend in SQL
+            var dailyTrend = await baseQuery
                 .GroupBy(n => n.Created.Date)
                 .Select(g => new NotificationDailyStats
                 {
@@ -92,15 +97,15 @@ public class NotificationAnalyticsService : INotificationAnalyticsService
                     Read = g.Count(n => n.IsRead)
                 })
                 .OrderBy(s => s.Date)
-                .ToList();
+                .ToListAsync(cancellationToken);
 
             var response = new NotificationAnalyticsResponse
             {
                 TotalSent = totalSent,
                 TotalRead = totalRead,
                 ReadRate = readRate,
-                AverageTimeToReadMinutes = avgTimeToRead,
-                ActiveUsersWithNotifications = activeUsers,
+                AverageTimeToReadMinutes = Math.Round(avgTimeToRead, 1),
+                ActiveUsersWithNotifications = totals?.ActiveUsers ?? 0,
                 ByType = byType,
                 ByPriority = byPriority,
                 DailyTrend = dailyTrend

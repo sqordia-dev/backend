@@ -151,24 +151,26 @@ public class NotificationPreferenceService : INotificationPreferenceService
         }
     }
 
-    public async Task<bool> ShouldSendInAppAsync(Guid userId, NotificationType type, CancellationToken cancellationToken = default)
+    private async Task<NotificationPreference?> GetPreferenceAsync(
+        Guid userId, NotificationType type, CancellationToken cancellationToken)
     {
-        var preference = await _context.NotificationPreferences
+        return await _context.NotificationPreferences
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == userId && p.NotificationType == type, cancellationToken);
+    }
 
-        return preference?.InAppEnabled ?? true; // Default: in-app enabled
+    public async Task<bool> ShouldSendInAppAsync(Guid userId, NotificationType type, CancellationToken cancellationToken = default)
+    {
+        var preference = await GetPreferenceAsync(userId, type, cancellationToken);
+        return preference?.InAppEnabled ?? true;
     }
 
     public async Task<bool> ShouldSendEmailAsync(Guid userId, NotificationType type, CancellationToken cancellationToken = default)
     {
-        var preference = await _context.NotificationPreferences
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.UserId == userId && p.NotificationType == type, cancellationToken);
+        var preference = await GetPreferenceAsync(userId, type, cancellationToken);
 
         if (preference == null)
         {
-            // Default: email only for important types
             return type is NotificationType.OrganizationInvitation
                 or NotificationType.BusinessPlanShared
                 or NotificationType.SubscriptionExpiring;
@@ -179,10 +181,23 @@ public class NotificationPreferenceService : INotificationPreferenceService
 
     public async Task<bool> ShouldPlaySoundAsync(Guid userId, NotificationType type, CancellationToken cancellationToken = default)
     {
-        var preference = await _context.NotificationPreferences
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.UserId == userId && p.NotificationType == type, cancellationToken);
+        var preference = await GetPreferenceAsync(userId, type, cancellationToken);
+        return preference?.SoundEnabled ?? true;
+    }
 
-        return preference?.SoundEnabled ?? true; // Default: sound enabled
+    public async Task<HashSet<Guid>> GetUsersWithInAppDisabledAsync(
+        IReadOnlyList<Guid> userIds,
+        NotificationType type,
+        CancellationToken cancellationToken = default)
+    {
+        var disabledUserIds = await _context.NotificationPreferences
+            .AsNoTracking()
+            .Where(p => userIds.Contains(p.UserId)
+                && p.NotificationType == type
+                && !p.InAppEnabled)
+            .Select(p => p.UserId)
+            .ToListAsync(cancellationToken);
+
+        return disabledUserIds.ToHashSet();
     }
 }

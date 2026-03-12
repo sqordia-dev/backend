@@ -24,4 +24,12 @@ public interface INotificationPreferenceService
     Task<bool> ShouldSendInAppAsync(Guid userId, NotificationType type, CancellationToken cancellationToken = default);
     Task<bool> ShouldSendEmailAsync(Guid userId, NotificationType type, CancellationToken cancellationToken = default);
     Task<bool> ShouldPlaySoundAsync(Guid userId, NotificationType type, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the set of user IDs (from the given list) that have in-app disabled for the given type.
+    /// </summary>
+    Task<HashSet<Guid>> GetUsersWithInAppDisabledAsync(
+        IReadOnlyList<Guid> userIds,
+        NotificationType type,
+        CancellationToken cancellationToken = default);
 }

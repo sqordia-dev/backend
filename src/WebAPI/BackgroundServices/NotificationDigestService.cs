@@ -1,8 +1,9 @@
+using System.Net;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Domain.Entities;
 using Sqordia.Domain.Enums;
-using System.Text;
 
 namespace WebAPI.BackgroundServices;
 
@@ -33,14 +34,14 @@ public class NotificationDigestService : BackgroundService
             {
                 var now = DateTime.UtcNow;
 
-                // Daily digest: run once per day at DigestHourUtc
-                if (now.Hour == DigestHourUtc && now.Minute < 60)
+                // Daily digest: run once per day at DigestHourUtc (narrow window avoids re-runs)
+                if (now.Hour == DigestHourUtc && now.Minute < 5)
                 {
                     await SendDigestsAsync(NotificationFrequency.DailyDigest, TimeSpan.FromDays(1), stoppingToken);
                 }
 
                 // Weekly digest: run on Mondays at DigestHourUtc
-                if (now.DayOfWeek == DayOfWeek.Monday && now.Hour == DigestHourUtc && now.Minute < 60)
+                if (now.DayOfWeek == DayOfWeek.Monday && now.Hour == DigestHourUtc && now.Minute < 5)
                 {
                     await SendDigestsAsync(NotificationFrequency.WeeklyDigest, TimeSpan.FromDays(7), stoppingToken);
                 }
@@ -73,10 +74,21 @@ public class NotificationDigestService : BackgroundService
             "Processing {Frequency} digest for {UserCount} users",
             frequency, userPrefs.Count);
 
+        // Batch load all user emails to avoid N+1
+        var userIds = userPrefs.Select(p => p.UserId).ToList();
+        var userEmails = await context.Users
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.Id) && u.Email != null)
+            .Select(u => new { u.Id, u.Email })
+            .ToDictionaryAsync(u => u.Id, u => u.Email, ct);
+
         foreach (var userPref in userPrefs)
         {
             try
             {
+                if (!userEmails.TryGetValue(userPref.UserId, out var email) || email == null)
+                    continue;
+
                 // Get unread notifications of those types within the lookback window
                 var notifications = await context.Notifications
                     .Where(n => n.UserId == userPref.UserId
@@ -89,25 +101,18 @@ public class NotificationDigestService : BackgroundService
 
                 if (notifications.Count == 0) continue;
 
-                // Get user email
-                var user = await context.Users
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.Id == userPref.UserId, ct);
-
-                if (user?.Email == null) continue;
-
                 var html = BuildDigestHtml(notifications, frequency);
                 var frequencyLabel = frequency == NotificationFrequency.DailyDigest
                     ? "Daily" : "Weekly";
 
                 await emailService.SendHtmlEmailAsync(
-                    user.Email,
+                    email,
                     $"[Sqordia] Your {frequencyLabel} Notification Digest",
                     html);
 
                 _logger.LogDebug(
                     "Sent {Frequency} digest with {Count} notifications to {Email}",
-                    frequency, notifications.Count, user.Email);
+                    frequency, notifications.Count, email);
             }
             catch (Exception ex)
             {
@@ -148,11 +153,11 @@ public class NotificationDigestService : BackgroundService
                     <div style="padding: 12px 0; border-bottom: 1px solid #f3f4f6;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="color: {priorityColor}; font-weight: 600; font-size: 14px;">
-                                {n.TitleEn}
+                                {WebUtility.HtmlEncode(n.TitleEn)}
                             </span>
                         </div>
                         <p style="color: #6b7280; font-size: 13px; margin: 4px 0 0;">
-                            {n.MessageEn}
+                            {WebUtility.HtmlEncode(n.MessageEn)}
                         </p>
                         <p style="color: #9ca3af; font-size: 11px; margin: 4px 0 0;">
                             {n.Created:MMM dd, yyyy HH:mm} UTC

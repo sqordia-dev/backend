@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sqordia.Application.Common.Interfaces;
@@ -167,7 +168,7 @@ public class NotificationService : INotificationService
             await _context.SaveChangesAsync(cancellationToken);
 
             // Push updated count via SignalR
-            _ = PushUnreadCountAsync(userId.Value, cancellationToken);
+            await PushUnreadCountAsync(userId.Value, cancellationToken);
 
             return Result.Success();
         }
@@ -232,7 +233,7 @@ public class NotificationService : INotificationService
 
             if (wasUnread)
             {
-                _ = PushUnreadCountAsync(userId.Value, cancellationToken);
+                await PushUnreadCountAsync(userId.Value, cancellationToken);
             }
 
             return Result.Success();
@@ -303,22 +304,26 @@ public class NotificationService : INotificationService
                 "Notification created: {Type} ({Priority}) for user {UserId}",
                 type, priority, userId);
 
-            // Push via SignalR (fire-and-forget)
+            // Push via SignalR (fire-and-forget, use CancellationToken.None — request token may cancel)
+            var unreadCount = await _context.Notifications
+                .Where(n => n.UserId == userId && !n.IsRead)
+                .CountAsync(cancellationToken);
+
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await _hubService.SendNotificationAsync(userId, response, cancellationToken);
-                    await PushUnreadCountAsync(userId, cancellationToken);
+                    await _hubService.SendNotificationAsync(userId, response, CancellationToken.None);
+                    await _hubService.SendUnreadCountAsync(userId, unreadCount, CancellationToken.None);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Failed to push notification via SignalR for user {UserId}", userId);
                 }
-            }, cancellationToken);
+            }, CancellationToken.None);
 
             // Send email notification if applicable (fire-and-forget)
-            _ = TrySendEmailNotificationAsync(userId, type, titleFr, titleEn, messageFr, messageEn, cancellationToken);
+            _ = TrySendEmailNotificationAsync(userId, type, titleFr, titleEn, messageFr, messageEn, CancellationToken.None);
 
             return Result.Success(response);
         }
@@ -349,14 +354,10 @@ public class NotificationService : INotificationService
         {
             var userIdList = userIds.ToList();
 
-            // Filter out users who disabled in-app notifications for this type
-            var filteredUserIds = new List<Guid>(userIdList.Count);
-            foreach (var uid in userIdList)
-            {
-                var shouldSend = await _preferenceService.ShouldSendInAppAsync(uid, type, cancellationToken);
-                if (shouldSend)
-                    filteredUserIds.Add(uid);
-            }
+            // Batch preference check — single query instead of N+1
+            var disabledUsers = await _preferenceService.GetUsersWithInAppDisabledAsync(
+                userIdList, type, cancellationToken);
+            var filteredUserIds = userIdList.Where(uid => !disabledUsers.Contains(uid)).ToList();
 
             if (filteredUserIds.Count == 0)
             {
@@ -397,13 +398,13 @@ public class NotificationService : INotificationService
             {
                 try
                 {
-                    await _hubService.SendBulkNotificationsAsync(filteredUserIds, response, cancellationToken);
+                    await _hubService.SendBulkNotificationsAsync(filteredUserIds, response, CancellationToken.None);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Failed to push bulk notifications via SignalR");
                 }
-            }, cancellationToken);
+            }, CancellationToken.None);
 
             return Result.Success();
         }
@@ -488,7 +489,8 @@ public class NotificationService : INotificationService
             if (email == null) return;
 
             var subject = $"[Sqordia] {titleEn}";
-            var body = $"<h2>{titleEn}</h2><p>{messageEn}</p><hr/><h2>{titleFr}</h2><p>{messageFr}</p>";
+            var body = $"<h2>{WebUtility.HtmlEncode(titleEn)}</h2><p>{WebUtility.HtmlEncode(messageEn)}</p>" +
+                        $"<hr/><h2>{WebUtility.HtmlEncode(titleFr)}</h2><p>{WebUtility.HtmlEncode(messageFr)}</p>";
 
             await _emailService.SendHtmlEmailAsync(email, subject, body);
 
