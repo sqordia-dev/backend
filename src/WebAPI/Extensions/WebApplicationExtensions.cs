@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Sqordia.Application.Services;
 using Sqordia.Persistence.Contexts;
+using Sqordia.WebAPI.Hubs;
 using WebAPI.Middleware;
 using System.Text.Json;
 
@@ -160,6 +161,9 @@ public static class WebApplicationExtensions
 
         // Map controllers
         app.MapControllers();
+
+        // Map SignalR hubs
+        app.MapHub<NotificationHub>("/hubs/notifications");
 
         // Health checks
         app.MapHealthChecks("/health", new HealthCheckOptions

@@ -25,6 +25,12 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
             .HasConversion<string>()
             .HasMaxLength(50);
 
+        builder.Property(n => n.Priority)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(Domain.Enums.NotificationPriority.Normal);
+
         builder.Property(n => n.TitleFr)
             .IsRequired()
             .HasMaxLength(500);
@@ -51,11 +57,16 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
         builder.Property(n => n.MetadataJson)
             .HasColumnType("jsonb");
 
+        builder.Property(n => n.GroupKey)
+            .HasMaxLength(200);
+
         // Indexes for common queries
         builder.HasIndex(n => n.UserId);
         builder.HasIndex(n => new { n.UserId, n.IsRead });
         builder.HasIndex(n => new { n.UserId, n.Created });
         builder.HasIndex(n => n.Type);
+        builder.HasIndex(n => new { n.UserId, n.GroupKey })
+            .HasFilter("\"GroupKey\" IS NOT NULL");
 
         // Soft delete query filter
         builder.HasQueryFilter(n => !n.IsDeleted);

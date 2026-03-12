@@ -42,6 +42,8 @@ public interface INotificationService
         string? actionUrl = null,
         string? metadataJson = null,
         Guid? relatedEntityId = null,
+        NotificationPriority priority = NotificationPriority.Normal,
+        string? groupKey = null,
         CancellationToken cancellationToken = default);
 
     Task<Result> CreateBulkNotificationsAsync(
@@ -55,5 +57,16 @@ public interface INotificationService
         string? actionUrl = null,
         string? metadataJson = null,
         Guid? relatedEntityId = null,
+        NotificationPriority priority = NotificationPriority.Normal,
+        string? groupKey = null,
+        CancellationToken cancellationToken = default);
+
+    Task<Result> CreateSystemAnnouncementAsync(
+        string titleFr,
+        string titleEn,
+        string messageFr,
+        string messageEn,
+        NotificationPriority priority = NotificationPriority.Normal,
+        string? actionUrl = null,
         CancellationToken cancellationToken = default);
 }

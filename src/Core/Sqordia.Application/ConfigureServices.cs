@@ -104,8 +104,10 @@ public static class ConfigureServices
             services.AddScoped<IQuestionnaireServiceV3, QuestionnaireServiceV3>();
             services.AddScoped<IQuestionSectionMappingService, QuestionSectionMappingService>();
 
-            // Notification service
+            // Notification services
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<INotificationPreferenceService, NotificationPreferenceService>();
+            services.AddScoped<INotificationAnalyticsService, NotificationAnalyticsService>();
 
             // Newsletter service
             services.AddScoped<INewsletterSubscriberService, NewsletterSubscriberService>();

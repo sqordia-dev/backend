@@ -5,6 +5,7 @@ using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Services;
 using Sqordia.Contracts.Requests.Export;
 using Sqordia.Domain.Constants;
+using Sqordia.Domain.Enums;
 
 namespace WebAPI.Controllers;
 
@@ -18,6 +19,7 @@ public class ExportController : BaseApiController
     private readonly IThemedPdfService _themedPdfService;
     private readonly IDocumentAgentService _documentAgent;
     private readonly IFeatureGateService _featureGate;
+    private readonly INotificationService _notificationService;
     private readonly IApplicationDbContext _context;
     private readonly ILogger<ExportController> _logger;
 
@@ -27,6 +29,7 @@ public class ExportController : BaseApiController
         IThemedPdfService themedPdfService,
         IDocumentAgentService documentAgent,
         IFeatureGateService featureGate,
+        INotificationService notificationService,
         IApplicationDbContext context,
         ILogger<ExportController> logger)
     {
@@ -35,6 +38,7 @@ public class ExportController : BaseApiController
         _themedPdfService = themedPdfService;
         _documentAgent = documentAgent;
         _featureGate = featureGate;
+        _notificationService = notificationService;
         _context = context;
         _logger = logger;
     }
@@ -89,7 +93,8 @@ public class ExportController : BaseApiController
             return HandleResult(result);
 
         var exportResult = result.Value!;
-        await RecordExportUsageAsync(orgId, cancellationToken, exportResult.FileData.LongLength);
+        await RecordExportUsageAsync(orgId, PlanFeatures.ExportPdf, cancellationToken, exportResult.FileData.LongLength);
+        FireExportNotification(businessPlanId, "PDF", exportResult.FileName);
 
         return File(
             exportResult.FileData,
@@ -134,7 +139,8 @@ public class ExportController : BaseApiController
             return HandleResult(result);
 
         var exportResult = result.Value!;
-        await RecordExportUsageAsync(orgId, cancellationToken, exportResult.FileData.LongLength);
+        await RecordExportUsageAsync(orgId, PlanFeatures.ExportPdf, cancellationToken, exportResult.FileData.LongLength);
+        FireExportNotification(businessPlanId, "PDF", exportResult.FileName);
         return File(exportResult.FileData, exportResult.ContentType, exportResult.FileName);
     }
 
@@ -188,7 +194,8 @@ public class ExportController : BaseApiController
             return HandleResult(result);
 
         var exportResult = result.Value!;
-        await RecordExportUsageAsync(orgId, cancellationToken, exportResult.FileData.LongLength);
+        await RecordExportUsageAsync(orgId, PlanFeatures.ExportWord, cancellationToken, exportResult.FileData.LongLength);
+        FireExportNotification(businessPlanId, "Word", exportResult.FileName);
 
         return File(
             exportResult.FileData,
@@ -328,7 +335,8 @@ public class ExportController : BaseApiController
             return HandleResult(result);
 
         var exportResult = result.Value!;
-        await RecordExportUsageAsync(orgId, cancellationToken, exportResult.FileData.LongLength);
+        await RecordExportUsageAsync(orgId, PlanFeatures.ExportExcel, cancellationToken, exportResult.FileData.LongLength);
+        FireExportNotification(businessPlanId, "Excel", exportResult.FileName);
         return File(exportResult.FileData, exportResult.ContentType, exportResult.FileName);
     }
 
@@ -364,6 +372,8 @@ public class ExportController : BaseApiController
         if (slideDeckResult.IsSuccess)
         {
             var deckExport = slideDeckResult.Value!;
+            await RecordExportUsageAsync(orgId, PlanFeatures.ExportPowerpoint, cancellationToken, deckExport.FileData.LongLength);
+            FireExportNotification(businessPlanId, "PowerPoint", deckExport.FileName);
             return File(deckExport.FileData, deckExport.ContentType, deckExport.FileName);
         }
 
@@ -377,6 +387,8 @@ public class ExportController : BaseApiController
             return HandleResult(result);
 
         var exportResult = result.Value!;
+        await RecordExportUsageAsync(orgId, PlanFeatures.ExportPowerpoint, cancellationToken, exportResult.FileData.LongLength);
+        FireExportNotification(businessPlanId, "PowerPoint", exportResult.FileName);
         return File(exportResult.FileData, exportResult.ContentType, exportResult.FileName);
     }
 
@@ -803,13 +815,39 @@ public class ExportController : BaseApiController
         return (null, orgId.Value);
     }
 
-    private async Task RecordExportUsageAsync(Guid orgId, CancellationToken ct, long fileSizeBytes = 0)
+    private async Task RecordExportUsageAsync(Guid orgId, string featureKey, CancellationToken ct, long fileSizeBytes = 0)
     {
-        await _featureGate.RecordUsageAsync(orgId, PlanFeatures.ExportPdf, 1, ct);
+        await _featureGate.RecordUsageAsync(orgId, featureKey, 1, ct);
         if (fileSizeBytes > 0)
         {
             await _featureGate.RecordUsageAsync(orgId, PlanFeatures.MaxStorageMb, (int)fileSizeBytes, ct);
         }
+    }
+
+    private void FireExportNotification(Guid businessPlanId, string format, string fileName)
+    {
+        var userId = GetCurrentUserId();
+        if (!userId.HasValue) return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _notificationService.CreateNotificationAsync(
+                    userId.Value,
+                    NotificationType.ExportCompleted,
+                    NotificationCategory.BusinessPlan,
+                    $"Export {format} terminé : {fileName}",
+                    $"{format} export completed: {fileName}",
+                    "Votre document est prêt.",
+                    "Your document is ready.",
+                    actionUrl: $"/business-plan/{businessPlanId}/preview",
+                    relatedEntityId: businessPlanId,
+                    groupKey: $"export-{businessPlanId}",
+                    cancellationToken: CancellationToken.None);
+            }
+            catch { /* Non-critical */ }
+        });
     }
 }
 

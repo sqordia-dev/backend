@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sqordia.Application.Services;
+using Sqordia.Contracts.Requests.Notification;
 using Sqordia.Contracts.Responses.Notification;
+using Sqordia.Domain.Enums;
 
 namespace WebAPI.Controllers;
 
@@ -11,13 +13,19 @@ namespace WebAPI.Controllers;
 public class NotificationsController : BaseApiController
 {
     private readonly INotificationService _notificationService;
+    private readonly INotificationPreferenceService _preferenceService;
+    private readonly INotificationAnalyticsService _analyticsService;
     private readonly ILogger<NotificationsController> _logger;
 
     public NotificationsController(
         INotificationService notificationService,
+        INotificationPreferenceService preferenceService,
+        INotificationAnalyticsService analyticsService,
         ILogger<NotificationsController> logger)
     {
         _notificationService = notificationService;
+        _preferenceService = preferenceService;
+        _analyticsService = analyticsService;
         _logger = logger;
     }
 
@@ -99,6 +107,83 @@ public class NotificationsController : BaseApiController
     public async Task<IActionResult> DeleteNotification(Guid id, CancellationToken cancellationToken = default)
     {
         var result = await _notificationService.DeleteNotificationAsync(id, cancellationToken);
+        return HandleResult(result);
+    }
+
+    // ─── Preferences ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Get notification preferences for the current user
+    /// </summary>
+    [HttpGet("preferences")]
+    [ProducesResponseType(typeof(NotificationPreferencesListResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPreferences(CancellationToken cancellationToken = default)
+    {
+        var result = await _preferenceService.GetPreferencesAsync(cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Update notification preferences for the current user (bulk)
+    /// </summary>
+    [HttpPut("preferences")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdatePreferences(
+        [FromBody] UpdateNotificationPreferencesBulkRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var preferences = request.Preferences
+            .Where(p => Enum.TryParse<NotificationType>(p.NotificationType, true, out _))
+            .Select(p => (
+                Type: Enum.Parse<NotificationType>(p.NotificationType, true),
+                p.InAppEnabled,
+                p.EmailEnabled,
+                EmailFrequency: Enum.TryParse<NotificationFrequency>(p.EmailFrequency, true, out var freq)
+                    ? freq : NotificationFrequency.Instant,
+                p.SoundEnabled
+            ));
+
+        var result = await _preferenceService.UpdatePreferencesBulkAsync(preferences, cancellationToken);
+        return HandleResult(result);
+    }
+
+    // ─── Admin Endpoints ───────────────────────────────────────────
+
+    /// <summary>
+    /// Get notification analytics (admin only)
+    /// </summary>
+    [HttpGet("admin/analytics")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    [ProducesResponseType(typeof(NotificationAnalyticsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAnalytics(
+        [FromQuery] int days = 30,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _analyticsService.GetAnalyticsAsync(days, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Create a system-wide announcement (admin only)
+    /// </summary>
+    [HttpPost("admin/broadcast")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> CreateBroadcast(
+        [FromBody] CreateSystemAnnouncementRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var priority = Enum.TryParse<NotificationPriority>(request.Priority, true, out var p)
+            ? p : NotificationPriority.Normal;
+
+        var result = await _notificationService.CreateSystemAnnouncementAsync(
+            request.TitleFr, request.TitleEn,
+            request.MessageFr, request.MessageEn,
+            priority, request.ActionUrl,
+            cancellationToken);
+
         return HandleResult(result);
     }
 }

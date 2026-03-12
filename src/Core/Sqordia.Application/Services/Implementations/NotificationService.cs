@@ -12,15 +12,24 @@ public class NotificationService : INotificationService
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly INotificationHubService _hubService;
+    private readonly INotificationPreferenceService _preferenceService;
+    private readonly IEmailService _emailService;
     private readonly ILogger<NotificationService> _logger;
 
     public NotificationService(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
+        INotificationHubService hubService,
+        INotificationPreferenceService preferenceService,
+        IEmailService emailService,
         ILogger<NotificationService> logger)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _hubService = hubService;
+        _preferenceService = preferenceService;
+        _emailService = emailService;
         _logger = logger;
     }
 
@@ -53,7 +62,8 @@ public class NotificationService : INotificationService
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
             var notifications = await query
-                .OrderByDescending(n => n.Created)
+                .OrderByDescending(n => n.Priority)
+                .ThenByDescending(n => n.Created)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
@@ -156,6 +166,9 @@ public class NotificationService : INotificationService
             notification.MarkAsRead();
             await _context.SaveChangesAsync(cancellationToken);
 
+            // Push updated count via SignalR
+            _ = PushUnreadCountAsync(userId.Value, cancellationToken);
+
             return Result.Success();
         }
         catch (Exception ex)
@@ -181,6 +194,9 @@ public class NotificationService : INotificationService
                         .SetProperty(n => n.IsRead, true)
                         .SetProperty(n => n.ReadAt, DateTime.UtcNow),
                     cancellationToken);
+
+            // Push zero count via SignalR
+            _ = _hubService.SendUnreadCountAsync(userId.Value, 0, cancellationToken);
 
             return Result.Success();
         }
@@ -210,8 +226,14 @@ public class NotificationService : INotificationService
             if (notification.UserId != userId.Value)
                 return Result.Failure(Error.Forbidden("Notification.Forbidden", "You do not have access to this notification"));
 
+            var wasUnread = !notification.IsRead;
             notification.SoftDelete();
             await _context.SaveChangesAsync(cancellationToken);
+
+            if (wasUnread)
+            {
+                _ = PushUnreadCountAsync(userId.Value, cancellationToken);
+            }
 
             return Result.Success();
         }
@@ -233,24 +255,72 @@ public class NotificationService : INotificationService
         string? actionUrl = null,
         string? metadataJson = null,
         Guid? relatedEntityId = null,
+        NotificationPriority priority = NotificationPriority.Normal,
+        string? groupKey = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
+            // Check user preferences for in-app
+            var shouldSendInApp = await _preferenceService.ShouldSendInAppAsync(userId, type, cancellationToken);
+            if (!shouldSendInApp)
+            {
+                _logger.LogDebug("In-app notification skipped for user {UserId}, type {Type} (disabled by preference)", userId, type);
+                // Still check email even if in-app is disabled
+                _ = TrySendEmailNotificationAsync(userId, type, titleFr, titleEn, messageFr, messageEn, cancellationToken);
+                return Result.Success(new NotificationResponse()); // Return empty response
+            }
+
+            // Smart batching: check for recent similar notifications
+            if (!string.IsNullOrEmpty(groupKey))
+            {
+                var batchWindow = DateTime.UtcNow.AddMinutes(-2);
+                var recentSimilar = await _context.Notifications
+                    .Where(n => n.UserId == userId && n.GroupKey == groupKey && n.Created >= batchWindow && !n.IsRead)
+                    .OrderByDescending(n => n.Created)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (recentSimilar != null)
+                {
+                    _logger.LogDebug("Notification batched with group key {GroupKey} for user {UserId}", groupKey, userId);
+                    return Result.Success(MapToResponse(recentSimilar));
+                }
+            }
+
             var notification = new Notification(
                 userId, type, category,
                 titleFr, titleEn,
                 messageFr, messageEn,
-                actionUrl, metadataJson, relatedEntityId);
+                actionUrl, metadataJson, relatedEntityId,
+                priority, groupKey);
 
             _context.Notifications.Add(notification);
             await _context.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation(
-                "Notification created: {Type} for user {UserId}",
-                type, userId);
+            var response = MapToResponse(notification);
 
-            return Result.Success(MapToResponse(notification));
+            _logger.LogInformation(
+                "Notification created: {Type} ({Priority}) for user {UserId}",
+                type, priority, userId);
+
+            // Push via SignalR (fire-and-forget)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _hubService.SendNotificationAsync(userId, response, cancellationToken);
+                    await PushUnreadCountAsync(userId, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to push notification via SignalR for user {UserId}", userId);
+                }
+            }, cancellationToken);
+
+            // Send email notification if applicable (fire-and-forget)
+            _ = TrySendEmailNotificationAsync(userId, type, titleFr, titleEn, messageFr, messageEn, cancellationToken);
+
+            return Result.Success(response);
         }
         catch (Exception ex)
         {
@@ -271,22 +341,69 @@ public class NotificationService : INotificationService
         string? actionUrl = null,
         string? metadataJson = null,
         Guid? relatedEntityId = null,
+        NotificationPriority priority = NotificationPriority.Normal,
+        string? groupKey = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var notifications = userIds.Select(uid => new Notification(
+            var userIdList = userIds.ToList();
+
+            // Filter out users who disabled in-app notifications for this type
+            var filteredUserIds = new List<Guid>(userIdList.Count);
+            foreach (var uid in userIdList)
+            {
+                var shouldSend = await _preferenceService.ShouldSendInAppAsync(uid, type, cancellationToken);
+                if (shouldSend)
+                    filteredUserIds.Add(uid);
+            }
+
+            if (filteredUserIds.Count == 0)
+            {
+                _logger.LogDebug("Bulk notification skipped: all {Count} users disabled type {Type}", userIdList.Count, type);
+                return Result.Success();
+            }
+
+            var notifications = filteredUserIds.Select(uid => new Notification(
                 uid, type, category,
                 titleFr, titleEn,
                 messageFr, messageEn,
-                actionUrl, metadataJson, relatedEntityId));
+                actionUrl, metadataJson, relatedEntityId,
+                priority, groupKey));
 
             _context.Notifications.AddRange(notifications);
             await _context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(
-                "Bulk notifications created: {Type} for {Count} users",
-                type, userIds.Count());
+                "Bulk notifications created: {Type} ({Priority}) for {Count}/{Total} users (after preference filter)",
+                type, priority, filteredUserIds.Count, userIdList.Count);
+
+            // Push via SignalR for each user (fire-and-forget)
+            var response = new NotificationResponse
+            {
+                Type = type.ToString(),
+                Category = category.ToString(),
+                Priority = priority.ToString(),
+                TitleFr = titleFr,
+                TitleEn = titleEn,
+                MessageFr = messageFr,
+                MessageEn = messageEn,
+                ActionUrl = actionUrl,
+                GroupKey = groupKey,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _hubService.SendBulkNotificationsAsync(filteredUserIds, response, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to push bulk notifications via SignalR");
+                }
+            }, cancellationToken);
 
             return Result.Success();
         }
@@ -298,6 +415,91 @@ public class NotificationService : INotificationService
         }
     }
 
+    public async Task<Result> CreateSystemAnnouncementAsync(
+        string titleFr,
+        string titleEn,
+        string messageFr,
+        string messageEn,
+        NotificationPriority priority = NotificationPriority.Normal,
+        string? actionUrl = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Get all active user IDs
+            var userIds = await _context.Users
+                .Where(u => !u.IsDeleted)
+                .Select(u => u.Id)
+                .ToListAsync(cancellationToken);
+
+            if (userIds.Count == 0)
+                return Result.Success();
+
+            return await CreateBulkNotificationsAsync(
+                userIds,
+                NotificationType.SystemAnnouncement,
+                NotificationCategory.System,
+                titleFr, titleEn,
+                messageFr, messageEn,
+                actionUrl,
+                priority: priority,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating system announcement");
+            return Result.Failure(
+                Error.Failure("Notification.Error.AnnouncementFailed", "Failed to create system announcement"));
+        }
+    }
+
+    private async Task PushUnreadCountAsync(Guid userId, CancellationToken ct)
+    {
+        try
+        {
+            var count = await _context.Notifications
+                .Where(n => n.UserId == userId && !n.IsRead)
+                .CountAsync(ct);
+
+            await _hubService.SendUnreadCountAsync(userId, count, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to push unread count for user {UserId}", userId);
+        }
+    }
+
+    private async Task TrySendEmailNotificationAsync(
+        Guid userId, NotificationType type,
+        string titleFr, string titleEn,
+        string messageFr, string messageEn,
+        CancellationToken ct)
+    {
+        try
+        {
+            var shouldEmail = await _preferenceService.ShouldSendEmailAsync(userId, type, ct);
+            if (!shouldEmail) return;
+
+            var email = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.Email)
+                .FirstOrDefaultAsync(ct);
+
+            if (email == null) return;
+
+            var subject = $"[Sqordia] {titleEn}";
+            var body = $"<h2>{titleEn}</h2><p>{messageEn}</p><hr/><h2>{titleFr}</h2><p>{messageFr}</p>";
+
+            await _emailService.SendHtmlEmailAsync(email, subject, body);
+
+            _logger.LogDebug("Email notification sent to {Email} for type {Type}", email, type);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send email notification to user {UserId}", userId);
+        }
+    }
+
     private static NotificationResponse MapToResponse(Notification notification)
     {
         return new NotificationResponse
@@ -305,6 +507,7 @@ public class NotificationService : INotificationService
             Id = notification.Id,
             Type = notification.Type.ToString(),
             Category = notification.Category.ToString(),
+            Priority = notification.Priority.ToString(),
             TitleFr = notification.TitleFr,
             TitleEn = notification.TitleEn,
             MessageFr = notification.MessageFr,
@@ -314,6 +517,7 @@ public class NotificationService : INotificationService
             ActionUrl = notification.ActionUrl,
             MetadataJson = notification.MetadataJson,
             RelatedEntityId = notification.RelatedEntityId,
+            GroupKey = notification.GroupKey,
             CreatedAt = notification.Created
         };
     }

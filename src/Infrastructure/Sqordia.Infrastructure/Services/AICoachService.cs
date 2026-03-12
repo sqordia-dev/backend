@@ -20,6 +20,7 @@ public class AICoachService : IAICoachService
     private readonly ISettingsService _settingsService;
     private readonly ISubscriptionService _subscriptionService;
     private readonly IFeatureGateService _featureGate;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<AICoachService> _logger;
 
     // Default config values (can be overridden by feature flag)
@@ -35,6 +36,7 @@ public class AICoachService : IAICoachService
         ISettingsService settingsService,
         ISubscriptionService subscriptionService,
         IFeatureGateService featureGate,
+        INotificationService notificationService,
         ILogger<AICoachService> logger)
     {
         _dbContext = dbContext;
@@ -42,6 +44,7 @@ public class AICoachService : IAICoachService
         _settingsService = settingsService;
         _subscriptionService = subscriptionService;
         _featureGate = featureGate;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -288,6 +291,28 @@ public class AICoachService : IAICoachService
             _logger.LogInformation(
                 "Sent message to AI Coach conversation {ConversationId} for user {UserId}",
                 conversation.Id, userId);
+
+            // Fire-and-forget notification
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var preview = aiResponse.Length > 100 ? aiResponse[..100] + "..." : aiResponse;
+                    await _notificationService.CreateNotificationAsync(
+                        userId,
+                        NotificationType.AICoachReply,
+                        NotificationCategory.AI,
+                        $"Nouveau message du coach IA",
+                        $"New AI Coach message",
+                        preview,
+                        preview,
+                        actionUrl: $"/ai-coach/{conversation.Id}",
+                        relatedEntityId: conversation.Id,
+                        groupKey: $"ai-coach-{conversation.Id}",
+                        cancellationToken: CancellationToken.None);
+                }
+                catch { /* Non-critical */ }
+            }, CancellationToken.None);
 
             return Result.Success(MapMessageToResponse(assistantMessage));
         }

@@ -298,6 +298,8 @@ public class OrganizationServiceInvitationTests : IDisposable
                 "/dashboard",
                 It.IsAny<string?>(),
                 _organizationId,
+                It.IsAny<NotificationPriority>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -311,7 +313,8 @@ public class OrganizationServiceInvitationTests : IDisposable
             .Setup(x => x.CreateNotificationAsync(
                 It.IsAny<Guid>(), It.IsAny<NotificationType>(), It.IsAny<NotificationCategory>(),
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Guid?>(),
+                It.IsAny<NotificationPriority>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("Notification service down"));
 
         var sut = BuildService();
