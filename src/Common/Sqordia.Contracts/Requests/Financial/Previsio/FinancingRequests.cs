@@ -8,6 +8,8 @@ public class CreateFinancingSourceRequest
     public decimal InterestRate { get; set; }
     public int TermMonths { get; set; }
     public int MoratoireMonths { get; set; }
+    public int DisbursementMonth { get; set; }
+    public int DisbursementYear { get; set; }
 }
 
 public class UpdateFinancingSourceRequest

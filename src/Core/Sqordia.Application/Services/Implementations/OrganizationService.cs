@@ -218,6 +218,7 @@ public class OrganizationService : IOrganizationService
                 CreatedBy = organization.CreatedBy,
                 Industry = organization.Industry,
                 Sector = organization.Sector,
+                LegalForm = organization.LegalForm,
                 TeamSize = organization.TeamSize,
                 FundingStatus = organization.FundingStatus,
                 TargetMarket = organization.TargetMarket,
@@ -280,7 +281,7 @@ public class OrganizationService : IOrganizationService
             organization.UpdateDetails(request.Name, request.Description, request.Website);
 
             // Update business context if any fields are provided
-            if (request.Industry != null || request.Sector != null || request.TeamSize != null ||
+            if (request.Industry != null || request.Sector != null || request.LegalForm != null || request.TeamSize != null ||
                 request.FundingStatus != null || request.TargetMarket != null || request.BusinessStage != null ||
                 request.GoalsJson != null || request.City != null || request.Province != null || request.Country != null)
             {
@@ -294,7 +295,8 @@ public class OrganizationService : IOrganizationService
                     request.GoalsJson ?? organization.GoalsJson,
                     request.City ?? organization.City,
                     request.Province ?? organization.Province,
-                    request.Country ?? organization.Country);
+                    request.Country ?? organization.Country,
+                    request.LegalForm ?? organization.LegalForm);
             }
 
             await _context.SaveChangesAsync(cancellationToken);
@@ -1037,6 +1039,7 @@ public class OrganizationService : IOrganizationService
             CreatedBy = organization.CreatedBy,
             Industry = organization.Industry,
             Sector = organization.Sector,
+            LegalForm = organization.LegalForm,
             TeamSize = organization.TeamSize,
             FundingStatus = organization.FundingStatus,
             TargetMarket = organization.TargetMarket,

@@ -6,6 +6,9 @@ public class FinancialPlanResponse
     public Guid BusinessPlanId { get; set; }
     public int ProjectionYears { get; set; }
     public int StartYear { get; set; }
+    public int StartMonth { get; set; }
+    public string? SalesTaxFrequency { get; set; }
+    public bool IsAlreadyOperating { get; set; }
     public decimal DefaultVolumeGrowthRate { get; set; }
     public decimal DefaultPriceIndexationRate { get; set; }
     public decimal DefaultExpenseIndexationRate { get; set; }

@@ -56,7 +56,7 @@ public class FinancingModuleServiceImpl : IFinancingModuleService
 
         var maxOrder = await _context.FinancingSources.Where(fs => fs.FinancialPlanId == plan.Id).MaxAsync(fs => (int?)fs.SortOrder, cancellationToken) ?? 0;
 
-        var source = new FinancingSource(plan.Id, request.Name, financingType, request.Amount, request.InterestRate, request.TermMonths, request.MoratoireMonths, maxOrder + 1);
+        var source = new FinancingSource(plan.Id, request.Name, financingType, request.Amount, request.InterestRate, request.TermMonths, request.MoratoireMonths, maxOrder + 1, request.DisbursementMonth, request.DisbursementYear);
         _context.FinancingSources.Add(source);
         await _context.SaveChangesAsync(cancellationToken);
 

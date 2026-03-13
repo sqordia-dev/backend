@@ -23,6 +23,9 @@ public class UpdateOrganizationRequest
     [MaxLength(100)]
     public string? Sector { get; set; }
 
+    [MaxLength(100)]
+    public string? LegalForm { get; set; }
+
     [MaxLength(50)]
     public string? TeamSize { get; set; }
 

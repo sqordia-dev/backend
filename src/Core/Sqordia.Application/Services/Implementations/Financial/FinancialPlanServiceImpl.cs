@@ -77,7 +77,10 @@ public class FinancialPlanServiceImpl : IFinancialPlanService
             request.DefaultPriceIndexationRate,
             request.DefaultExpenseIndexationRate,
             request.DefaultSocialChargeRate,
-            request.DefaultSalesTaxRate);
+            request.DefaultSalesTaxRate,
+            request.StartMonth,
+            request.SalesTaxFrequency,
+            request.IsAlreadyOperating);
 
         await _context.SaveChangesAsync(cancellationToken);
         return Result.Success(MapToResponse(plan));
@@ -104,6 +107,9 @@ public class FinancialPlanServiceImpl : IFinancialPlanService
             BusinessPlanId = plan.BusinessPlanId,
             ProjectionYears = plan.ProjectionYears,
             StartYear = plan.StartYear,
+            StartMonth = plan.StartMonth,
+            SalesTaxFrequency = plan.SalesTaxFrequency,
+            IsAlreadyOperating = plan.IsAlreadyOperating,
             DefaultVolumeGrowthRate = plan.DefaultVolumeGrowthRate,
             DefaultPriceIndexationRate = plan.DefaultPriceIndexationRate,
             DefaultExpenseIndexationRate = plan.DefaultExpenseIndexationRate,
