@@ -75,7 +75,11 @@ try
     builder.Services.AddHealthCheckServices();
     builder.Services.AddCompressionServices();
     builder.Services.AddCachingServices();
+    builder.Services.AddSignalR();
+    builder.Services.AddScoped<Sqordia.Application.Common.Interfaces.INotificationHubService, Sqordia.WebAPI.Services.NotificationHubService>();
     builder.Services.AddHostedService<WebAPI.BackgroundServices.AnalyticsBatchBackgroundService>();
+    builder.Services.AddHostedService<WebAPI.BackgroundServices.SubscriptionExpiryCheckService>();
+    builder.Services.AddHostedService<WebAPI.BackgroundServices.NotificationDigestService>();
 
     var app = builder.Build();
 

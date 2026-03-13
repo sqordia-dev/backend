@@ -271,7 +271,7 @@ public class StripeService : IStripeService
         {
             var subscriptionService = new StripeSubscriptionService();
             var subscription = await subscriptionService.GetAsync(subscriptionId, cancellationToken: cancellationToken);
-            
+
             var info = new StripeSubscriptionInfo
             {
                 SubscriptionId = subscription.Id,
@@ -282,7 +282,7 @@ public class StripeService : IStripeService
                 CurrentPeriodEnd = subscription.CurrentPeriodEnd,
                 CancelAtPeriodEnd = subscription.CancelAtPeriodEnd
             };
-            
+
             return Result<StripeSubscriptionInfo>.Success(info);
         }
         catch (StripeException ex)
@@ -294,6 +294,42 @@ public class StripeService : IStripeService
         {
             _logger.LogError(ex, "Error getting subscription");
             return Result.Failure<StripeSubscriptionInfo>("Failed to get subscription");
+        }
+    }
+
+    public async Task<Result<List<StripeInvoiceInfo>>> GetInvoicesForSubscriptionAsync(
+        string stripeSubscriptionId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var invoiceService = new InvoiceService();
+            var invoices = await invoiceService.ListAsync(
+                new InvoiceListOptions { Subscription = stripeSubscriptionId },
+                cancellationToken: cancellationToken);
+
+            var result = invoices.Data.Select(inv => new StripeInvoiceInfo
+            {
+                InvoiceId = inv.Id,
+                PdfUrl = inv.InvoicePdf,
+                HostedUrl = inv.HostedInvoiceUrl,
+                PeriodStart = inv.PeriodStart,
+                PeriodEnd = inv.PeriodEnd,
+                Status = inv.Status
+            }).ToList();
+
+            return Result<List<StripeInvoiceInfo>>.Success(result);
+        }
+        catch (StripeException ex)
+        {
+            _logger.LogError(ex, "Stripe error getting invoices for subscription {SubscriptionId}: {Message}",
+                stripeSubscriptionId, ex.Message);
+            return Result.Failure<List<StripeInvoiceInfo>>($"Failed to get Stripe invoices: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting Stripe invoices for subscription {SubscriptionId}", stripeSubscriptionId);
+            return Result.Failure<List<StripeInvoiceInfo>>("Failed to get invoices");
         }
     }
 }

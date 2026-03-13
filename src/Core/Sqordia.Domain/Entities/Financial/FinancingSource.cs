@@ -33,7 +33,9 @@ public class FinancingSource : BaseAuditableEntity
         decimal interestRate = 0,
         int termMonths = 0,
         int moratoireMonths = 0,
-        int sortOrder = 0)
+        int sortOrder = 0,
+        int disbursementMonth = 1,
+        int disbursementYear = 1)
     {
         FinancialPlanId = financialPlanId;
         Name = name;
@@ -43,6 +45,8 @@ public class FinancingSource : BaseAuditableEntity
         TermMonths = termMonths;
         MoratoireMonths = moratoireMonths;
         SortOrder = sortOrder;
+        DisbursementMonth = disbursementMonth;
+        DisbursementYear = disbursementYear;
     }
 
     public void Update(

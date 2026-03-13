@@ -144,6 +144,7 @@ public interface IApplicationDbContext
 
     // Notifications
     DbSet<Notification> Notifications { get; }
+    DbSet<NotificationPreference> NotificationPreferences { get; }
 
     // ML Training Data
     DbSet<AICallTelemetryRecord> AICallTelemetryRecords { get; }

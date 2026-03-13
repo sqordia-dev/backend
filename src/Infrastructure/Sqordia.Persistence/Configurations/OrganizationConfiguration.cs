@@ -43,6 +43,7 @@ public class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
         // Business Context fields
         builder.Property(o => o.Industry).HasMaxLength(100);
         builder.Property(o => o.Sector).HasMaxLength(100);
+        builder.Property(o => o.LegalForm).HasMaxLength(100);
         builder.Property(o => o.TeamSize).HasMaxLength(50);
         builder.Property(o => o.FundingStatus).HasMaxLength(50);
         builder.Property(o => o.TargetMarket).HasMaxLength(100);

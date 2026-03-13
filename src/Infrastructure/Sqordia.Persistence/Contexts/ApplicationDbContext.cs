@@ -146,6 +146,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     // Notifications
     public DbSet<Notification> Notifications { get; set; }
+    public DbSet<NotificationPreference> NotificationPreferences { get; set; }
 
     // ML Training Data
     public DbSet<AICallTelemetryRecord> AICallTelemetryRecords { get; set; }

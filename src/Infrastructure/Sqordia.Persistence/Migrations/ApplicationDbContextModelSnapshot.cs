@@ -3399,6 +3399,11 @@ namespace Sqordia.Persistence.Migrations
                     b.Property<string>("DeletedBy")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsAlreadyOperating")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -3412,6 +3417,15 @@ namespace Sqordia.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(3);
+
+                    b.Property<string>("SalesTaxFrequency")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("StartMonth")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<int>("StartYear")
                         .HasColumnType("integer");
@@ -3584,6 +3598,36 @@ namespace Sqordia.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<decimal>("AdminExpAcquireAfter")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("AdminExpAcquireBefore")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("AdminExpAlreadyAcquired")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("AdminExpDurationMonths")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("CapexAcquireAfter")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("CapexAcquireBefore")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("CapexAlreadyAcquired")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("CapexDurationMonths")
+                        .HasColumnType("integer");
+
                     b.Property<int>("CapexInclusionMonths")
                         .HasColumnType("integer");
 
@@ -3602,6 +3646,21 @@ namespace Sqordia.Persistence.Migrations
                     b.Property<Guid>("FinancialPlanId")
                         .HasColumnType("uuid");
 
+                    b.Property<decimal>("InventoryAcquireAfter")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("InventoryAcquireBefore")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("InventoryAlreadyAcquired")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("InventoryDurationMonths")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -3610,6 +3669,36 @@ namespace Sqordia.Persistence.Migrations
 
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
+
+                    b.Property<decimal>("SalaryAcquireAfter")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("SalaryAcquireBefore")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("SalaryAlreadyAcquired")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("SalaryDurationMonths")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("SalesExpAcquireAfter")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("SalesExpAcquireBefore")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("SalesExpAlreadyAcquired")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("SalesExpDurationMonths")
+                        .HasColumnType("integer");
 
                     b.Property<decimal>("TotalCapex")
                         .HasPrecision(18, 2)
@@ -5680,6 +5769,10 @@ namespace Sqordia.Persistence.Migrations
                     b.Property<string>("DeletedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("GroupKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -5706,6 +5799,13 @@ namespace Sqordia.Persistence.Migrations
 
                     b.Property<string>("MetadataJson")
                         .HasColumnType("jsonb");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Normal");
 
                     b.Property<DateTime?>("ReadAt")
                         .HasColumnType("timestamp with time zone");
@@ -5739,9 +5839,79 @@ namespace Sqordia.Persistence.Migrations
 
                     b.HasIndex("UserId", "Created");
 
+                    b.HasIndex("UserId", "GroupKey")
+                        .HasFilter("\"GroupKey\" IS NOT NULL");
+
                     b.HasIndex("UserId", "IsRead");
 
                     b.ToTable("notifications", (string)null);
+                });
+
+            modelBuilder.Entity("Sqordia.Domain.Entities.NotificationPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("EmailEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("EmailFrequency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Instant");
+
+                    b.Property<bool>("InAppEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("NotificationType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("SoundEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "NotificationType")
+                        .IsUnique();
+
+                    b.ToTable("notification_preferences", (string)null);
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.OBNLBusinessPlan", b =>
@@ -5973,6 +6143,10 @@ namespace Sqordia.Persistence.Migrations
 
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
+
+                    b.Property<string>("LegalForm")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("LogoUrl")
                         .HasMaxLength(500)

@@ -8,6 +8,7 @@ public class Notification : BaseAuditableEntity
     public Guid UserId { get; private set; }
     public NotificationType Type { get; private set; }
     public NotificationCategory Category { get; private set; }
+    public NotificationPriority Priority { get; private set; }
     public string TitleFr { get; private set; } = null!;
     public string TitleEn { get; private set; } = null!;
     public string MessageFr { get; private set; } = null!;
@@ -17,6 +18,7 @@ public class Notification : BaseAuditableEntity
     public string? ActionUrl { get; private set; }
     public string? MetadataJson { get; private set; }
     public Guid? RelatedEntityId { get; private set; }
+    public string? GroupKey { get; private set; }
 
     private Notification() { } // EF Core constructor
 
@@ -30,11 +32,14 @@ public class Notification : BaseAuditableEntity
         string messageEn,
         string? actionUrl = null,
         string? metadataJson = null,
-        Guid? relatedEntityId = null)
+        Guid? relatedEntityId = null,
+        NotificationPriority priority = NotificationPriority.Normal,
+        string? groupKey = null)
     {
         UserId = userId;
         Type = type;
         Category = category;
+        Priority = priority;
         TitleFr = titleFr ?? throw new ArgumentNullException(nameof(titleFr));
         TitleEn = titleEn ?? throw new ArgumentNullException(nameof(titleEn));
         MessageFr = messageFr ?? throw new ArgumentNullException(nameof(messageFr));
@@ -43,6 +48,7 @@ public class Notification : BaseAuditableEntity
         ActionUrl = actionUrl;
         MetadataJson = metadataJson;
         RelatedEntityId = relatedEntityId;
+        GroupKey = groupKey;
         Created = DateTime.UtcNow;
     }
 

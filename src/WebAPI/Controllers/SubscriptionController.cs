@@ -185,7 +185,8 @@ public class SubscriptionController : BaseApiController
     }
 
     /// <summary>
-    /// Download invoice as PDF
+    /// Download invoice as PDF — redirects to Stripe's hosted invoice when available,
+    /// falls back to QuestPDF generation for non-Stripe subscriptions.
     /// </summary>
     [HttpGet("invoices/{invoiceId}/download")]
     public async Task<IActionResult> DownloadInvoicePdf(Guid invoiceId, CancellationToken cancellationToken)
@@ -211,26 +212,45 @@ public class SubscriptionController : BaseApiController
                 return NotFound("Invoice not found or you don't have access to it");
             }
 
-            // Get user and organization info for the invoice
+            // If PdfUrl is already populated (Stripe hosted invoice), redirect
+            if (!string.IsNullOrEmpty(invoice.PdfUrl))
+            {
+                return Ok(new { redirectUrl = invoice.PdfUrl });
+            }
+
+            // Try Stripe direct lookup as fallback
+            var subscription = await _context.Subscriptions
+                .Include(s => s.Organization)
+                .FirstOrDefaultAsync(s => s.Id == invoice.SubscriptionId, cancellationToken);
+
+            if (subscription != null && !string.IsNullOrEmpty(subscription.StripeSubscriptionId))
+            {
+                var stripeInvoices = await _stripeService.GetInvoicesForSubscriptionAsync(
+                    subscription.StripeSubscriptionId, cancellationToken);
+
+                if (stripeInvoices.IsSuccess && stripeInvoices.Value?.Count > 0)
+                {
+                    var hostedUrl = stripeInvoices.Value.First().HostedUrl;
+                    if (!string.IsNullOrEmpty(hostedUrl))
+                    {
+                        return Ok(new { redirectUrl = hostedUrl });
+                    }
+                }
+            }
+
+            // Fall back to QuestPDF generation
             var user = await _context.Users.FindAsync(new object[] { userId.Value }, cancellationToken);
             if (user == null)
             {
                 return NotFound("User not found");
             }
 
-            // Get subscription to find organization
-            var subscription = await _context.Subscriptions
-                .Include(s => s.Organization)
-                .FirstOrDefaultAsync(s => s.Id == invoice.SubscriptionId, cancellationToken);
-
             var organizationName = subscription?.Organization?.Name ?? "";
             var customerName = $"{user.FirstName} {user.LastName}".Trim();
             var customerEmail = user.Email?.ToString() ?? "";
 
-            // Generate PDF
             var pdfBytes = _invoicePdfService.GenerateInvoicePdf(invoice, organizationName, customerName, customerEmail);
 
-            // Return PDF file
             return File(pdfBytes, "application/pdf", $"Invoice-{invoice.InvoiceNumber}.pdf");
         }
         catch (Exception ex)
@@ -297,6 +317,22 @@ public class SubscriptionController : BaseApiController
                 return HandleResult(subscribeResult);
             }
 
+            // Get price ID from configuration based on plan type and billing cycle
+            var planType = plan.PlanType.ToString();
+            var billingCycle = request.IsYearly ? "Yearly" : "Monthly";
+            var priceId = _configuration[$"Stripe:PriceIds:{planType}:{billingCycle}"];
+
+            // If Stripe is not configured, fall back to direct subscription (development mode)
+            if (string.IsNullOrEmpty(priceId))
+            {
+                _logger.LogWarning(
+                    "Stripe price ID not configured for plan {PlanType} {BillingCycle}. Falling back to direct subscription.",
+                    planType, billingCycle);
+
+                var directResult = await _subscriptionService.SubscribeAsync(userId.Value, request, cancellationToken);
+                return HandleResult(directResult);
+            }
+
             // Get or create Stripe customer
             var userEmail = user.Email?.ToString() ?? throw new InvalidOperationException("User email is required");
             var customerIdResult = await _stripeService.GetCustomerIdByEmailAsync(userEmail, cancellationToken);
@@ -321,17 +357,6 @@ public class SubscriptionController : BaseApiController
                 }
 
                 customerId = createCustomerResult.Value!;
-            }
-
-            // Get price ID from configuration based on plan type and billing cycle
-            var planType = plan.PlanType.ToString();
-            var billingCycle = request.IsYearly ? "Yearly" : "Monthly";
-            var priceId = _configuration[$"Stripe:PriceIds:{planType}:{billingCycle}"];
-
-            if (string.IsNullOrEmpty(priceId))
-            {
-                _logger.LogWarning("Stripe price ID not configured for plan {PlanType} {BillingCycle}", planType, billingCycle);
-                return BadRequest($"Stripe price ID not configured for {planType} {billingCycle} plan");
             }
 
             // Create checkout session

@@ -19,6 +19,17 @@ public class FinancialPlanConfiguration : IEntityTypeConfiguration<FinancialPlan
         builder.Property(fp => fp.StartYear)
             .IsRequired();
 
+        builder.Property(fp => fp.StartMonth)
+            .IsRequired()
+            .HasDefaultValue(1);
+
+        builder.Property(fp => fp.SalesTaxFrequency)
+            .HasMaxLength(20);
+
+        builder.Property(fp => fp.IsAlreadyOperating)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(fp => fp.DefaultVolumeGrowthRate)
             .HasPrecision(5, 2)
             .HasDefaultValue(5.0m);

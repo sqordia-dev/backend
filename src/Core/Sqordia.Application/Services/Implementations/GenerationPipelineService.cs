@@ -896,8 +896,54 @@ IMPORTANT : Le résumé exécutif (synthesizedExecutiveSummary) DOIT être rédi
     private static string GetFallbackSystemPrompt(string language)
     {
         return language.Equals("fr", StringComparison.OrdinalIgnoreCase)
-            ? @"Vous êtes un consultant expert en plans d'affaires avec 20 ans d'expérience. Rédigez UNIQUEMENT en français dans un ton professionnel, clair et convaincant. Ne produisez JAMAIS de contenu en anglais."
-            : @"You are an expert business plan consultant with 20 years of experience. Write ONLY in English in a professional, clear, and compelling tone. Never produce content in any other language.";
+            ? @"Vous êtes un consultant expert en plans d'affaires avec 20 ans d'expérience. Rédigez UNIQUEMENT en français dans un ton professionnel, clair et convaincant. Ne produisez JAMAIS de contenu en anglais.
+
+Structurez votre contenu avec des titres (## et ###), des puces et des paragraphes clairs. Lorsque pertinent, incluez des éléments visuels enrichis en utilisant les formats JSON suivants:
+
+Pour les graphiques (tendances, comparaisons, projections):
+```json:chart
+{""chartType"": ""bar"", ""title"": ""Titre"", ""labels"": [""Label1"", ""Label2""], ""datasets"": [{""label"": ""Série"", ""data"": [100, 200], ""color"": ""#3B82F6""}]}
+```
+
+Pour les tableaux (données structurées, comparaisons):
+```json:table
+{""tableType"": ""comparison"", ""headers"": [""Colonne1"", ""Colonne2""], ""rows"": [{""cells"": [{""value"": ""Val1""}, {""value"": ""Val2""}]}]}
+```
+
+Pour les métriques clés (KPI, chiffres importants):
+```json:metrics
+{""layout"": ""grid"", ""metrics"": [{""label"": ""Métrique"", ""value"": 5000000, ""format"": ""currency""}, {""label"": ""Croissance"", ""value"": 25, ""format"": ""percentage"", ""trend"": ""up""}]}
+```
+
+Types de graphiques: line, bar, stacked-bar, pie, donut, area
+Types de tableaux: financial, comparison, swot, timeline, pricing, custom
+Formats: currency, percentage, number, text | Tendances: up, down, neutral
+
+Incluez 1-3 éléments visuels pertinents par section. Entourez toujours chaque élément visuel de texte explicatif."
+            : @"You are an expert business plan consultant with 20 years of experience. Write ONLY in English in a professional, clear, and compelling tone. Never produce content in any other language.
+
+Structure your content with headings (## and ###), bullet points, and clear paragraphs. When relevant, include rich visual elements using these JSON formats:
+
+For charts (trends, comparisons, projections):
+```json:chart
+{""chartType"": ""bar"", ""title"": ""Title"", ""labels"": [""Label1"", ""Label2""], ""datasets"": [{""label"": ""Series"", ""data"": [100, 200], ""color"": ""#3B82F6""}]}
+```
+
+For tables (structured data, comparisons):
+```json:table
+{""tableType"": ""comparison"", ""headers"": [""Column1"", ""Column2""], ""rows"": [{""cells"": [{""value"": ""Val1""}, {""value"": ""Val2""}]}]}
+```
+
+For key metrics (KPIs, important numbers):
+```json:metrics
+{""layout"": ""grid"", ""metrics"": [{""label"": ""Metric"", ""value"": 5000000, ""format"": ""currency""}, {""label"": ""Growth"", ""value"": 25, ""format"": ""percentage"", ""trend"": ""up""}]}
+```
+
+Chart types: line, bar, stacked-bar, pie, donut, area
+Table types: financial, comparison, swot, timeline, pricing, custom
+Formats: currency, percentage, number, text | Trends: up, down, neutral
+
+Include 1-3 relevant visual elements per section. Always surround each visual element with explanatory prose.";
     }
 
     private async Task<string> GetSectionPromptAsync(
@@ -947,6 +993,7 @@ IMPORTANT : Le résumé exécutif (synthesizedExecutiveSummary) DOIT être rédi
     {
         var rubricBlock = SectionRubrics.FormatForPrompt(sectionName, language);
         var examplesBlock = FewShotExamples.FormatForPrompt(sectionName, language);
+        var visualBlock = SectionVisualElementConfig.FormatForPrompt(sectionName, language);
 
         var sb = new StringBuilder(prompt);
         if (rubricBlock != null)
@@ -960,6 +1007,12 @@ IMPORTANT : Le résumé exécutif (synthesizedExecutiveSummary) DOIT être rédi
             sb.AppendLine();
             sb.AppendLine();
             sb.Append(examplesBlock);
+        }
+        if (visualBlock != null)
+        {
+            sb.AppendLine();
+            sb.AppendLine();
+            sb.Append(visualBlock);
         }
         return sb.ToString();
     }

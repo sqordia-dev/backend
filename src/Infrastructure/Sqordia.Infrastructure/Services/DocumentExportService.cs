@@ -43,7 +43,9 @@ using WordInsideVerticalBorder = DocumentFormat.OpenXml.Wordprocessing.InsideVer
 using SpreadsheetColors = DocumentFormat.OpenXml.Spreadsheet.Colors;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 using Sqordia.Application.Models.Export;
+using Sqordia.Infrastructure.Services.Helpers;
 
 namespace Sqordia.Infrastructure.Services;
 
@@ -492,7 +494,7 @@ public class DocumentExportService : IDocumentExportService
             var result = new ExportResult
             {
                 FileData = pptxBytes,
-                FileName = $"{SanitizeFileName(businessPlan.Title)}_{language}_{DateTime.UtcNow:yyyyMMdd}.pptx",
+                FileName = $"{SanitizeFileName(businessPlan.Organization?.Name ?? businessPlan.Title)}_V{businessPlan.Version}.pptx",
                 ContentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation",
                 FileSizeBytes = pptxBytes.Length,
                 Language = language,
@@ -565,66 +567,110 @@ public class DocumentExportService : IDocumentExportService
 
     private byte[] GeneratePowerPointDocument(BusinessPlan businessPlan, string language)
     {
-        // Simplified PowerPoint generation - creates a basic presentation with title slide
-        // Full implementation would require proper slide templates and layouts
-        
-        using var memoryStream = new MemoryStream();
-        using (var presentation = PresentationDocument.Create(memoryStream, PresentationDocumentType.Presentation))
+        var isFr = language == "fr";
+        var theme = ExportThemeRegistry.GetTheme("classic");
+        var companyName = businessPlan.Organization?.Name ?? "";
+
+        using var builder = new PowerPointBuilder(theme);
+
+        // Title slide
+        builder.AddTitleSlide(companyName, businessPlan.Title, null, DateTime.UtcNow.ToString("MMMM yyyy"));
+
+        // Add section slides from available content
+        var sections = GetPowerPointSections(businessPlan, isFr);
+        if (sections.Count > 0)
         {
-            var presentationPart = presentation.AddPresentationPart();
-            presentationPart.Presentation = new Presentation();
+            var tocTitle = isFr ? "Table des matières" : "Table of Contents";
+            builder.AddTableOfContentsSlide(tocTitle, sections.Select(s => s.Title).ToList());
 
-            var slideIdList = new SlideIdList();
-            presentationPart.Presentation.AppendChild(slideIdList);
-
-            // Create a simple title slide
-            var titleSlidePart = presentationPart.AddNewPart<SlidePart>();
-            var slide = new Slide();
-            var commonSlideData = new CommonSlideData();
-            var shapeTree = new ShapeTree();
-            
-            // Create a simple text shape for the title
-            var shape = new DocumentFormat.OpenXml.Presentation.Shape();
-            var nonVisualShapeProperties = new DocumentFormat.OpenXml.Presentation.NonVisualShapeProperties();
-            var nonVisualDrawingProperties = new DocumentFormat.OpenXml.Presentation.NonVisualDrawingProperties 
-            { 
-                Id = 1U, 
-                Name = "Title" 
-            };
-            nonVisualShapeProperties.Append(nonVisualDrawingProperties);
-            nonVisualShapeProperties.Append(new DocumentFormat.OpenXml.Presentation.NonVisualShapeDrawingProperties());
-            
-            shape.Append(nonVisualShapeProperties);
-            shape.Append(new DocumentFormat.OpenXml.Presentation.ShapeProperties());
-            
-            var textBody = new Drawing.TextBody();
-            textBody.Append(new Drawing.BodyProperties());
-            textBody.Append(new Drawing.ListStyle());
-            
-            var paragraph = new Drawing.Paragraph();
-            var run = new Drawing.Run();
-            run.Append(new Drawing.Text(businessPlan.Title));
-            paragraph.Append(run);
-            textBody.Append(paragraph);
-            
-            shape.Append(textBody);
-            shapeTree.Append(shape);
-            commonSlideData.Append(shapeTree);
-            slide.Append(commonSlideData);
-            titleSlidePart.Slide = slide;
-
-            slideIdList.AppendChild(new SlideId 
-            { 
-                Id = 256U, 
-                RelationshipId = presentationPart.GetIdOfPart(titleSlidePart) 
-            });
-
-            presentationPart.Presentation.Save();
-            presentation.Save();
+            foreach (var (title, bullets) in sections)
+            {
+                builder.AddContentSlide(title, bullets);
+            }
         }
 
-        memoryStream.Position = 0;
-        return memoryStream.ToArray();
+        // Thank you slide
+        var thankYouText = isFr ? "Merci" : "Thank You";
+        builder.AddThankYouSlide(thankYouText, companyName);
+
+        return builder.Build();
+    }
+
+    private static List<(string Title, List<string> Bullets)> GetPowerPointSections(BusinessPlan bp, bool isFr)
+    {
+        var sections = new List<(string Title, List<string> Bullets)>();
+
+        void Add(string titleEn, string titleFr, string? content)
+        {
+            if (string.IsNullOrWhiteSpace(content)) return;
+            var title = isFr ? titleFr : titleEn;
+            var bullets = ExtractBulletsFromContent(content);
+            if (bullets.Count > 0)
+                sections.Add((title, bullets));
+        }
+
+        Add("Executive Summary", "Sommaire exécutif", bp.ExecutiveSummary);
+        Add("Problem Statement", "Énoncé du problème", bp.ProblemStatement);
+        Add("Solution", "Solution", bp.Solution);
+        Add("Market Analysis", "Analyse de marché", bp.MarketAnalysis);
+        Add("Competitive Analysis", "Analyse concurrentielle", bp.CompetitiveAnalysis);
+        Add("Business Model", "Modèle d'affaires", bp.BusinessModel);
+        Add("Marketing Strategy", "Stratégie marketing", bp.MarketingStrategy);
+        Add("Operations Plan", "Plan des opérations", bp.OperationsPlan);
+        Add("Management Team", "Équipe de direction", bp.ManagementTeam);
+        Add("Financial Projections", "Projections financières", bp.FinancialProjections);
+        Add("Funding Requirements", "Besoins de financement", bp.FundingRequirements);
+        Add("Risk Analysis", "Analyse des risques", bp.RiskAnalysis);
+
+        return sections;
+    }
+
+    private static List<string> ExtractBulletsFromContent(string content)
+    {
+        const int maxLen = 100;
+        const int maxBullets = 5;
+
+        // 1. Try to extract existing list items (<li> tags)
+        var listItems = Regex.Matches(content, @"<li[^>]*>(.*?)</li>", RegexOptions.Singleline)
+            .Select(m => CleanHtmlText(m.Groups[1].Value))
+            .Where(s => s.Length > 5)
+            .Select(s => Truncate(s, maxLen))
+            .Take(maxBullets)
+            .ToList();
+        if (listItems.Count >= 2) return listItems;
+
+        // 2. Try bold/strong text as key points
+        var boldItems = Regex.Matches(content, @"<(?:strong|b)>(.*?)</(?:strong|b)>", RegexOptions.Singleline)
+            .Select(m => CleanHtmlText(m.Groups[1].Value))
+            .Where(s => s.Length > 5 && s.Length < 200)
+            .Select(s => Truncate(s, maxLen))
+            .Distinct()
+            .Take(maxBullets)
+            .ToList();
+        if (boldItems.Count >= 2) return boldItems;
+
+        // 3. Fall back to key sentences, trimmed for slides
+        var text = CleanHtmlText(content);
+        return Regex.Split(text, @"(?<=[.!?])\s+")
+            .Select(s => s.Trim())
+            .Where(s => s.Length > 15)
+            .Select(s => Truncate(s, maxLen))
+            .Take(maxBullets)
+            .ToList();
+    }
+
+    private static string CleanHtmlText(string html)
+    {
+        var text = Regex.Replace(html, "<[^>]*>", " ");
+        text = System.Net.WebUtility.HtmlDecode(text);
+        return Regex.Replace(text, @"\s+", " ").Trim();
+    }
+
+    private static string Truncate(string text, int maxLen)
+    {
+        if (text.Length <= maxLen) return text;
+        var cut = text.LastIndexOf(' ', maxLen - 3);
+        return (cut > maxLen / 2 ? text[..cut] : text[..(maxLen - 3)]) + "...";
     }
 
     private Guid? GetCurrentUserId()

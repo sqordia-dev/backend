@@ -245,16 +245,17 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
                 if (!string.IsNullOrEmpty(businessPlan.CreatedBy) && Guid.TryParse(businessPlan.CreatedBy, out var ownerUserId))
                 {
                     await _notificationService.CreateNotificationAsync(
-                        ownerUserId,
-                        Domain.Enums.NotificationType.BusinessPlanGenerated,
-                        Domain.Enums.NotificationCategory.BusinessPlan,
-                        titleFr: $"Plan d'affaires prêt : {businessPlan.Title}",
-                        titleEn: $"Business plan ready: {businessPlan.Title}",
-                        messageFr: "Votre plan d'affaires a été généré avec succès. Consultez-le maintenant.",
-                        messageEn: "Your business plan has been generated successfully. View it now.",
-                        actionUrl: $"/business-plan/{businessPlan.Id}/preview",
-                        relatedEntityId: businessPlan.Id,
-                        cancellationToken: cancellationToken);
+                        new CreateNotificationCommand(
+                            ownerUserId,
+                            NotificationType.BusinessPlanGenerated,
+                            NotificationCategory.BusinessPlan,
+                            $"Plan d'affaires prêt : {businessPlan.Title}",
+                            $"Business plan ready: {businessPlan.Title}",
+                            "Votre plan d'affaires a été généré avec succès. Consultez-le maintenant.",
+                            "Your business plan has been generated successfully. View it now.",
+                            ActionUrl: $"/business-plan/{businessPlan.Id}/preview",
+                            RelatedEntityId: businessPlan.Id),
+                        cancellationToken);
                 }
             }
             catch (Exception notifEx)

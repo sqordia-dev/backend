@@ -14,4 +14,7 @@ public class UpdateFinancialPlanSettingsRequest
     public decimal DefaultExpenseIndexationRate { get; set; }
     public decimal DefaultSocialChargeRate { get; set; }
     public decimal DefaultSalesTaxRate { get; set; }
+    public int? StartMonth { get; set; }
+    public string? SalesTaxFrequency { get; set; }
+    public bool? IsAlreadyOperating { get; set; }
 }

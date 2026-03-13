@@ -171,16 +171,17 @@ public class BusinessPlanShareService : IBusinessPlanShareService
                 try
                 {
                     await _notificationService.CreateNotificationAsync(
-                        sharedWithUserId.Value,
-                        Domain.Enums.NotificationType.BusinessPlanShared,
-                        Domain.Enums.NotificationCategory.BusinessPlan,
-                        titleFr: $"Plan partagé avec vous : {businessPlan.Title}",
-                        titleEn: $"Plan shared with you: {businessPlan.Title}",
-                        messageFr: $"Un plan d'affaires a été partagé avec vous ({permission}).",
-                        messageEn: $"A business plan has been shared with you ({permission}).",
-                        actionUrl: $"/business-plan/{businessPlanId}/preview",
-                        relatedEntityId: businessPlanId,
-                        cancellationToken: cancellationToken);
+                        new CreateNotificationCommand(
+                            sharedWithUserId.Value,
+                            NotificationType.BusinessPlanShared,
+                            NotificationCategory.BusinessPlan,
+                            $"Plan partagé avec vous : {businessPlan.Title}",
+                            $"Plan shared with you: {businessPlan.Title}",
+                            $"Un plan d'affaires a été partagé avec vous ({permission}).",
+                            $"A business plan has been shared with you ({permission}).",
+                            ActionUrl: $"/business-plan/{businessPlanId}/preview",
+                            RelatedEntityId: businessPlanId),
+                        cancellationToken);
                 }
                 catch (Exception notifEx)
                 {

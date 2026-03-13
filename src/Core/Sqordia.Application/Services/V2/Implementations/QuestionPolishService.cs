@@ -39,6 +39,8 @@ public class QuestionPolishService : IQuestionPolishService
     {
         try
         {
+            request.Language ??= "fr";
+
             _logger.LogInformation("Polishing text with {Length} characters in {Language}",
                 request.Text.Length, request.Language);
 
@@ -73,6 +75,9 @@ public class QuestionPolishService : IQuestionPolishService
     {
         try
         {
+            // Ensure Language is never null to prevent NullReferenceException
+            request.Language ??= "fr";
+
             if (!TransformActionTypes.IsValid(request.Action))
             {
                 return Result.Failure<PolishedTextResponse>(

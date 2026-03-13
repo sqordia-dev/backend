@@ -16,6 +16,7 @@ public class Organization : BaseAuditableEntity
     // Business Context (collected at onboarding, editable via profile)
     public string? Industry { get; private set; }
     public string? Sector { get; private set; }
+    public string? LegalForm { get; private set; }
     public string? TeamSize { get; private set; }
     public string? FundingStatus { get; private set; }
     public string? TargetMarket { get; private set; }
@@ -103,10 +104,12 @@ public class Organization : BaseAuditableEntity
         string? goalsJson,
         string? city,
         string? province,
-        string? country)
+        string? country,
+        string? legalForm = null)
     {
         Industry = industry;
         Sector = sector;
+        LegalForm = legalForm;
         TeamSize = teamSize;
         FundingStatus = fundingStatus;
         TargetMarket = targetMarket;
@@ -124,6 +127,7 @@ public class Organization : BaseAuditableEntity
         {
             case "industry": Industry = value; break;
             case "sector": Sector = value; break;
+            case "legalForm": LegalForm = value; break;
             case "teamSize": TeamSize = value; break;
             case "fundingStatus": FundingStatus = value; break;
             case "targetMarket": TargetMarket = value; break;
@@ -144,6 +148,7 @@ public class Organization : BaseAuditableEntity
         {
             "industry" => Industry,
             "sector" => Sector,
+            "legalForm" => LegalForm,
             "teamSize" => TeamSize,
             "fundingStatus" => FundingStatus,
             "targetMarket" => TargetMarket,

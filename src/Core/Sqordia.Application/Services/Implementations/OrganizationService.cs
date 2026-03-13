@@ -218,6 +218,7 @@ public class OrganizationService : IOrganizationService
                 CreatedBy = organization.CreatedBy,
                 Industry = organization.Industry,
                 Sector = organization.Sector,
+                LegalForm = organization.LegalForm,
                 TeamSize = organization.TeamSize,
                 FundingStatus = organization.FundingStatus,
                 TargetMarket = organization.TargetMarket,
@@ -280,7 +281,7 @@ public class OrganizationService : IOrganizationService
             organization.UpdateDetails(request.Name, request.Description, request.Website);
 
             // Update business context if any fields are provided
-            if (request.Industry != null || request.Sector != null || request.TeamSize != null ||
+            if (request.Industry != null || request.Sector != null || request.LegalForm != null || request.TeamSize != null ||
                 request.FundingStatus != null || request.TargetMarket != null || request.BusinessStage != null ||
                 request.GoalsJson != null || request.City != null || request.Province != null || request.Country != null)
             {
@@ -294,7 +295,8 @@ public class OrganizationService : IOrganizationService
                     request.GoalsJson ?? organization.GoalsJson,
                     request.City ?? organization.City,
                     request.Province ?? organization.Province,
-                    request.Country ?? organization.Country);
+                    request.Country ?? organization.Country,
+                    request.LegalForm ?? organization.LegalForm);
             }
 
             await _context.SaveChangesAsync(cancellationToken);
@@ -534,16 +536,17 @@ public class OrganizationService : IOrganizationService
             try
             {
                 await _notificationService.CreateNotificationAsync(
-                    request.UserId,
-                    NotificationType.OrganizationInvitation,
-                    NotificationCategory.Organization,
-                    titleFr: $"Vous avez été ajouté à {organization.Name}",
-                    titleEn: $"You have been added to {organization.Name}",
-                    messageFr: $"Vous avez rejoint l'organisation {organization.Name} en tant que {role}.",
-                    messageEn: $"You have joined the organization {organization.Name} as {role}.",
-                    actionUrl: "/dashboard",
-                    relatedEntityId: organizationId,
-                    cancellationToken: cancellationToken);
+                    new CreateNotificationCommand(
+                        request.UserId,
+                        NotificationType.OrganizationInvitation,
+                        NotificationCategory.Organization,
+                        $"Vous avez été ajouté à {organization.Name}",
+                        $"You have been added to {organization.Name}",
+                        $"Vous avez rejoint l'organisation {organization.Name} en tant que {role}.",
+                        $"You have joined the organization {organization.Name} as {role}.",
+                        ActionUrl: "/dashboard",
+                        RelatedEntityId: organizationId),
+                    cancellationToken);
             }
             catch (Exception notifEx)
             {
@@ -819,16 +822,17 @@ public class OrganizationService : IOrganizationService
                 var inviterName = inviter != null ? $"{inviter.FirstName} {inviter.LastName}".Trim() : "A team member";
 
                 await _notificationService.CreateNotificationAsync(
-                    userId.Value,
-                    NotificationType.OrganizationInvitation,
-                    NotificationCategory.Organization,
-                    titleFr: $"Invitation envoyée à {email}",
-                    titleEn: $"Invitation sent to {email}",
-                    messageFr: $"{inviterName} a invité {email} à rejoindre {organization.Name}.",
-                    messageEn: $"{inviterName} invited {email} to join {organization.Name}.",
-                    actionUrl: "/dashboard",
-                    relatedEntityId: organizationId,
-                    cancellationToken: cancellationToken);
+                    new CreateNotificationCommand(
+                        userId.Value,
+                        NotificationType.OrganizationInvitation,
+                        NotificationCategory.Organization,
+                        $"Invitation envoyée à {email}",
+                        $"Invitation sent to {email}",
+                        $"{inviterName} a invité {email} à rejoindre {organization.Name}.",
+                        $"{inviterName} invited {email} to join {organization.Name}.",
+                        ActionUrl: "/dashboard",
+                        RelatedEntityId: organizationId),
+                    cancellationToken);
             }
             catch (Exception ex)
             {
@@ -1035,6 +1039,7 @@ public class OrganizationService : IOrganizationService
             CreatedBy = organization.CreatedBy,
             Industry = organization.Industry,
             Sector = organization.Sector,
+            LegalForm = organization.LegalForm,
             TeamSize = organization.TeamSize,
             FundingStatus = organization.FundingStatus,
             TargetMarket = organization.TargetMarket,

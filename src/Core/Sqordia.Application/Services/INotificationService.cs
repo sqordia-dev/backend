@@ -32,28 +32,20 @@ public interface INotificationService
         CancellationToken cancellationToken = default);
 
     Task<Result<NotificationResponse>> CreateNotificationAsync(
-        Guid userId,
-        NotificationType type,
-        NotificationCategory category,
-        string titleFr,
-        string titleEn,
-        string messageFr,
-        string messageEn,
-        string? actionUrl = null,
-        string? metadataJson = null,
-        Guid? relatedEntityId = null,
+        CreateNotificationCommand command,
         CancellationToken cancellationToken = default);
 
     Task<Result> CreateBulkNotificationsAsync(
         IEnumerable<Guid> userIds,
-        NotificationType type,
-        NotificationCategory category,
+        CreateNotificationCommand command,
+        CancellationToken cancellationToken = default);
+
+    Task<Result> CreateSystemAnnouncementAsync(
         string titleFr,
         string titleEn,
         string messageFr,
         string messageEn,
+        NotificationPriority priority = NotificationPriority.Normal,
         string? actionUrl = null,
-        string? metadataJson = null,
-        Guid? relatedEntityId = null,
         CancellationToken cancellationToken = default);
 }

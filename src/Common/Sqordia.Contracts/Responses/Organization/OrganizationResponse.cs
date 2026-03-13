@@ -20,6 +20,7 @@ public class OrganizationResponse
     // Business context
     public string? Industry { get; set; }
     public string? Sector { get; set; }
+    public string? LegalForm { get; set; }
     public string? TeamSize { get; set; }
     public string? FundingStatus { get; set; }
     public string? TargetMarket { get; set; }

@@ -13,16 +13,21 @@ namespace Sqordia.Infrastructure.Services.Helpers;
 public class PowerPointBuilder : IDisposable
 {
     private readonly MemoryStream _stream;
-    private readonly PresentationDocument _doc;
+    private PresentationDocument? _doc;
     private readonly PresentationPart _presentationPart;
     private readonly ExportTheme _theme;
     private readonly SlideLayoutPart _slideLayoutPart;
     private uint _nextSlideId = 256;
     private uint _nextShapeId = 2;
+    private bool _built;
 
     // 16:9 dimensions in EMUs
     private const long SlideWidth = 12192000;
     private const long SlideHeight = 6858000;
+
+    // Standard notes size (7.5" x 10" in EMUs)
+    private const int NotesSizeWidth = 6858000;
+    private const int NotesSizeHeight = 9144000;
 
     public PowerPointBuilder(ExportTheme theme)
     {
@@ -30,14 +35,24 @@ public class PowerPointBuilder : IDisposable
         _stream = new MemoryStream();
         _doc = PresentationDocument.Create(_stream, PresentationDocumentType.Presentation);
         _presentationPart = _doc.AddPresentationPart();
-        _presentationPart.Presentation = new Presentation
-        {
-            SlideSize = new SlideSize { Cx = (int)SlideWidth, Cy = (int)SlideHeight, Type = SlideSizeValues.Custom }
-        };
+
+        // OOXML schema requires strict child order in <p:presentation>:
+        // sldMasterIdLst → sldIdLst → sldSz → notesSz
+        _presentationPart.Presentation = new Presentation();
+
+        // 1. Theme, SlideMaster, SlideLayout — adds SlideMasterIdList first
+        _slideLayoutPart = InitPresentationStructure();
+
+        // 2. SlideIdList (populated by AppendSlide)
         _presentationPart.Presentation.AppendChild(new SlideIdList());
 
-        // Theme, SlideMaster, and SlideLayout are required for a valid PPTX
-        _slideLayoutPart = InitPresentationStructure();
+        // 3. SlideSize
+        _presentationPart.Presentation.AppendChild(
+            new SlideSize { Cx = (int)SlideWidth, Cy = (int)SlideHeight, Type = SlideSizeValues.Custom });
+
+        // 4. NotesSize
+        _presentationPart.Presentation.AppendChild(
+            new NotesSize { Cx = NotesSizeWidth, Cy = NotesSizeHeight });
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -428,15 +443,20 @@ public class PowerPointBuilder : IDisposable
 
     public byte[] Build()
     {
+        if (_built) throw new InvalidOperationException("Build() has already been called.");
+        _built = true;
+
         _presentationPart.Presentation.Save();
-        _doc.Save();
+        _doc!.Save();
         _doc.Dispose();
+        _doc = null; // Prevent double-dispose from Dispose()
         return _stream.ToArray();
     }
 
     public void Dispose()
     {
         _doc?.Dispose();
+        _doc = null;
         _stream?.Dispose();
     }
 
@@ -451,7 +471,7 @@ public class PowerPointBuilder : IDisposable
             new NonVisualDrawingProperties { Id = 1U, Name = "" },
             new NonVisualGroupShapeDrawingProperties(),
             new ApplicationNonVisualDrawingProperties()));
-        shapeTree.Append(new GroupShapeProperties(new Drawing.TransformGroup()));
+        shapeTree.Append(new GroupShapeProperties(CreateGroupTransform()));
 
         return new CommonSlideData { ShapeTree = shapeTree };
     }
@@ -629,7 +649,7 @@ public class PowerPointBuilder : IDisposable
                     new NonVisualDrawingProperties { Id = 1U, Name = "" },
                     new NonVisualGroupShapeDrawingProperties(),
                     new ApplicationNonVisualDrawingProperties()),
-                new GroupShapeProperties(new Drawing.TransformGroup()))),
+                new GroupShapeProperties(CreateGroupTransform()))),
             new ColorMapOverride(new Drawing.MasterColorMapping()))
         { Type = SlideLayoutValues.Blank };
         layoutPart.SlideLayout.Save();
@@ -641,7 +661,7 @@ public class PowerPointBuilder : IDisposable
                     new NonVisualDrawingProperties { Id = 1U, Name = "" },
                     new NonVisualGroupShapeDrawingProperties(),
                     new ApplicationNonVisualDrawingProperties()),
-                new GroupShapeProperties(new Drawing.TransformGroup()))),
+                new GroupShapeProperties(CreateGroupTransform()))),
             new ColorMap
             {
                 Background1 = Drawing.ColorSchemeIndexValues.Light1,
@@ -665,15 +685,14 @@ public class PowerPointBuilder : IDisposable
                 }));
         slideMasterPart.SlideMaster.Save();
 
-        // 5. Register master in the presentation
-        _presentationPart.Presentation.InsertBefore(
+        // 5. Register master in the presentation (appended first — SlideIdList added later in constructor)
+        _presentationPart.Presentation.AppendChild(
             new SlideMasterIdList(
                 new SlideMasterId
                 {
                     Id = 2147483648U,
                     RelationshipId = _presentationPart.GetIdOfPart(slideMasterPart)
-                }),
-            _presentationPart.Presentation.SlideIdList);
+                }));
 
         return layoutPart;
     }
@@ -696,8 +715,14 @@ public class PowerPointBuilder : IDisposable
         { Name = "Sqordia" };
 
         var fontScheme = new Drawing.FontScheme(
-            new Drawing.MajorFont(new Drawing.LatinFont { Typeface = "Calibri" }),
-            new Drawing.MinorFont(new Drawing.LatinFont { Typeface = "Calibri" }))
+            new Drawing.MajorFont(
+                new Drawing.LatinFont { Typeface = "Calibri" },
+                new Drawing.EastAsianFont { Typeface = "" },
+                new Drawing.ComplexScriptFont { Typeface = "" }),
+            new Drawing.MinorFont(
+                new Drawing.LatinFont { Typeface = "Calibri" },
+                new Drawing.EastAsianFont { Typeface = "" },
+                new Drawing.ComplexScriptFont { Typeface = "" }))
         { Name = "Office" };
 
         return new Drawing.Theme(
@@ -741,6 +766,12 @@ public class PowerPointBuilder : IDisposable
 
         return fs;
     }
+
+    private static Drawing.TransformGroup CreateGroupTransform() => new(
+        new Drawing.Offset { X = 0L, Y = 0L },
+        new Drawing.Extents { Cx = 0L, Cy = 0L },
+        new Drawing.ChildOffset { X = 0L, Y = 0L },
+        new Drawing.ChildExtents { Cx = 0L, Cy = 0L });
 
     private static string HexOnly(string hex)
     {

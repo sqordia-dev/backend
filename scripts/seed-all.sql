@@ -150,10 +150,32 @@ AND NOT EXISTS (
 );
 
 -- ============================================================================
--- PART 2: QUESTIONNAIRE TEMPLATES AND QUESTIONS
+-- PART 2: QUESTIONNAIRE TEMPLATES AND QUESTIONS (V1 - LEGACY)
+-- Skipped: V1/V2 tables were removed in migration RemoveV1V2QuestionnaireTemplates.
+-- All questionnaire data now lives in QuestionTemplates (formerly QuestionTemplateV3).
 -- ============================================================================
 
+-- Guard: only run V1 seed if the legacy table still exists
+DO $$
+BEGIN
+IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'QuestionnaireTemplates') THEN
+
 -- 1. CREATE QUESTIONNAIRE TEMPLATE FOR BUSINESS PLAN
+-- (original seed block follows, wrapped in IF guard)
+END IF;
+END $$;
+
+-- Skip the rest of Part 2 legacy seed — jump to Part 3
+-- The original V1 seed code below is commented out to prevent errors.
+
+DO $legacy_skip$
+BEGIN
+-- Legacy V1/V2 questionnaire seed removed (tables dropped)
+RAISE NOTICE 'Skipping legacy V1/V2 questionnaire seed (tables removed)';
+END $legacy_skip$;
+
+/*
+-- LEGACY V1 SEED START (commented out - tables no longer exist)
 DO $$
 DECLARE
     v_template_id UUID := 'a1b2c3d4-e5f6-4789-a012-345678901234'::uuid;
@@ -517,6 +539,7 @@ BEGIN
 END $$;
 
 COMMIT;
+-- LEGACY V1 SEED END */
 
 -- ============================================================================
 -- PART 3: SUBSCRIPTION PLANS

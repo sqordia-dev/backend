@@ -217,7 +217,7 @@ public class SlideDeckService : ISlideDeckService
             var result = new ExportResult
             {
                 FileData = pptxBytes,
-                FileName = $"{SanitizeFileName(planTitle)}_{language}_{DateTime.UtcNow:yyyyMMdd}.pptx",
+                FileName = $"{SanitizeFileName(companyName)}_V{businessPlan.Version}.pptx",
                 ContentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation",
                 FileSizeBytes = pptxBytes.Length,
                 Language = language,
@@ -503,18 +503,61 @@ public class SlideDeckService : ISlideDeckService
 
     private static List<string> FallbackBullets(string content)
     {
-        // Strip HTML tags
-        var text = Regex.Replace(content, "<[^>]*>", " ");
-        text = System.Net.WebUtility.HtmlDecode(text);
-        text = Regex.Replace(text, @"\s+", " ").Trim();
+        const int maxBulletLen = 100;
+        const int maxBullets = 5;
 
-        // Split into sentences and take first 3
+        // 1. Try to extract existing list items (<li> tags) — best source for bullets
+        var listItems = Regex.Matches(content, @"<li[^>]*>(.*?)</li>", RegexOptions.Singleline)
+            .Select(m => CleanHtml(m.Groups[1].Value))
+            .Where(s => s.Length > 5)
+            .Select(s => TruncateBullet(s, maxBulletLen))
+            .Take(maxBullets)
+            .ToList();
+        if (listItems.Count >= 2) return listItems;
+
+        // 2. Try to extract bold/strong text as key points
+        var boldItems = Regex.Matches(content, @"<(?:strong|b)>(.*?)</(?:strong|b)>", RegexOptions.Singleline)
+            .Select(m => CleanHtml(m.Groups[1].Value))
+            .Where(s => s.Length > 5 && s.Length < 200)
+            .Select(s => TruncateBullet(s, maxBulletLen))
+            .Distinct()
+            .Take(maxBullets)
+            .ToList();
+        if (boldItems.Count >= 2) return boldItems;
+
+        // 3. Try headings as key topics
+        var headings = Regex.Matches(content, @"<h[1-6][^>]*>(.*?)</h[1-6]>", RegexOptions.Singleline)
+            .Select(m => CleanHtml(m.Groups[1].Value))
+            .Where(s => s.Length > 3)
+            .Take(maxBullets)
+            .ToList();
+        if (headings.Count >= 2) return headings;
+
+        // 4. Fall back to extracting key sentences, trimmed for slides
+        var text = CleanHtml(content);
         var sentences = Regex.Split(text, @"(?<=[.!?])\s+")
-            .Where(s => s.Length > 10)
-            .Take(3)
+            .Select(s => s.Trim())
+            .Where(s => s.Length > 15)
+            .Select(s => TruncateBullet(s, maxBulletLen))
+            .Take(maxBullets)
             .ToList();
 
-        return sentences.Count > 0 ? sentences : new List<string> { text.Length > 200 ? text[..200] + "..." : text };
+        return sentences.Count > 0 ? sentences : new List<string> { TruncateBullet(text, maxBulletLen) };
+    }
+
+    private static string CleanHtml(string html)
+    {
+        var text = Regex.Replace(html, "<[^>]*>", " ");
+        text = System.Net.WebUtility.HtmlDecode(text);
+        return Regex.Replace(text, @"\s+", " ").Trim();
+    }
+
+    private static string TruncateBullet(string text, int maxLen)
+    {
+        if (text.Length <= maxLen) return text;
+        // Cut at last word boundary before maxLen
+        var cut = text.LastIndexOf(' ', maxLen - 3);
+        return (cut > maxLen / 2 ? text[..cut] : text[..(maxLen - 3)]) + "...";
     }
 
     private List<(string Key, string Title, string Content)> GetSectionsWithContent(BusinessPlan bp, string language)

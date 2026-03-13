@@ -805,6 +805,13 @@ Rédigez UNIQUEMENT en français. Ne produisez JAMAIS de contenu en anglais. Vis
             sb.AppendLine(examplesBlock);
         }
 
+        var visualBlock = SectionVisualElementConfig.FormatForPrompt(sectionName, language);
+        if (!string.IsNullOrEmpty(visualBlock))
+        {
+            sb.AppendLine();
+            sb.AppendLine(visualBlock);
+        }
+
         return sb.ToString();
     }
 

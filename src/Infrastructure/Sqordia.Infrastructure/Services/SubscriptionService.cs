@@ -397,6 +397,32 @@ public class SubscriptionService : ISubscriptionService
 
             var invoices = subscriptions.Select((subscription, index) => MapSubscriptionToInvoice(subscription, index)).ToList();
 
+            // Enrich Stripe-backed subscriptions with hosted invoice URLs
+            foreach (var subscription in subscriptions.Where(s => !string.IsNullOrEmpty(s.StripeSubscriptionId)))
+            {
+                try
+                {
+                    var stripeInvoices = await _stripeService.GetInvoicesForSubscriptionAsync(
+                        subscription.StripeSubscriptionId!, cancellationToken);
+
+                    if (stripeInvoices.IsSuccess && stripeInvoices.Value?.Count > 0)
+                    {
+                        var invoice = invoices.FirstOrDefault(i => i.SubscriptionId == subscription.Id);
+                        if (invoice != null)
+                        {
+                            // Use the latest Stripe invoice's hosted URL
+                            var latestStripeInvoice = stripeInvoices.Value.First();
+                            invoice.PdfUrl = latestStripeInvoice.HostedUrl;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fetch Stripe invoices for subscription {SubscriptionId}, falling back to generated PDF",
+                        subscription.Id);
+                }
+            }
+
             return Result<List<InvoiceDto>>.Success(invoices);
         }
         catch (Exception ex)

@@ -10,6 +10,9 @@ public class FinancialPlan : BaseAuditableEntity
     public Guid BusinessPlanId { get; private set; }
     public int ProjectionYears { get; private set; } = 3;
     public int StartYear { get; private set; }
+    public int StartMonth { get; private set; } = 1; // 1-12
+    public string? SalesTaxFrequency { get; private set; } // none, monthly, quarterly, annually
+    public bool IsAlreadyOperating { get; private set; }
 
     // Default rates (Quebec defaults)
     public decimal DefaultVolumeGrowthRate { get; private set; } = 5.0m;
@@ -43,7 +46,10 @@ public class FinancialPlan : BaseAuditableEntity
         decimal priceIndexationRate,
         decimal expenseIndexationRate,
         decimal socialChargeRate,
-        decimal salesTaxRate)
+        decimal salesTaxRate,
+        int? startMonth = null,
+        string? salesTaxFrequency = null,
+        bool? isAlreadyOperating = null)
     {
         ProjectionYears = projectionYears;
         DefaultVolumeGrowthRate = volumeGrowthRate;
@@ -51,5 +57,8 @@ public class FinancialPlan : BaseAuditableEntity
         DefaultExpenseIndexationRate = expenseIndexationRate;
         DefaultSocialChargeRate = socialChargeRate;
         DefaultSalesTaxRate = salesTaxRate;
+        if (startMonth.HasValue) StartMonth = Math.Clamp(startMonth.Value, 1, 12);
+        if (salesTaxFrequency != null) SalesTaxFrequency = salesTaxFrequency;
+        if (isAlreadyOperating.HasValue) IsAlreadyOperating = isAlreadyOperating.Value;
     }
 }
