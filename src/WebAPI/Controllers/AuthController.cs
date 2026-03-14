@@ -48,11 +48,12 @@ public class AuthController : BaseApiController
             Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
             "Development", StringComparison.OrdinalIgnoreCase);
 
+        // SameSite=None required for cross-origin cookie delivery (frontend and API on different domains)
         var accessCookieOptions = new CookieOptions
         {
             HttpOnly = true,
-            Secure = isProduction,
-            SameSite = SameSiteMode.Lax,
+            Secure = true, // Required when SameSite=None
+            SameSite = SameSiteMode.None,
             Path = "/",
             Expires = authResponse.ExpiresAt
         };
@@ -63,23 +64,13 @@ public class AuthController : BaseApiController
             var refreshCookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = isProduction,
-                SameSite = SameSiteMode.Lax,
+                Secure = true,
+                SameSite = SameSiteMode.None,
                 Path = "/",
                 Expires = DateTimeOffset.UtcNow.AddDays(7)
             };
             Response.Cookies.Append("refresh_token", authResponse.RefreshToken, refreshCookieOptions);
         }
-
-        // Non-HttpOnly flag for frontend to check auth state synchronously
-        Response.Cookies.Append("is_authenticated", "true", new CookieOptions
-        {
-            HttpOnly = false,
-            Secure = isProduction,
-            SameSite = SameSiteMode.Lax,
-            Path = "/",
-            Expires = authResponse.ExpiresAt
-        });
     }
 
     private void ClearAuthCookies()
