@@ -187,7 +187,8 @@ public static class WebApplicationExtensions
         app.MapControllers();
 
         // Map SignalR hubs
-        app.MapHub<NotificationHub>("/hubs/notifications");
+        app.MapHub<NotificationHub>("/hubs/notifications")
+            .RequireCors("AllowAll");
 
         // Health checks
         app.MapHealthChecks("/health", new HealthCheckOptions
