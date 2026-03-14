@@ -42,11 +42,16 @@ public class AdminAIAssistantController : BaseApiController
                 await SseHelper.WriteJsonEventAsync(Response, evt, cancellationToken);
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("Admin AI assistant stream cancelled by client");
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in admin AI assistant stream");
+            var errorMsg = ex.InnerException?.Message ?? ex.Message;
             await SseHelper.WriteJsonEventAsync(Response,
-                new AdminAIStreamEvent { Type = "error", Error = "An error occurred" },
+                new AdminAIStreamEvent { Type = "error", Error = $"An error occurred: {errorMsg}" },
                 cancellationToken);
         }
 

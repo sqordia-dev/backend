@@ -244,6 +244,12 @@ public static class ConfigureServices
         services.Configure<OpenAISettings>(configuration.GetSection("AI:OpenAI"));
         services.PostConfigure<OpenAISettings>(options =>
         {
+            // Clear placeholder values that may have been bound by Configure()
+            if (IsPlaceholder(options.ApiKey))
+            {
+                options.ApiKey = string.Empty;
+            }
+
             var envApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
                           ?? Environment.GetEnvironmentVariable("OpenAI__ApiKey")
                           ?? Environment.GetEnvironmentVariable("AI__OpenAI__ApiKey");
@@ -277,6 +283,12 @@ public static class ConfigureServices
         services.Configure<ClaudeSettings>(configuration.GetSection("AI:Claude"));
         services.PostConfigure<ClaudeSettings>(options =>
         {
+            // Clear placeholder values that may have been bound by Configure()
+            if (IsPlaceholder(options.ApiKey))
+            {
+                options.ApiKey = string.Empty;
+            }
+
             var envApiKey = Environment.GetEnvironmentVariable("CLAUDE_API_KEY")
                           ?? Environment.GetEnvironmentVariable("AI__Claude__ApiKey");
 
@@ -306,6 +318,12 @@ public static class ConfigureServices
         services.Configure<GeminiSettings>(configuration.GetSection("AI:Gemini"));
         services.PostConfigure<GeminiSettings>(options =>
         {
+            // Clear placeholder values that may have been bound by Configure()
+            if (IsPlaceholder(options.ApiKey))
+            {
+                options.ApiKey = string.Empty;
+            }
+
             var envApiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY")
                           ?? Environment.GetEnvironmentVariable("AI__Gemini__ApiKey");
 
