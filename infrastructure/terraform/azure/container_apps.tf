@@ -186,6 +186,38 @@ resource "azurerm_container_app" "api" {
         value = var.openai_model
       }
 
+      # Claude (Anthropic) Configuration
+      env {
+        name  = "CLAUDE_API_KEY"
+        value = var.anthropic_api_key
+      }
+
+      env {
+        name  = "AI__Claude__ApiKey"
+        value = var.anthropic_api_key
+      }
+
+      env {
+        name  = "AI__Claude__Model"
+        value = var.ai_anthropic_model
+      }
+
+      # Gemini (Google AI) Configuration
+      env {
+        name  = "GEMINI_API_KEY"
+        value = var.google_ai_api_key
+      }
+
+      env {
+        name  = "AI__Gemini__ApiKey"
+        value = var.google_ai_api_key
+      }
+
+      env {
+        name  = "AI__Gemini__Model"
+        value = var.ai_google_model
+      }
+
       # Frontend Base URL
       env {
         name  = "FRONTEND_BASE_URL"

@@ -46,7 +46,7 @@ public class AdminAIAssistantService : IAdminAIAssistantService
     {
         if (_client == null)
         {
-            yield return new AdminAIStreamEvent { Type = "error", Error = "AI service not configured" };
+            yield return new AdminAIStreamEvent { Type = "error", Error = "AI service not configured. Check Claude API key." };
             yield break;
         }
 
@@ -67,23 +67,42 @@ Present data clearly with specific numbers. Be concise but thorough.";
         {
             iteration++;
 
-            var parameters = new MessageCreateParams
+            Message? response = null;
+            string? apiError = null;
+            try
             {
-                Model = _settings.Model,
-                MaxTokens = 4000,
-                System = systemPrompt,
-                Messages = messages,
-                Tools = tools,
-                ToolChoice = new ToolChoiceAuto()
-            };
+                var parameters = new MessageCreateParams
+                {
+                    Model = _settings.Model,
+                    MaxTokens = 4000,
+                    System = systemPrompt,
+                    Messages = messages,
+                    Tools = tools,
+                    ToolChoice = new ToolChoiceAuto()
+                };
 
-            var response = await _client.Messages.Create(parameters);
+                _logger.LogInformation("Admin AI: calling Claude API (iteration {Iteration}, model {Model})",
+                    iteration, _settings.Model);
+
+                response = await _client.Messages.Create(parameters);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Admin AI: Claude API call failed on iteration {Iteration}", iteration);
+                apiError = $"AI provider error: {ex.Message}";
+            }
+
+            if (apiError != null)
+            {
+                yield return new AdminAIStreamEvent { Type = "error", Error = apiError };
+                yield break;
+            }
 
             // Check if response has tool use blocks
             var hasToolUse = false;
             var toolResults = new List<ContentBlockParam>();
 
-            if (response.Content != null)
+            if (response!.Content != null)
             {
                 foreach (var block in response.Content)
                 {
