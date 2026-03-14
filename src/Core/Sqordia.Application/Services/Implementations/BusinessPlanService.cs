@@ -12,6 +12,8 @@ namespace Sqordia.Application.Services.Implementations;
 
 public class BusinessPlanService : IBusinessPlanService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<BusinessPlanService> _logger;
@@ -39,10 +41,7 @@ public class BusinessPlanService : IBusinessPlanService
 
         try
         {
-            return JsonSerializer.Deserialize<OnboardingContextDto>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            return JsonSerializer.Deserialize<OnboardingContextDto>(json, JsonOptions);
         }
         catch
         {

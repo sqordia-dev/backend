@@ -147,12 +147,8 @@ public class BusinessPlanController : BaseApiController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // If pageSize is 0, return all (legacy behavior)
-        if (pageSize == 0)
-        {
-            var legacyResult = await _businessPlanService.GetUserBusinessPlansAsync(cancellationToken);
-            return HandleResult(legacyResult);
-        }
+        // Enforce pagination — pageSize=0 is no longer allowed
+        if (pageSize == 0) pageSize = 20;
 
         // Validate pagination parameters
         if (pageNumber < 1 || pageSize < 1 || pageSize > 100)
@@ -230,11 +226,8 @@ public class BusinessPlanController : BaseApiController
         CancellationToken cancellationToken = default)
     {
         // If pageSize is 0, return all (legacy behavior)
-        if (pageSize == 0)
-        {
-            var legacyResult = await _businessPlanService.GetOrganizationBusinessPlansAsync(organizationId, cancellationToken);
-            return HandleResult(legacyResult);
-        }
+        // Enforce pagination — pageSize=0 is no longer allowed
+        if (pageSize == 0) pageSize = 20;
 
         // Validate pagination parameters
         if (pageNumber < 1 || pageSize < 1 || pageSize > 100)

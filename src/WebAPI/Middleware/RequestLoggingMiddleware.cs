@@ -1,10 +1,11 @@
 using System.Diagnostics;
+using Serilog.Context;
 
 namespace WebAPI.Middleware;
 
 /// <summary>
-/// Request logging middleware
-/// Logs all HTTP requests and responses with timing information
+/// Request logging middleware with correlation ID support.
+/// Generates or reads X-Request-ID, enriches Serilog context, and logs timing.
 /// </summary>
 public class RequestLoggingMiddleware
 {
@@ -19,23 +20,29 @@ public class RequestLoggingMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var stopwatch = Stopwatch.StartNew();
+        // Generate or read correlation ID
+        var requestId = context.Request.Headers["X-Request-ID"].FirstOrDefault()
+                     ?? Guid.NewGuid().ToString("N")[..12];
+        context.TraceIdentifier = requestId;
+        context.Response.Headers["X-Request-ID"] = requestId;
 
-        // Log request
-        _logger.LogInformation("HTTP {Method} {Path} started at {Time}",
-            context.Request.Method,
-            context.Request.Path,
-            DateTime.UtcNow);
+        using (LogContext.PushProperty("RequestId", requestId))
+        {
+            var stopwatch = Stopwatch.StartNew();
 
-        await _next(context);
+            _logger.LogInformation("HTTP {Method} {Path} started",
+                context.Request.Method,
+                context.Request.Path);
 
-        stopwatch.Stop();
+            await _next(context);
 
-        // Log response
-        _logger.LogInformation("HTTP {Method} {Path} completed with {StatusCode} in {ElapsedMilliseconds}ms",
-            context.Request.Method,
-            context.Request.Path,
-            context.Response.StatusCode,
-            stopwatch.ElapsedMilliseconds);
+            stopwatch.Stop();
+
+            _logger.LogInformation("HTTP {Method} {Path} completed with {StatusCode} in {ElapsedMilliseconds}ms",
+                context.Request.Method,
+                context.Request.Path,
+                context.Response.StatusCode,
+                stopwatch.ElapsedMilliseconds);
+        }
     }
 }

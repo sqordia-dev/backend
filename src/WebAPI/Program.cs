@@ -60,7 +60,7 @@ try
     // Configure Kestrel server options for long-running requests (business plan generation)
     builder.WebHost.ConfigureKestrel(options =>
     {
-        options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(10);
+        options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(3);
         options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(2);
     });
 
@@ -72,7 +72,7 @@ try
     builder.Services.AddCorsServices(builder.Configuration, builder.Environment);
     builder.Services.AddLocalizationServices();
     builder.Services.AddRateLimitingServices(builder.Configuration);
-    builder.Services.AddHealthCheckServices();
+    builder.Services.AddHealthCheckServices(builder.Configuration);
     builder.Services.AddCompressionServices();
     builder.Services.AddCachingServices();
     builder.Services.AddSignalR();

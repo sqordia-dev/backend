@@ -38,7 +38,8 @@ public class StripeWebhookController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> HandleWebhook(CancellationToken cancellationToken)
     {
-        var json = await new StreamReader(HttpContext.Request.Body).ReadToEndAsync();
+        using var reader = new StreamReader(HttpContext.Request.Body);
+        var json = await reader.ReadToEndAsync(cancellationToken);
         var webhookSecret = _configuration["Stripe:WebhookSecret"];
 
         if (string.IsNullOrEmpty(webhookSecret))
@@ -55,8 +56,18 @@ public class StripeWebhookController : ControllerBase
                 webhookSecret,
                 throwOnApiVersionMismatch: false);
 
-            _logger.LogInformation("Received Stripe webhook event: {EventType} (ID: {EventId})", 
+            _logger.LogInformation("Received Stripe webhook event: {EventType} (ID: {EventId})",
                 stripeEvent.Type, stripeEvent.Id);
+
+            // Idempotency check — skip already-processed events
+            var alreadyProcessed = await _context.ProcessedWebhookEvents
+                .AnyAsync(e => e.EventId == stripeEvent.Id, cancellationToken);
+
+            if (alreadyProcessed)
+            {
+                _logger.LogInformation("Skipping already-processed webhook event {EventId}", stripeEvent.Id);
+                return Ok();
+            }
 
             switch (stripeEvent.Type)
             {
@@ -86,12 +97,17 @@ public class StripeWebhookController : ControllerBase
                     break;
             }
 
+            // Record event as processed
+            _context.ProcessedWebhookEvents.Add(
+                new Sqordia.Domain.Entities.ProcessedWebhookEvent(stripeEvent.Id, stripeEvent.Type));
+            await _context.SaveChangesAsync(cancellationToken);
+
             return Ok();
         }
         catch (StripeException ex)
         {
-            _logger.LogError(ex, "Stripe webhook error: {Message}", ex.Message);
-            return BadRequest($"Webhook error: {ex.Message}");
+            _logger.LogError(ex, "Stripe webhook signature validation failed");
+            return BadRequest("Webhook signature validation failed");
         }
         catch (Exception ex)
         {

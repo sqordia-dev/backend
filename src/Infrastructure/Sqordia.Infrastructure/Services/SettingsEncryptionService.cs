@@ -59,7 +59,14 @@ public class SettingsEncryptionService : ISettingsEncryptionService
     {
         if (!_isAvailable)
         {
-            _logger.LogWarning("Encryption not available. Returning plain text.");
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            if (env != null && env != "Development" && env != "Testing")
+            {
+                throw new InvalidOperationException(
+                    "SETTINGS_ENCRYPTION_KEY must be configured in non-development environments. " +
+                    "Set the SETTINGS_ENCRYPTION_KEY environment variable with a base64-encoded 256-bit key.");
+            }
+            _logger.LogWarning("Encryption not available (dev mode). Returning plain text.");
             return plainText;
         }
 

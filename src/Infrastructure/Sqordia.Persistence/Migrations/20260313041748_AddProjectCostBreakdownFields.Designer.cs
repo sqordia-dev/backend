@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Sqordia.Persistence.Contexts;
@@ -11,9 +12,11 @@ using Sqordia.Persistence.Contexts;
 namespace Sqordia.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260313041748_AddProjectCostBreakdownFields")]
+    partial class AddProjectCostBreakdownFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1663,7 +1666,6 @@ namespace Sqordia.Persistence.Migrations
 
                     b.HasIndex("BusinessPlanId", "QuestionTemplateId")
                         .IsUnique()
-                        .HasDatabaseName("IX_QuestionnaireResponses_BusinessPlanId_QuestionTemplateId")
                         .HasFilter("\"QuestionTemplateId\" IS NOT NULL");
 
                     b.ToTable("QuestionnaireResponses", (string)null);
@@ -6358,9 +6360,6 @@ namespace Sqordia.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("\"IsActive\" = true");
 
-                    b.HasIndex("OrganizationId", "UserId", "IsActive")
-                        .HasDatabaseName("IX_OrganizationMembers_OrgId_UserId_IsActive");
-
                     b.ToTable("OrganizationMembers");
                 });
 
@@ -6478,31 +6477,6 @@ namespace Sqordia.Persistence.Migrations
                         .HasDatabaseName("IX_PlanFeatureLimits_PlanId_FeatureKey");
 
                     b.ToTable("PlanFeatureLimits", (string)null);
-                });
-
-            modelBuilder.Entity("Sqordia.Domain.Entities.ProcessedWebhookEvent", b =>
-                {
-                    b.Property<string>("EventId")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("event_id");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("event_type");
-
-                    b.Property<DateTime>("ProcessedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("processed_at");
-
-                    b.HasKey("EventId");
-
-                    b.HasIndex("ProcessedAt")
-                        .HasDatabaseName("IX_ProcessedWebhookEvents_ProcessedAt");
-
-                    b.ToTable("processed_webhook_events", (string)null);
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.PromptPerformance", b =>

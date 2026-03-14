@@ -20,13 +20,8 @@ public class StripeService : IStripeService
     {
         _configuration = configuration;
         _logger = logger;
-        
-        // Initialize Stripe API key
-        var secretKey = _configuration["Stripe:SecretKey"];
-        if (!string.IsNullOrEmpty(secretKey))
-        {
-            StripeConfiguration.ApiKey = secretKey;
-        }
+        // Stripe API key is set once at startup via ConfigureServices — do NOT set it here
+        // to avoid race conditions under concurrent load (StripeConfiguration.ApiKey is a static global)
     }
 
     public async Task<Result<string>> CreateCustomerAsync(

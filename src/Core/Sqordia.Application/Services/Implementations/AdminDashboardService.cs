@@ -42,27 +42,27 @@ public class AdminDashboardService : IAdminDashboardService
             var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
             // User statistics
-            var totalUsers = await _context.Users.CountAsync(cancellationToken);
-            var activeUsers = await _context.Users.CountAsync(u => u.IsActive, cancellationToken);
-            var newUsersToday = await _context.Users.CountAsync(u => u.Created >= today, cancellationToken);
-            var newUsersThisWeek = await _context.Users.CountAsync(u => u.Created >= weekStart, cancellationToken);
-            var newUsersThisMonth = await _context.Users.CountAsync(u => u.Created >= monthStart, cancellationToken);
+            var totalUsers = await _context.Users.AsNoTracking().CountAsync(cancellationToken);
+            var activeUsers = await _context.Users.AsNoTracking().CountAsync(u => u.IsActive, cancellationToken);
+            var newUsersToday = await _context.Users.AsNoTracking().CountAsync(u => u.Created >= today, cancellationToken);
+            var newUsersThisWeek = await _context.Users.AsNoTracking().CountAsync(u => u.Created >= weekStart, cancellationToken);
+            var newUsersThisMonth = await _context.Users.AsNoTracking().CountAsync(u => u.Created >= monthStart, cancellationToken);
 
             // Organization statistics
-            var totalOrganizations = await _context.Organizations.CountAsync(cancellationToken);
-            var activeOrganizations = await _context.Organizations.CountAsync(o => o.IsActive, cancellationToken);
-            var newOrganizationsToday = await _context.Organizations.CountAsync(o => o.Created >= today, cancellationToken);
-            var newOrganizationsThisWeek = await _context.Organizations.CountAsync(o => o.Created >= weekStart, cancellationToken);
+            var totalOrganizations = await _context.Organizations.AsNoTracking().CountAsync(cancellationToken);
+            var activeOrganizations = await _context.Organizations.AsNoTracking().CountAsync(o => o.IsActive, cancellationToken);
+            var newOrganizationsToday = await _context.Organizations.AsNoTracking().CountAsync(o => o.Created >= today, cancellationToken);
+            var newOrganizationsThisWeek = await _context.Organizations.AsNoTracking().CountAsync(o => o.Created >= weekStart, cancellationToken);
 
             // Business plan statistics (excluding soft-deleted plans)
-            var totalBusinessPlans = await _context.BusinessPlans.CountAsync(bp => !bp.IsDeleted, cancellationToken);
-            var completedBusinessPlans = await _context.BusinessPlans.CountAsync(bp => !bp.IsDeleted && bp.CompletionPercentage >= 100, cancellationToken);
+            var totalBusinessPlans = await _context.BusinessPlans.AsNoTracking().CountAsync(bp => !bp.IsDeleted, cancellationToken);
+            var completedBusinessPlans = await _context.BusinessPlans.AsNoTracking().CountAsync(bp => !bp.IsDeleted && bp.CompletionPercentage >= 100, cancellationToken);
             var inProgressBusinessPlans = totalBusinessPlans - completedBusinessPlans;
-            var businessPlansCreatedToday = await _context.BusinessPlans.CountAsync(bp => !bp.IsDeleted && bp.Created >= today, cancellationToken);
-            var businessPlansCreatedThisWeek = await _context.BusinessPlans.CountAsync(bp => !bp.IsDeleted && bp.Created >= weekStart, cancellationToken);
+            var businessPlansCreatedToday = await _context.BusinessPlans.AsNoTracking().CountAsync(bp => !bp.IsDeleted && bp.Created >= today, cancellationToken);
+            var businessPlansCreatedThisWeek = await _context.BusinessPlans.AsNoTracking().CountAsync(bp => !bp.IsDeleted && bp.Created >= weekStart, cancellationToken);
 
             // Financial projections
-            var totalFinancialProjections = await _context.BusinessPlanFinancialProjections.CountAsync(cancellationToken);
+            var totalFinancialProjections = await _context.BusinessPlanFinancialProjections.AsNoTracking().CountAsync(cancellationToken);
 
             // Get real popular features from audit logs
             var featureActions = new Dictionary<string, string>
@@ -127,8 +127,8 @@ public class AdminDashboardService : IAdminDashboardService
 
             // Get user emails for logs that have userIds
             var userIds = recentAuditLogs.Where(log => log.UserId.HasValue).Select(log => log.UserId!.Value).Distinct().ToList();
-            var userEmails = userIds.Any() 
-                ? await _context.Users
+            var userEmails = userIds.Any()
+                ? await _context.Users.AsNoTracking()
                     .Where(u => userIds.Contains(u.Id))
                     .ToDictionaryAsync(u => u.Id, u => u.Email.Value, cancellationToken)
                 : new Dictionary<Guid, string>();

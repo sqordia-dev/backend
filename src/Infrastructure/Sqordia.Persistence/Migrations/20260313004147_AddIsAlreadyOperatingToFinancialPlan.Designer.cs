@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Sqordia.Persistence.Contexts;
@@ -11,9 +12,11 @@ using Sqordia.Persistence.Contexts;
 namespace Sqordia.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260313004147_AddIsAlreadyOperatingToFinancialPlan")]
+    partial class AddIsAlreadyOperatingToFinancialPlan
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1663,7 +1666,6 @@ namespace Sqordia.Persistence.Migrations
 
                     b.HasIndex("BusinessPlanId", "QuestionTemplateId")
                         .IsUnique()
-                        .HasDatabaseName("IX_QuestionnaireResponses_BusinessPlanId_QuestionTemplateId")
                         .HasFilter("\"QuestionTemplateId\" IS NOT NULL");
 
                     b.ToTable("QuestionnaireResponses", (string)null);
@@ -3599,36 +3601,6 @@ namespace Sqordia.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("AdminExpAcquireAfter")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("AdminExpAcquireBefore")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("AdminExpAlreadyAcquired")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<int>("AdminExpDurationMonths")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("CapexAcquireAfter")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("CapexAcquireBefore")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("CapexAlreadyAcquired")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<int>("CapexDurationMonths")
-                        .HasColumnType("integer");
-
                     b.Property<int>("CapexInclusionMonths")
                         .HasColumnType("integer");
 
@@ -3647,21 +3619,6 @@ namespace Sqordia.Persistence.Migrations
                     b.Property<Guid>("FinancialPlanId")
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("InventoryAcquireAfter")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("InventoryAcquireBefore")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("InventoryAlreadyAcquired")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<int>("InventoryDurationMonths")
-                        .HasColumnType("integer");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -3670,36 +3627,6 @@ namespace Sqordia.Persistence.Migrations
 
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
-
-                    b.Property<decimal>("SalaryAcquireAfter")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("SalaryAcquireBefore")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("SalaryAlreadyAcquired")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<int>("SalaryDurationMonths")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("SalesExpAcquireAfter")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("SalesExpAcquireBefore")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("SalesExpAlreadyAcquired")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<int>("SalesExpDurationMonths")
-                        .HasColumnType("integer");
 
                     b.Property<decimal>("TotalCapex")
                         .HasPrecision(18, 2)
@@ -6358,9 +6285,6 @@ namespace Sqordia.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("\"IsActive\" = true");
 
-                    b.HasIndex("OrganizationId", "UserId", "IsActive")
-                        .HasDatabaseName("IX_OrganizationMembers_OrgId_UserId_IsActive");
-
                     b.ToTable("OrganizationMembers");
                 });
 
@@ -6478,31 +6402,6 @@ namespace Sqordia.Persistence.Migrations
                         .HasDatabaseName("IX_PlanFeatureLimits_PlanId_FeatureKey");
 
                     b.ToTable("PlanFeatureLimits", (string)null);
-                });
-
-            modelBuilder.Entity("Sqordia.Domain.Entities.ProcessedWebhookEvent", b =>
-                {
-                    b.Property<string>("EventId")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("event_id");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("event_type");
-
-                    b.Property<DateTime>("ProcessedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("processed_at");
-
-                    b.HasKey("EventId");
-
-                    b.HasIndex("ProcessedAt")
-                        .HasDatabaseName("IX_ProcessedWebhookEvents_ProcessedAt");
-
-                    b.ToTable("processed_webhook_events", (string)null);
                 });
 
             modelBuilder.Entity("Sqordia.Domain.Entities.PromptPerformance", b =>

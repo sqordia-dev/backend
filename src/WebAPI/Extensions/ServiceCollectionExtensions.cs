@@ -11,6 +11,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using WebAPI.Filters;
 
 namespace WebAPI.Extensions;
 
@@ -18,7 +19,11 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddControllers()
+        services.AddControllers(options =>
+            {
+                // Wire FluentValidation automatically for all controller actions
+                options.Filters.Add<FluentValidationFilter>();
+            })
             .AddJsonOptions(options =>
             {
                 options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
@@ -121,6 +126,19 @@ public static class ServiceCollectionExtensions
                 ValidAudience = configuration["JwtSettings:Audience"],
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero
+            };
+
+            options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    // If no Authorization header, fall back to HttpOnly cookie
+                    if (string.IsNullOrEmpty(context.Token))
+                    {
+                        context.Token = context.Request.Cookies["access_token"];
+                    }
+                    return Task.CompletedTask;
+                }
             };
         });
 
@@ -285,10 +303,18 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddHealthCheckServices(this IServiceCollection services)
+    public static IServiceCollection AddHealthCheckServices(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddHealthChecks()
-            .AddCheck<PythonAIServiceHealthCheck>("python-ai-service", tags: new[] { "ai", "external" });
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        var healthChecksBuilder = services.AddHealthChecks();
+
+        // Database health check — critical for readiness probes
+        if (!string.IsNullOrEmpty(connectionString))
+        {
+            healthChecksBuilder.AddNpgSql(connectionString, name: "database", tags: new[] { "db", "ready" });
+        }
+
+        healthChecksBuilder.AddCheck<PythonAIServiceHealthCheck>("python-ai-service", tags: new[] { "ai", "external" });
         return services;
     }
 

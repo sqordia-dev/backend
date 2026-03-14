@@ -43,6 +43,9 @@ public class QuestionnaireResponseConfiguration : IEntityTypeConfiguration<Quest
         builder.HasIndex(qr => qr.BusinessPlanId);
         builder.HasIndex(qr => qr.QuestionTemplateId);
 
+        builder.HasIndex(qr => new { qr.BusinessPlanId, qr.QuestionTemplateId })
+            .HasDatabaseName("IX_QuestionnaireResponses_BusinessPlanId_QuestionTemplateId");
+
         // Unique constraint: one response per question per business plan
         builder.HasIndex(qr => new { qr.BusinessPlanId, qr.QuestionTemplateId })
             .IsUnique()

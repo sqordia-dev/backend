@@ -24,6 +24,7 @@ public class AuthControllerTests
     private readonly Mock<ILogger<AuthController>> _loggerMock;
     private readonly Mock<IOptions<GoogleOAuthSettings>> _googleOAuthSettingsMock;
     private readonly Mock<IConfiguration> _configurationMock;
+    private readonly Mock<IHttpClientFactory> _httpClientFactoryMock;
     private readonly AuthController _sut;
 
     public AuthControllerTests()
@@ -46,11 +47,13 @@ public class AuthControllerTests
         _googleOAuthSettingsMock = new Mock<IOptions<GoogleOAuthSettings>>();
         _googleOAuthSettingsMock.Setup(x => x.Value).Returns(googleOAuthSettings);
 
+        _httpClientFactoryMock = new Mock<IHttpClientFactory>();
         _sut = new AuthController(
             _authenticationServiceMock.Object,
             _googleOAuthSettingsMock.Object,
             _loggerMock.Object,
-            _configurationMock.Object);
+            _configurationMock.Object,
+            _httpClientFactoryMock.Object);
     }
 
     [Fact]
@@ -388,7 +391,8 @@ public class AuthControllerTests
             _authenticationServiceMock.Object,
             _googleOAuthSettingsMock.Object,
             _loggerMock.Object,
-            _configurationMock.Object);
+            _configurationMock.Object,
+            _httpClientFactoryMock.Object);
         
         // Mock HttpContext without valid claims
         var httpContext = new Mock<HttpContext>();

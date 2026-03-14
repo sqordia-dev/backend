@@ -112,6 +112,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Coupon> Coupons { get; set; }
     public DbSet<CouponRedemption> CouponRedemptions { get; set; }
 
+    // Webhook Idempotency
+    public DbSet<ProcessedWebhookEvent> ProcessedWebhookEvents { get; set; }
+
     // Application Settings
     public DbSet<Settings> Settings { get; set; }
     

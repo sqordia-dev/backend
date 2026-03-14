@@ -108,11 +108,11 @@ public class AuthenticationService : IAuthenticationService
             // Send combined welcome and verification email
             try
             {
-                _logger.LogInformation("Sending welcome and verification email to {Email}", request.Email);
+                _logger.LogInformation("Sending welcome and verification email to user");
                 
                 // Send single email with welcome message and verification link
                 await _emailService.SendWelcomeWithVerificationAsync(request.Email, request.FirstName, request.LastName, user.UserName, verificationToken);
-                _logger.LogInformation("Welcome and verification email sent successfully to {Email}", request.Email);
+                _logger.LogInformation("Welcome and verification email sent successfully");
             }
             catch (Exception emailEx)
             {
@@ -133,7 +133,7 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return Result.Failure<AuthResponse>(Error.Failure("Authentication.Register.Failed", $"Registration failed: {ex.Message}"));
+            return Result.Failure<AuthResponse>(Error.Failure("Authentication.Register.Failed", "Registration failed. Please try again."));
         }
     }
 
@@ -152,7 +152,7 @@ public class AuthenticationService : IAuthenticationService
             if (user == null)
             {
                 // Log failed attempt for non-existent user (for security monitoring)
-                _logger.LogWarning("Login attempt for non-existent email: {Email} from IP: {IpAddress}", request.Email, ipAddress);
+                _logger.LogWarning("Login attempt for non-existent account from IP: {IpAddress}", ipAddress);
                 return Result.Failure<AuthResponse>(Error.NotFound("Auth.Error.InvalidCredentials", _localizationService.GetString("Auth.Error.InvalidCredentials")));
             }
 
@@ -180,7 +180,7 @@ public class AuthenticationService : IAuthenticationService
                 const int maxFailedAttempts = 5;
                 if (user.AccessFailedCount >= maxFailedAttempts)
                 {
-                    var lockoutDuration = TimeSpan.FromMinutes(30);
+                    var lockoutDuration = TimeSpan.FromMinutes(15);
                     user.LockAccount(DateTime.UtcNow.Add(lockoutDuration));
                     
                     _logger.LogWarning("Account locked due to failed login attempts: {UserId}", user.Id);
@@ -234,8 +234,8 @@ public class AuthenticationService : IAuthenticationService
                 await RecordLoginAttempt(user.Id, false, ipAddress, userAgent, "Password expired", cancellationToken);
                 
                 return Result.Failure<AuthResponse>(Error.Unauthorized(
-                    "Authentication.PasswordExpired", 
-                    $"Your password has expired. Passwords must be changed every {passwordExpiryDays} days. Please use the password reset functionality."));
+                    "Authentication.PasswordExpired",
+                    "Your password has expired. Please use the password reset functionality."));
             }
 
             // Check if user has 2FA enabled
@@ -323,7 +323,7 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return Result.Failure<AuthResponse>(Error.Failure("Authentication.Login.Failed", $"Login failed: {ex.Message}"));
+            return Result.Failure<AuthResponse>(Error.Failure("Authentication.Login.Failed", "Login failed. Please try again."));
         }
     }
 
@@ -548,7 +548,7 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return Result.Failure<AuthResponse>(Error.Failure("Authentication.RefreshToken.Failed", $"Token refresh failed: {ex.Message}"));
+            return Result.Failure<AuthResponse>(Error.Failure("Authentication.RefreshToken.Failed", "Token refresh failed. Please try again."));
         }
     }
 
@@ -567,7 +567,7 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return Result.Failure(Error.Failure("Authentication.RevokeToken.Failed", $"Token revocation failed: {ex.Message}"));
+            return Result.Failure(Error.Failure("Authentication.RevokeToken.Failed", "Token revocation failed. Please try again."));
         }
     }
 
@@ -590,7 +590,7 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return Result.Failure(Error.Failure("Authentication.Logout.Failed", $"Logout failed: {ex.Message}"));
+            return Result.Failure(Error.Failure("Authentication.Logout.Failed", "Logout failed. Please try again."));
         }
     }
 
@@ -629,7 +629,7 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return Result.Failure(Error.Failure("Authentication.PasswordReset.Failed", $"Password reset request failed: {ex.Message}"));
+            return Result.Failure(Error.Failure("Authentication.PasswordReset.Failed", "Password reset request failed. Please try again."));
         }
     }
 
@@ -668,7 +668,7 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return Result.Failure(Error.Failure("Authentication.PasswordReset.Failed", $"Password reset failed: {ex.Message}"));
+            return Result.Failure(Error.Failure("Authentication.PasswordReset.Failed", "Password reset failed. Please try again."));
         }
     }
 
@@ -706,7 +706,7 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return Result.Failure(Error.Failure("Authentication.EmailVerification.Failed", $"Email verification failed: {ex.Message}"));
+            return Result.Failure(Error.Failure("Authentication.EmailVerification.Failed", "Email verification failed. Please try again."));
         }
     }
 
@@ -744,7 +744,7 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return Result.Failure(Error.Failure("Authentication.EmailVerification.Failed", $"Email verification failed: {ex.Message}"));
+            return Result.Failure(Error.Failure("Authentication.EmailVerification.Failed", "Email verification failed. Please try again."));
         }
     }
 
@@ -1073,7 +1073,7 @@ public class AuthenticationService : IAuthenticationService
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(ex, "Invalid operation during Google authentication for ID: {GoogleId}. Message: {Message}", googleId, ex.Message);
-            return Result.Failure<AuthResponse>(Error.Conflict("Auth.Error.GoogleAuthenticationConflict", ex.Message));
+            return Result.Failure<AuthResponse>(Error.Conflict("Auth.Error.GoogleAuthenticationConflict", "Google authentication conflict. Please try again or use a different method."));
         }
         catch (Exception ex)
         {
@@ -1081,7 +1081,7 @@ public class AuthenticationService : IAuthenticationService
             return Result.Failure<AuthResponse>(Error.Failure(
                 "Auth.Error.GoogleAuthenticationFailed",
                 _localizationService.GetString("Auth.Error.GoogleAuthenticationFailed"),
-                $"{ex.GetType().Name}: {ex.Message}"));
+                "Google authentication failed. Please try again."));
         }
     }
 

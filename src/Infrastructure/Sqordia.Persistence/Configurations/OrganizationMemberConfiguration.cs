@@ -36,6 +36,9 @@ public class OrganizationMemberConfiguration : IEntityTypeConfiguration<Organiza
             .IsUnique()
             .HasFilter("\"IsActive\" = true");
         
+        builder.HasIndex(om => new { om.OrganizationId, om.UserId, om.IsActive })
+            .HasDatabaseName("IX_OrganizationMembers_OrgId_UserId_IsActive");
+
         builder.HasIndex(om => om.OrganizationId);
         builder.HasIndex(om => om.UserId);
         builder.HasIndex(om => om.Role);

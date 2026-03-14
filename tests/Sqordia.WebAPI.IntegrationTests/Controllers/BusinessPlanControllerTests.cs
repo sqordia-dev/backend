@@ -9,6 +9,7 @@ using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Models;
 using Sqordia.Application.Services;
 using Sqordia.Application.Services.V2;
+using Sqordia.Contracts.Common;
 using Sqordia.Contracts.Requests.BusinessPlan;
 using Sqordia.Contracts.Responses.BusinessPlan;
 using WebAPI.Controllers;
@@ -297,40 +298,47 @@ public class BusinessPlanControllerTests
     public async Task GetUserBusinessPlans_ShouldReturnOkWithPlans()
     {
         // Arrange
-        var plans = _fixture.CreateMany<BusinessPlanResponse>(3).AsEnumerable();
-        var result = Result.Success(plans);
+        var plans = _fixture.CreateMany<BusinessPlanResponse>(3).ToList();
+        var paginatedResult = new PaginatedResponse<BusinessPlanResponse>
+        {
+            Items = plans,
+            TotalCount = plans.Count,
+            PageNumber = 1,
+            PageSize = 10
+        };
+        var result = Result.Success(paginatedResult);
 
         _businessPlanServiceMock
-            .Setup(x => x.GetUserBusinessPlansAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetUserBusinessPlansAsync(It.IsAny<BusinessPlanListRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(result);
 
         // Act
-        var response = await _sut.GetUserBusinessPlans(cancellationToken: CancellationToken.None, pageSize: 0);
+        var response = await _sut.GetUserBusinessPlans(cancellationToken: CancellationToken.None, pageSize: 10);
 
         // Assert
         response.Should().BeOfType<OkObjectResult>();
         var okResult = response as OkObjectResult;
-        okResult!.Value.Should().Be(plans);
+        okResult!.Value.Should().Be(paginatedResult);
     }
 
     [Fact]
     public async Task GetUserBusinessPlans_WhenNoPlans_ShouldReturnOkWithEmptyList()
     {
         // Arrange
-        var plans = Enumerable.Empty<BusinessPlanResponse>();
-        var result = Result.Success(plans);
+        var paginatedResult = PaginatedResponse<BusinessPlanResponse>.Empty(1, 10);
+        var result = Result.Success(paginatedResult);
 
         _businessPlanServiceMock
-            .Setup(x => x.GetUserBusinessPlansAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetUserBusinessPlansAsync(It.IsAny<BusinessPlanListRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(result);
 
         // Act
-        var response = await _sut.GetUserBusinessPlans(cancellationToken: CancellationToken.None, pageSize: 0);
+        var response = await _sut.GetUserBusinessPlans(cancellationToken: CancellationToken.None, pageSize: 10);
 
         // Assert
         response.Should().BeOfType<OkObjectResult>();
         var okResult = response as OkObjectResult;
-        okResult!.Value.Should().Be(plans);
+        okResult!.Value.Should().Be(paginatedResult);
     }
 
     [Fact]
@@ -338,14 +346,14 @@ public class BusinessPlanControllerTests
     {
         // Arrange
         var error = Error.Failure("BusinessPlan.GetAll.Failed", "Failed to retrieve business plans");
-        var result = Result.Failure<IEnumerable<BusinessPlanResponse>>(error);
+        var result = Result.Failure<PaginatedResponse<BusinessPlanResponse>>(error);
 
         _businessPlanServiceMock
-            .Setup(x => x.GetUserBusinessPlansAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetUserBusinessPlansAsync(It.IsAny<BusinessPlanListRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(result);
 
         // Act
-        var response = await _sut.GetUserBusinessPlans(cancellationToken: CancellationToken.None, pageSize: 0);
+        var response = await _sut.GetUserBusinessPlans(cancellationToken: CancellationToken.None, pageSize: 10);
 
         // Assert
         response.Should().BeOfType<BadRequestObjectResult>();
@@ -362,20 +370,27 @@ public class BusinessPlanControllerTests
     {
         // Arrange
         var organizationId = Guid.NewGuid();
-        var plans = _fixture.CreateMany<BusinessPlanResponse>(2).AsEnumerable();
-        var result = Result.Success(plans);
+        var plans = _fixture.CreateMany<BusinessPlanResponse>(2).ToList();
+        var paginatedResult = new PaginatedResponse<BusinessPlanResponse>
+        {
+            Items = plans,
+            TotalCount = plans.Count,
+            PageNumber = 1,
+            PageSize = 10
+        };
+        var result = Result.Success(paginatedResult);
 
         _businessPlanServiceMock
-            .Setup(x => x.GetOrganizationBusinessPlansAsync(organizationId, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetOrganizationBusinessPlansAsync(organizationId, It.IsAny<BusinessPlanListRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(result);
 
         // Act
-        var response = await _sut.GetOrganizationBusinessPlans(organizationId, cancellationToken: CancellationToken.None, pageSize: 0);
+        var response = await _sut.GetOrganizationBusinessPlans(organizationId, cancellationToken: CancellationToken.None, pageSize: 10);
 
         // Assert
         response.Should().BeOfType<OkObjectResult>();
         var okResult = response as OkObjectResult;
-        okResult!.Value.Should().Be(plans);
+        okResult!.Value.Should().Be(paginatedResult);
     }
 
     [Fact]
@@ -384,14 +399,14 @@ public class BusinessPlanControllerTests
         // Arrange
         var organizationId = Guid.NewGuid();
         var error = Error.NotFound("Organization.NotFound", "Organization not found");
-        var result = Result.Failure<IEnumerable<BusinessPlanResponse>>(error);
+        var result = Result.Failure<PaginatedResponse<BusinessPlanResponse>>(error);
 
         _businessPlanServiceMock
-            .Setup(x => x.GetOrganizationBusinessPlansAsync(organizationId, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetOrganizationBusinessPlansAsync(organizationId, It.IsAny<BusinessPlanListRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(result);
 
         // Act
-        var response = await _sut.GetOrganizationBusinessPlans(organizationId, cancellationToken: CancellationToken.None, pageSize: 0);
+        var response = await _sut.GetOrganizationBusinessPlans(organizationId, cancellationToken: CancellationToken.None, pageSize: 10);
 
         // Assert
         response.Should().BeOfType<NotFoundObjectResult>();

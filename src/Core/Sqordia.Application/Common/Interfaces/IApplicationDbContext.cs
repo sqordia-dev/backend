@@ -154,6 +154,9 @@ public interface IApplicationDbContext
     // Newsletter
     DbSet<NewsletterSubscriber> NewsletterSubscribers { get; }
 
+    // Webhook Idempotency
+    DbSet<ProcessedWebhookEvent> ProcessedWebhookEvents { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default);
 }

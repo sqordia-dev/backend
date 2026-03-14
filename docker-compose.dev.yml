@@ -13,7 +13,7 @@ services:
       
       # Database Connection - Using local PostgreSQL container
       # The service name 'sqordia-db' is used to connect to the PostgreSQL container
-      - ConnectionStrings__DefaultConnection=Host=sqordia-db;Port=5432;Database=SqordiaDb;Username=sqordia;Password=SqordiaDevPass2025;Pooling=false;
+      - ConnectionStrings__DefaultConnection=Host=sqordia-db;Port=5432;Database=SqordiaDb;Username=sqordia;Password=SqordiaDevPass2025;Pooling=true;MinPoolSize=5;MaxPoolSize=50;
       
       # JWT Settings
       - JwtSettings__Secret=${JWT_SECRET:-fZCrXaY7jlvsqKSLpJeRbdw6TDoFIA8yB4OziUgVWH95tmQE21xh3NGkPncMu0}
@@ -192,7 +192,7 @@ services:
     container_name: sqordia-mlflow-dev
     command: mlflow server --host 0.0.0.0 --port 5050 --backend-store-uri sqlite:///mlflow/mlflow.db --default-artifact-root /mlflow/artifacts
     ports:
-      - "5050:5050"
+      - "127.0.0.1:5050:5050"
     volumes:
       - sqordia-mlflow-data:/mlflow
     networks:
@@ -230,7 +230,7 @@ services:
     container_name: sqordia-azurite-dev
     command: "azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --loose"
     ports:
-      - "10000:10000"  # Blob service
+      - "127.0.0.1:10000:10000"  # Blob service
     volumes:
       - sqordia-azurite-data:/data
     networks:

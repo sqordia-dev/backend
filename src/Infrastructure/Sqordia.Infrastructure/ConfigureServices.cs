@@ -535,7 +535,14 @@ public static class ConfigureServices
         services.AddHttpClient("AIService");
         services.AddScoped<ISubscriptionIntelligenceService, SubscriptionIntelligenceService>();
 
-        // Stripe service
+        // Stripe service — set API key once at startup to avoid race conditions
+        var stripeSecretKey = Environment.GetEnvironmentVariable("STRIPE_SECRET_KEY")
+                           ?? Environment.GetEnvironmentVariable("Stripe__SecretKey")
+                           ?? configuration["Stripe:SecretKey"];
+        if (!string.IsNullOrEmpty(stripeSecretKey) && !IsPlaceholder(stripeSecretKey))
+        {
+            Stripe.StripeConfiguration.ApiKey = stripeSecretKey;
+        }
         services.AddScoped<Sqordia.Application.Services.IStripeService, StripeService>();
 
         // Invoice PDF service

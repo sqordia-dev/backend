@@ -106,6 +106,7 @@ public class FeatureGateService : IFeatureGateService
     {
         var period = int.Parse(DateTime.UtcNow.ToString("yyyyMM"));
 
+        // Ensure usage row exists (upsert-safe)
         var usage = await _context.OrganizationUsages
             .Where(u => u.OrganizationId == organizationId && u.Period == period)
             .FirstOrDefaultAsync(ct);
@@ -114,8 +115,10 @@ public class FeatureGateService : IFeatureGateService
         {
             usage = new Domain.Entities.OrganizationUsage(organizationId, period);
             _context.OrganizationUsages.Add(usage);
+            await _context.SaveChangesAsync(ct);
         }
 
+        // Increment via entity methods — compatible with all EF providers (including InMemory)
         switch (featureKey)
         {
             case PlanFeatures.MaxAiGenerationsMonthly:
@@ -125,14 +128,15 @@ public class FeatureGateService : IFeatureGateService
                 usage.IncrementAiCoachMessages(amount);
                 break;
             case PlanFeatures.MaxStorageMb:
-                usage.AddStorageUsed(amount); // amount in bytes
+                usage.AddStorageUsed(amount);
                 break;
             default:
                 if (featureKey.StartsWith("export_"))
+                {
                     usage.IncrementExports(amount);
+                }
                 break;
         }
-
         await _context.SaveChangesAsync(ct);
     }
 

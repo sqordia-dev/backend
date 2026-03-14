@@ -117,13 +117,37 @@ public static class WebApplicationExtensions
         // Response compression - should be early in pipeline for best performance
         app.UseResponseCompression();
 
-        // Configure Swagger (enabled in all environments including production)
-        app.UseSwagger();
-        app.UseSwaggerUI(options =>
+        // Security headers — set early so all responses include them
+        app.Use(async (context, next) =>
         {
-            options.SwaggerEndpoint("/swagger/v1/swagger.json", "Sqordia API v1");
-            options.RoutePrefix = "swagger";
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            context.Response.Headers["X-Frame-Options"] = "DENY";
+            context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+            context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+            context.Response.Headers["X-XSS-Protection"] = "0";
+            if (!context.Request.Path.StartsWithSegments("/swagger"))
+            {
+                context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'";
+            }
+            await next();
         });
+
+        // HSTS — only in production
+        if (!environment.IsDevelopment())
+        {
+            app.UseHsts();
+        }
+
+        // Swagger — development only
+        if (environment.IsDevelopment())
+        {
+            app.UseSwagger();
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/swagger/v1/swagger.json", "Sqordia API v1");
+                options.RoutePrefix = "swagger";
+            });
+        }
 
         // HTTPS redirection (can be disabled in Docker if needed)
         if (!environment.IsDevelopment() || Environment.GetEnvironmentVariable("DISABLE_HTTPS_REDIRECT") != "true")

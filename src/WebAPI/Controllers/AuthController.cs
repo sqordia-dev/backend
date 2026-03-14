@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
+using Sqordia.Application.Common.Models;
 using Sqordia.Application.Services;
 using Sqordia.Contracts.Requests.Auth;
+using Sqordia.Contracts.Responses.Auth;
 using System.Text.Json;
 using WebAPI.Configuration;
 using WebAPI.Constants;
@@ -19,17 +21,83 @@ public class AuthController : BaseApiController
     private readonly GoogleOAuthSettings _googleOAuthSettings;
     private readonly ILogger<AuthController> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public AuthController(
         IAuthenticationService authenticationService,
         IOptions<GoogleOAuthSettings> googleOAuthSettings,
         ILogger<AuthController> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHttpClientFactory httpClientFactory)
     {
         _authenticationService = authenticationService;
+        _httpClientFactory = httpClientFactory;
         _googleOAuthSettings = googleOAuthSettings.Value;
         _logger = logger;
         _configuration = configuration;
+    }
+
+    private void SetAuthCookies(AuthResponse authResponse)
+    {
+        if (string.IsNullOrEmpty(authResponse.Token) || authResponse.RequiresTwoFactor)
+            return;
+
+        if (Response == null) return;
+
+        var isProduction = !string.Equals(
+            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+            "Development", StringComparison.OrdinalIgnoreCase);
+
+        var accessCookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = isProduction,
+            SameSite = SameSiteMode.Lax,
+            Path = "/",
+            Expires = authResponse.ExpiresAt
+        };
+        Response.Cookies.Append("access_token", authResponse.Token, accessCookieOptions);
+
+        if (!string.IsNullOrEmpty(authResponse.RefreshToken))
+        {
+            var refreshCookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = isProduction,
+                SameSite = SameSiteMode.Lax,
+                Path = "/",
+                Expires = DateTimeOffset.UtcNow.AddDays(7)
+            };
+            Response.Cookies.Append("refresh_token", authResponse.RefreshToken, refreshCookieOptions);
+        }
+
+        // Non-HttpOnly flag for frontend to check auth state synchronously
+        Response.Cookies.Append("is_authenticated", "true", new CookieOptions
+        {
+            HttpOnly = false,
+            Secure = isProduction,
+            SameSite = SameSiteMode.Lax,
+            Path = "/",
+            Expires = authResponse.ExpiresAt
+        });
+    }
+
+    private void ClearAuthCookies()
+    {
+        if (Response == null) return;
+        Response.Cookies.Delete("access_token", new CookieOptions { Path = "/" });
+        Response.Cookies.Delete("refresh_token", new CookieOptions { Path = "/" });
+        Response.Cookies.Delete("is_authenticated", new CookieOptions { Path = "/" });
+    }
+
+    private IActionResult HandleAuthResult(Result<AuthResponse> result)
+    {
+        if (result.IsSuccess && result.Value != null)
+        {
+            SetAuthCookies(result.Value);
+            return Ok(result.Value);
+        }
+        return HandleResult(result);
     }
 
     [HttpPost("register")]
@@ -37,7 +105,7 @@ public class AuthController : BaseApiController
     public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _authenticationService.RegisterAsync(request);
-        return HandleResult(result);
+        return HandleAuthResult(result);
     }
 
     [HttpPost("login")]
@@ -45,15 +113,27 @@ public class AuthController : BaseApiController
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _authenticationService.LoginAsync(request);
-        return HandleResult(result);
+        return HandleAuthResult(result);
     }
 
     [HttpPost("refresh-token")]
     [AllowAnonymous]
-    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest? request, CancellationToken cancellationToken = default)
     {
+        request ??= new RefreshTokenRequest();
+
+        // Fall back to cookies if not provided in request body
+        if (string.IsNullOrEmpty(request.Token))
+        {
+            request.Token = Request.Cookies["access_token"] ?? "";
+        }
+        if (string.IsNullOrEmpty(request.RefreshToken))
+        {
+            request.RefreshToken = Request.Cookies["refresh_token"] ?? "";
+        }
+
         var result = await _authenticationService.RefreshTokenAsync(request);
-        return HandleResult(result);
+        return HandleAuthResult(result);
     }
 
     [HttpPost("revoke-token")]
@@ -69,6 +149,7 @@ public class AuthController : BaseApiController
     public async Task<IActionResult> Logout([FromBody] LogoutRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _authenticationService.LogoutAsync(request);
+        ClearAuthCookies();
         return HandleResult(result);
     }
 
@@ -110,7 +191,7 @@ public class AuthController : BaseApiController
     public async Task<IActionResult> VerifyTwoFactorLogin([FromBody] TwoFactorLoginRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _authenticationService.VerifyTwoFactorLoginAsync(request);
-        return HandleResult(result);
+        return HandleAuthResult(result);
     }
 
     [HttpPost("forgot-password")]
@@ -200,8 +281,8 @@ public class AuthController : BaseApiController
 
                     var result = await _authenticationService.AuthenticateWithGoogleAsync(
                         googleId, email, firstName, lastName, profilePictureUrl);
-                    
-                    return HandleResult(result);
+
+                    return HandleAuthResult(result);
                 }
             }
 
@@ -210,9 +291,11 @@ public class AuthController : BaseApiController
             {
                 try
                 {
-                    using var httpClient = new HttpClient();
+                    using var httpClient = _httpClientFactory.CreateClient();
+                    httpClient.DefaultRequestHeaders.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", request.AccessToken);
                     var userInfoResponse = await httpClient.GetAsync(
-                        $"https://www.googleapis.com/oauth2/v3/userinfo?access_token={request.AccessToken}");
+                        "https://www.googleapis.com/oauth2/v3/userinfo");
 
                     if (!userInfoResponse.IsSuccessStatusCode)
                     {
@@ -240,8 +323,8 @@ public class AuthController : BaseApiController
 
                     var result = await _authenticationService.AuthenticateWithGoogleAsync(
                         googleId, email, firstName, lastName, profilePictureUrl);
-                    
-                    return HandleResult(result);
+
+                    return HandleAuthResult(result);
                 }
                 catch (Exception ex)
                 {
@@ -367,9 +450,11 @@ public class AuthController : BaseApiController
             {
                 try
                 {
-                    using var httpClient = new HttpClient();
+                    using var httpClient = _httpClientFactory.CreateClient();
+                    httpClient.DefaultRequestHeaders.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", request.AccessToken);
                     var userInfoResponse = await httpClient.GetAsync(
-                        $"https://www.googleapis.com/oauth2/v3/userinfo?access_token={request.AccessToken}");
+                        "https://www.googleapis.com/oauth2/v3/userinfo");
 
                     if (!userInfoResponse.IsSuccessStatusCode)
                     {
