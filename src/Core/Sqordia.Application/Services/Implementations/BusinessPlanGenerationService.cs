@@ -723,7 +723,7 @@ public class BusinessPlanGenerationService : IBusinessPlanGenerationService
         var systemPrompt = await GetSystemPromptAsync(language, planType, cancellationToken);
         var userPrompt = await GetSectionPromptAsync(planType, sectionName, questionnaireContext, language, cancellationToken);
 
-        // Increased maxTokens for gpt-4o which supports longer outputs
+        // Increased maxTokens for models that support longer outputs
         // No limit on maxTokens - let the model generate comprehensive content
         var content = await _aiService.GenerateContentWithRetryAsync(
             systemPrompt,

@@ -230,7 +230,7 @@ public class AIPromptService : IAIPromptService
                 TokensUsed = request.MaxTokens,
                 Temperature = request.Temperature,
                 TestedAt = endTime,
-                Model = "gpt-4", // This should come from the AI service
+                Model = "gpt-4.1", // This should come from the AI service
                 ResponseTime = responseTime
             };
         }
@@ -244,7 +244,7 @@ public class AIPromptService : IAIPromptService
                 TokensUsed = 0,
                 Temperature = request.Temperature,
                 TestedAt = DateTime.UtcNow,
-                Model = "gpt-4",
+                Model = "gpt-4.1",
                 ResponseTime = TimeSpan.Zero,
                 Error = ex.Message
             };
@@ -435,7 +435,7 @@ public class AIPromptService : IAIPromptService
                 TokensUsed = request.MaxTokens,
                 Temperature = request.Temperature,
                 TestedAt = endTime,
-                Model = "gpt-4",
+                Model = "gpt-4.1",
                 ResponseTime = responseTime
             };
         }
@@ -449,7 +449,7 @@ public class AIPromptService : IAIPromptService
                 TokensUsed = 0,
                 Temperature = request.Temperature,
                 TestedAt = DateTime.UtcNow,
-                Model = "gpt-4",
+                Model = "gpt-4.1",
                 ResponseTime = TimeSpan.Zero,
                 Error = ex.Message
             };

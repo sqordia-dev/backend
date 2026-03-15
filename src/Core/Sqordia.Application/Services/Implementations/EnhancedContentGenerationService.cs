@@ -210,7 +210,7 @@ public class EnhancedContentGenerationService : IEnhancedContentGenerationServic
                 {
                     PromptVersion = template?.Version ?? 0,
                     PromptAlias = template?.Alias?.ToString() ?? (usingFallback ? "fallback" : "default"),
-                    ModelUsed = aiResult.ModelUsed ?? "gpt-4o",
+                    ModelUsed = aiResult.ModelUsed ?? "gpt-4.1",
                     GenerationTimeMs = (int)stopwatch.ElapsedMilliseconds,
                     TokensUsed = aiResult.InputTokens + aiResult.OutputTokens,
                     IncludesVisuals = content.VisualElements.Count > 0,
@@ -332,7 +332,7 @@ public class EnhancedContentGenerationService : IEnhancedContentGenerationServic
                 {
                     PromptVersion = 0,
                     PromptAlias = $"improvement-{improvementType.ToString().ToLower()}",
-                    ModelUsed = aiResult.ModelUsed ?? "gpt-4o",
+                    ModelUsed = aiResult.ModelUsed ?? "gpt-4.1",
                     GenerationTimeMs = (int)stopwatch.ElapsedMilliseconds,
                     TokensUsed = aiResult.InputTokens + aiResult.OutputTokens,
                     IncludesVisuals = content.VisualElements.Count > 0,

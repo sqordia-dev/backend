@@ -125,7 +125,7 @@ public class QuestionnaireController : BaseApiController
     ///         }
     ///     ],
     ///     "generatedAt": "2025-01-14T19:30:00Z",
-    ///     "model": "gpt-4",
+    ///     "model": "gpt-4.1",
     ///     "language": "en"
     /// }
     /// 
@@ -142,7 +142,7 @@ public class QuestionnaireController : BaseApiController
     ///         }
     ///     ],
     ///     "generatedAt": "2025-01-14T19:30:00Z",
-    ///     "model": "gpt-4",
+    ///     "model": "gpt-4.1",
     ///     "language": "fr"
     /// }
     /// </remarks>

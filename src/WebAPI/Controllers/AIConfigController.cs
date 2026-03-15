@@ -94,7 +94,7 @@ public class AIConfigController : BaseApiController
                 || !string.IsNullOrEmpty(openAIConfigured.ApiKey);
             var openAIModel = (openAIDbModel.IsSuccess && !string.IsNullOrEmpty(openAIDbModel.Value))
                 ? openAIDbModel.Value
-                : openAIConfigured.Model ?? "gpt-4o";
+                : openAIConfigured.Model ?? "gpt-4.1";
             var openAIKeyPreview = openAIDbKey.IsSuccess && !string.IsNullOrEmpty(openAIDbKey.Value)
                 ? MaskApiKey(openAIDbKey.Value)
                 : MaskApiKey(openAIConfigured.ApiKey);
@@ -116,7 +116,7 @@ public class AIConfigController : BaseApiController
                 || !string.IsNullOrEmpty(claudeConfigured.ApiKey);
             var claudeModel = (claudeDbModel.IsSuccess && !string.IsNullOrEmpty(claudeDbModel.Value))
                 ? claudeDbModel.Value
-                : claudeConfigured.Model ?? "claude-sonnet-4-20250514";
+                : claudeConfigured.Model ?? "claude-sonnet-4-6";
             var claudeKeyPreview = claudeDbKey.IsSuccess && !string.IsNullOrEmpty(claudeDbKey.Value)
                 ? MaskApiKey(claudeDbKey.Value)
                 : MaskApiKey(claudeConfigured.ApiKey);
@@ -138,7 +138,7 @@ public class AIConfigController : BaseApiController
                 || !string.IsNullOrEmpty(geminiConfigured.ApiKey);
             var geminiModel = (geminiDbModel.IsSuccess && !string.IsNullOrEmpty(geminiDbModel.Value))
                 ? geminiDbModel.Value
-                : geminiConfigured.Model ?? "gemini-1.5-pro";
+                : geminiConfigured.Model ?? "gemini-2.5-flash";
             var geminiKeyPreview = geminiDbKey.IsSuccess && !string.IsNullOrEmpty(geminiDbKey.Value)
                 ? MaskApiKey(geminiDbKey.Value)
                 : MaskApiKey(geminiConfigured.ApiKey);
@@ -394,9 +394,9 @@ public class AIConfigController : BaseApiController
     {
         var models = provider.ToLower() switch
         {
-            "openai" => new[] { "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo" },
-            "claude" => new[] { "claude-opus-4-6", "claude-sonnet-4-6", "claude-sonnet-4-5", "claude-opus-4-5", "claude-haiku-4-5" },
-            "gemini" => new[] { "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro" },
+            "openai" => new[] { "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o4-mini" },
+            "claude" => new[] { "claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001" },
+            "gemini" => new[] { "gemini-2.5-flash", "gemini-2.5-pro" },
             _ => Array.Empty<string>()
         };
 

@@ -248,7 +248,7 @@ public class BusinessPlanSectionController : BaseApiController
     ///         "originalWordCount": 5,
     ///         "newWordCount": 12,
     ///         "processingTimeMs": 1250,
-    ///         "model": "gpt-4"
+    ///         "model": "gpt-4.1"
     ///     }
     /// </remarks>
     /// <response code="200">AI-modified content returned successfully</response>

@@ -58,7 +58,7 @@ namespace Sqordia.Persistence.Migrations
                 SELECT
                     gen_random_uuid(),
                     'AI.OpenAI.Model',
-                    'gpt-4o',
+                    'gpt-4.1',
                     'AI',
                     'OpenAI model name',
                     false,
@@ -78,7 +78,7 @@ namespace Sqordia.Persistence.Migrations
                 SELECT
                     gen_random_uuid(),
                     'AI.Claude.Model',
-                    'claude-sonnet-4-20250514',
+                    'claude-sonnet-4-6',
                     'AI',
                     'Claude model name',
                     false,
@@ -98,7 +98,7 @@ namespace Sqordia.Persistence.Migrations
                 SELECT
                     gen_random_uuid(),
                     'AI.Gemini.Model',
-                    'gemini-1.5-pro',
+                    'gemini-2.5-flash',
                     'AI',
                     'Gemini model name',
                     false,
