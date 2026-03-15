@@ -132,7 +132,18 @@ public static class ServiceCollectionExtensions
             {
                 OnMessageReceived = context =>
                 {
-                    // If no Authorization header, fall back to HttpOnly cookie
+                    // SignalR sends token as query string for WebSocket connections
+                    if (string.IsNullOrEmpty(context.Token))
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                        {
+                            context.Token = accessToken;
+                        }
+                    }
+
+                    // Fall back to HttpOnly cookie
                     if (string.IsNullOrEmpty(context.Token))
                     {
                         context.Token = context.Request.Cookies["access_token"];

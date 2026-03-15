@@ -137,8 +137,16 @@ public class AuthController : BaseApiController
 
     [HttpPost("logout")]
     [Authorize]
-    public async Task<IActionResult> Logout([FromBody] LogoutRequest request, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Logout([FromBody] LogoutRequest? request, CancellationToken cancellationToken = default)
     {
+        request ??= new LogoutRequest();
+
+        // Fall back to cookie if refresh token not provided in body
+        if (string.IsNullOrEmpty(request.RefreshToken))
+        {
+            request.RefreshToken = Request.Cookies["refresh_token"] ?? "";
+        }
+
         var result = await _authenticationService.LogoutAsync(request);
         ClearAuthCookies();
         return HandleResult(result);
