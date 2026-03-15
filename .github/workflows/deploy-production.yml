@@ -26,12 +26,12 @@ jobs:
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
       || github.event_name == 'workflow_dispatch'
     environment: production
+    env:
+      API_BASE_URL: ${{ secrets.API_BASE_URL }}
+      DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
     steps:
       - name: Enable maintenance mode
-        if: ${{ secrets.DEPLOYMENT_API_KEY != '' }}
-        env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
+        if: env.DEPLOYMENT_API_KEY != ''
         run: |
           ESTIMATED_END=$(date -u -d '+20 minutes' +"%Y-%m-%dT%H:%M:%SZ")
           curl -sf -X POST "${API_BASE_URL}/api/v1/maintenance/ci/enable" \
@@ -66,6 +66,8 @@ jobs:
     env:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       RESOURCE_GROUP_NAME: ${{ secrets.AZURE_RESOURCE_GROUP_NAME }}
+      API_BASE_URL: ${{ secrets.API_BASE_URL }}
+      DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
 
     steps:
       - name: Checkout code
@@ -74,10 +76,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Update progress
-        if: ${{ secrets.DEPLOYMENT_API_KEY != '' }}
-        env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
+        if: env.DEPLOYMENT_API_KEY != ''
         run: |
           curl -sf -X POST "${API_BASE_URL}/api/v1/maintenance/ci/progress" \
             -H "Content-Type: application/json" \
@@ -171,10 +170,7 @@ jobs:
             --no-build
 
       - name: Update progress
-        if: ${{ secrets.DEPLOYMENT_API_KEY != '' }}
-        env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
+        if: env.DEPLOYMENT_API_KEY != ''
         run: |
           curl -sf -X POST "${API_BASE_URL}/api/v1/maintenance/ci/progress" \
             -H "Content-Type: application/json" \
@@ -196,6 +192,8 @@ jobs:
       RESOURCE_GROUP_NAME: ${{ secrets.AZURE_RESOURCE_GROUP_NAME }}
       CONTAINER_REGISTRY_NAME: ${{ secrets.AZURE_CONTAINER_REGISTRY_NAME }}
       CONTAINER_APP_NAME: ${{ secrets.AZURE_CONTAINER_APP_NAME }}
+      API_BASE_URL: ${{ secrets.API_BASE_URL }}
+      DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
 
     steps:
       - name: Checkout code
@@ -204,10 +202,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Update progress
-        if: ${{ secrets.DEPLOYMENT_API_KEY != '' }}
-        env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
+        if: env.DEPLOYMENT_API_KEY != ''
         run: |
           curl -sf -X POST "${API_BASE_URL}/api/v1/maintenance/ci/progress" \
             -H "Content-Type: application/json" \
@@ -254,10 +249,7 @@ jobs:
           docker push "${FULL_IMAGE}:latest"
 
       - name: Update progress
-        if: ${{ secrets.DEPLOYMENT_API_KEY != '' }}
-        env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
+        if: env.DEPLOYMENT_API_KEY != ''
         run: |
           curl -sf -X POST "${API_BASE_URL}/api/v1/maintenance/ci/progress" \
             -H "Content-Type: application/json" \
@@ -285,6 +277,8 @@ jobs:
     env:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       RESOURCE_GROUP_NAME: ${{ secrets.AZURE_RESOURCE_GROUP_NAME }}
+      API_BASE_URL: ${{ secrets.API_BASE_URL }}
+      DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
 
     steps:
       - name: Checkout code
@@ -322,10 +316,7 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Update progress
-        if: ${{ secrets.DEPLOYMENT_API_KEY != '' }}
-        env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
+        if: env.DEPLOYMENT_API_KEY != ''
         run: |
           curl -sf -X POST "${API_BASE_URL}/api/v1/maintenance/ci/progress" \
             -H "Content-Type: application/json" \
@@ -335,7 +326,7 @@ jobs:
       - name: Build and deploy functions
         run: |
           chmod +x scripts/deploy-azure-functions.sh
-          ./scripts/deploy-azure-functions.sh ${{ env.RESOURCE_GROUP_NAME }} ${{ secrets.AZURE_LOCATION || 'canadacentral' }} || {
+          ./scripts/deploy-azure-functions.sh ${{ env.RESOURCE_GROUP_NAME }} canadacentral || {
             echo "Functions deployment failed or skipped" >> $GITHUB_STEP_SUMMARY
           }
 
@@ -354,6 +345,8 @@ jobs:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       RESOURCE_GROUP_NAME: ${{ secrets.AZURE_RESOURCE_GROUP_NAME }}
       CONTAINER_APP_NAME: ${{ secrets.AZURE_CONTAINER_APP_NAME }}
+      API_BASE_URL: ${{ secrets.API_BASE_URL }}
+      DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
 
     steps:
       - name: Azure Login (OIDC)
@@ -398,10 +391,7 @@ jobs:
           fi
 
       - name: Disable maintenance mode
-        if: ${{ needs.deploy-image.result == 'success' && secrets.DEPLOYMENT_API_KEY != '' }}
-        env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
+        if: needs.deploy-image.result == 'success' && env.DEPLOYMENT_API_KEY != ''
         run: |
           curl -sf -X POST "${API_BASE_URL}/api/v1/maintenance/ci/disable" \
             -H "Content-Type: application/json" \
@@ -409,10 +399,7 @@ jobs:
             -d '{"deploymentId": "${{ github.run_id }}"}' || echo "Failed to disable maintenance mode"
 
       - name: Update maintenance on failure
-        if: ${{ needs.deploy-image.result == 'failure' && secrets.DEPLOYMENT_API_KEY != '' }}
-        env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          DEPLOYMENT_API_KEY: ${{ secrets.DEPLOYMENT_API_KEY }}
+        if: needs.deploy-image.result == 'failure' && env.DEPLOYMENT_API_KEY != ''
         run: |
           curl -sf -X POST "${API_BASE_URL}/api/v1/maintenance/ci/progress" \
             -H "Content-Type: application/json" \
