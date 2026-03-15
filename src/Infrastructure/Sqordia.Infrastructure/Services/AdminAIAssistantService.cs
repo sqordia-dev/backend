@@ -4,6 +4,7 @@ using Anthropic;
 using Anthropic.Models.Messages;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Services;
 
 namespace Sqordia.Infrastructure.Services;
@@ -15,7 +16,9 @@ public class AdminAIAssistantService : IAdminAIAssistantService
 {
     private readonly ILogger<AdminAIAssistantService> _logger;
     private readonly ClaudeSettings _settings;
-    private readonly AnthropicClient? _client;
+    private readonly IAIKeyResolver _keyResolver;
+    private AnthropicClient? _client;
+    private string _lastApiKey = string.Empty;
     private readonly IAdminDashboardService _dashboardService;
     private const int MaxToolIterations = 5;
 
@@ -27,24 +30,40 @@ public class AdminAIAssistantService : IAdminAIAssistantService
 
     public AdminAIAssistantService(
         IOptions<ClaudeSettings> settings,
+        IAIKeyResolver keyResolver,
         ILogger<AdminAIAssistantService> logger,
         IAdminDashboardService dashboardService)
     {
         _logger = logger;
         _settings = settings.Value;
+        _keyResolver = keyResolver;
         _dashboardService = dashboardService;
 
         if (!string.IsNullOrEmpty(_settings.ApiKey))
         {
             _client = new AnthropicClient(new Anthropic.Core.ClientOptions { ApiKey = _settings.ApiKey });
+            _lastApiKey = _settings.ApiKey;
         }
+    }
+
+    private async Task<AnthropicClient?> GetClientAsync(CancellationToken ct = default)
+    {
+        var config = await _keyResolver.ResolveClaudeAsync(ct);
+        if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != _lastApiKey)
+        {
+            _client = new AnthropicClient(new Anthropic.Core.ClientOptions { ApiKey = config.ApiKey });
+            _lastApiKey = config.ApiKey;
+            _settings.Model = config.Model;
+        }
+        return _client;
     }
 
     public async IAsyncEnumerable<AdminAIStreamEvent> StreamAdminQueryAsync(
         List<AdminAIMessage> conversationHistory,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (_client == null)
+        var client = await GetClientAsync(cancellationToken);
+        if (client == null)
         {
             yield return new AdminAIStreamEvent { Type = "error", Error = "AI service not configured. Check Claude API key." };
             yield break;
@@ -84,7 +103,7 @@ Present data clearly with specific numbers. Be concise but thorough.";
                 _logger.LogInformation("Admin AI: calling Claude API (iteration {Iteration}, model {Model})",
                     iteration, _settings.Model);
 
-                response = await _client.Messages.Create(parameters);
+                response = await client.Messages.Create(parameters);
             }
             catch (Exception ex)
             {

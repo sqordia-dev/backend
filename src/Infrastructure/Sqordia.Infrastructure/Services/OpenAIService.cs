@@ -27,11 +27,12 @@ public class OpenAISettings
     public string Model { get; set; } = "gpt-4.1";
 }
 
-public class OpenAIService : IAIService
+public class OpenAIService : IAIService, IReconfigurableAIService
 {
     private readonly ILogger<OpenAIService> _logger;
     private readonly OpenAISettings _settings;
-    private readonly ChatClient? _chatClient;
+    private ChatClient? _chatClient;
+    private readonly object _reconfigLock = new();
 
     public OpenAIService(
         IOptions<OpenAISettings> settings,
@@ -45,32 +46,54 @@ public class OpenAIService : IAIService
 
         if (!string.IsNullOrEmpty(_settings.ApiKey))
         {
-            try
-            {
-                _logger.LogInformation("Initializing OpenAI client with model: {Model}", _settings.Model);
-                
-                // Validate API key format (should start with sk-)
-                if (!_settings.ApiKey.StartsWith("sk-", StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogWarning("OpenAI API key format appears invalid. Expected format: sk-... or sk-proj-...");
-                }
-                
-                var openAIClient = new OpenAIClient(new ApiKeyCredential(_settings.ApiKey));
-                _chatClient = openAIClient.GetChatClient(_settings.Model);
-
-                _logger.LogInformation("OpenAI service initialized successfully with model: {Model}", _settings.Model);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to initialize OpenAI client: {ErrorMessage}",
-                    ex.Message);
-                _chatClient = null; // Ensure it's null on failure
-            }
+            InitializeClient(_settings.ApiKey, _settings.Model);
         }
         else
         {
             _logger.LogWarning("OpenAI API key not configured. AI features will be unavailable. " +
                 "Please set 'AI:OpenAI:ApiKey' in appsettings.json or 'OPENAI_API_KEY' environment variable.");
+        }
+    }
+
+    /// <summary>
+    /// Hot-swap API key and model at runtime (called by AIProviderFactory after admin saves)
+    /// </summary>
+    public void Reconfigure(string apiKey, string model)
+    {
+        if (string.IsNullOrEmpty(apiKey)) return;
+        if (apiKey == _settings.ApiKey && model == _settings.Model) return;
+
+        lock (_reconfigLock)
+        {
+            if (apiKey == _settings.ApiKey && model == _settings.Model) return;
+
+            _logger.LogInformation("Reconfiguring OpenAI service with new key and model: {Model}", model);
+            _settings.ApiKey = apiKey;
+            _settings.Model = model;
+            InitializeClient(apiKey, model);
+        }
+    }
+
+    private void InitializeClient(string apiKey, string model)
+    {
+        try
+        {
+            _logger.LogInformation("Initializing OpenAI client with model: {Model}", model);
+
+            if (!apiKey.StartsWith("sk-", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("OpenAI API key format appears invalid. Expected format: sk-... or sk-proj-...");
+            }
+
+            var openAIClient = new OpenAIClient(new ApiKeyCredential(apiKey));
+            _chatClient = openAIClient.GetChatClient(model);
+
+            _logger.LogInformation("OpenAI service initialized successfully with model: {Model}", model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize OpenAI client: {ErrorMessage}", ex.Message);
+            _chatClient = null;
         }
     }
 

@@ -15,8 +15,10 @@ namespace Sqordia.Infrastructure.Services;
 /// </summary>
 public class StructuredExtractionService : IStructuredExtractionService
 {
-    private readonly AnthropicClient? _client;
+    private AnthropicClient? _client;
     private readonly ClaudeSettings _settings;
+    private readonly IAIKeyResolver _keyResolver;
+    private string _lastApiKey = string.Empty;
     private readonly ILogger<StructuredExtractionService> _logger;
 
     private const int ExtractionMaxTokens = 4000;
@@ -30,9 +32,11 @@ public class StructuredExtractionService : IStructuredExtractionService
 
     public StructuredExtractionService(
         IOptions<ClaudeSettings> settings,
+        IAIKeyResolver keyResolver,
         ILogger<StructuredExtractionService> logger)
     {
         _settings = settings.Value;
+        _keyResolver = keyResolver;
         _logger = logger;
 
         if (!string.IsNullOrEmpty(_settings.ApiKey))
@@ -41,12 +45,26 @@ public class StructuredExtractionService : IStructuredExtractionService
             {
                 ApiKey = _settings.ApiKey
             });
+            _lastApiKey = _settings.ApiKey;
         }
+    }
+
+    private async Task<AnthropicClient?> GetClientAsync(CancellationToken ct = default)
+    {
+        var config = await _keyResolver.ResolveClaudeAsync(ct);
+        if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != _lastApiKey)
+        {
+            _client = new AnthropicClient(new Anthropic.Core.ClientOptions { ApiKey = config.ApiKey });
+            _lastApiKey = config.ApiKey;
+            _settings.Model = config.Model;
+        }
+        return _client;
     }
 
     public async Task<Result<SwotData>> ExtractSwotAsync(string content, string language, CancellationToken ct = default)
     {
-        if (_client == null)
+        var client = await GetClientAsync(ct);
+        if (client == null)
             return Result.Failure<SwotData>(Error.Failure("StructuredExtraction.NotConfigured", "Claude API key not configured"));
 
         var tool = new Tool
@@ -80,7 +98,8 @@ public class StructuredExtractionService : IStructuredExtractionService
 
     public async Task<Result<FinancialMetricsData>> ExtractFinancialMetricsAsync(string content, string language, CancellationToken ct = default)
     {
-        if (_client == null)
+        var client = await GetClientAsync(ct);
+        if (client == null)
             return Result.Failure<FinancialMetricsData>(Error.Failure("StructuredExtraction.NotConfigured", "Claude API key not configured"));
 
         var tool = new Tool
@@ -149,7 +168,8 @@ public class StructuredExtractionService : IStructuredExtractionService
 
     public async Task<Result<RiskMitigationData>> ExtractRiskPairsAsync(string content, string language, CancellationToken ct = default)
     {
-        if (_client == null)
+        var client = await GetClientAsync(ct);
+        if (client == null)
             return Result.Failure<RiskMitigationData>(Error.Failure("StructuredExtraction.NotConfigured", "Claude API key not configured"));
 
         var tool = new Tool
@@ -202,7 +222,8 @@ public class StructuredExtractionService : IStructuredExtractionService
 
     public async Task<Result<SectionHighlightsData>> ExtractHighlightsAsync(string sectionTitle, string content, string language, CancellationToken ct = default)
     {
-        if (_client == null)
+        var client = await GetClientAsync(ct);
+        if (client == null)
             return Result.Failure<SectionHighlightsData>(Error.Failure("StructuredExtraction.NotConfigured", "Claude API key not configured"));
 
         var tool = new Tool
@@ -252,7 +273,7 @@ public class StructuredExtractionService : IStructuredExtractionService
                 ToolChoice = new ToolChoiceTool { Name = tool.Name } // Force the specific tool
             };
 
-            var response = await _client!.Messages.Create(parameters);
+            var response = await _client!.Messages.Create(parameters); // _client guaranteed non-null by caller's GetClientAsync check
 
             if (response.Content != null)
             {

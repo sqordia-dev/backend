@@ -10,6 +10,7 @@ public class AIProviderFactory : IAIProviderFactory
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly IAIKeyResolver _keyResolver;
     private readonly ILogger<AIProviderFactory> _logger;
     private string? _cachedActiveProvider;
     private List<string>? _cachedFallbackProviders;
@@ -20,10 +21,12 @@ public class AIProviderFactory : IAIProviderFactory
     public AIProviderFactory(
         IServiceProvider serviceProvider,
         IServiceScopeFactory serviceScopeFactory,
+        IAIKeyResolver keyResolver,
         ILogger<AIProviderFactory> logger)
     {
         _serviceProvider = serviceProvider;
         _serviceScopeFactory = serviceScopeFactory;
+        _keyResolver = keyResolver;
         _logger = logger;
     }
 
@@ -39,12 +42,12 @@ public class AIProviderFactory : IAIProviderFactory
                 activeProviderName = "OpenAI";
             }
 
-            var provider = GetProviderByName(activeProviderName);
+            var provider = await GetProviderByNameWithKeysAsync(activeProviderName);
 
             if (provider == null)
             {
                 _logger.LogWarning("Could not resolve provider: {ProviderName}. Falling back to OpenAI.", activeProviderName);
-                provider = _serviceProvider.GetService<OpenAIService>();
+                provider = await GetProviderByNameWithKeysAsync("OpenAI");
             }
 
             return provider;
@@ -65,7 +68,7 @@ public class AIProviderFactory : IAIProviderFactory
 
             foreach (var name in fallbackNames)
             {
-                var provider = GetProviderByName(name);
+                var provider = await GetProviderByNameWithKeysAsync(name);
                 if (provider != null)
                 {
                     fallbackProviders.Add(provider);
@@ -105,7 +108,7 @@ public class AIProviderFactory : IAIProviderFactory
 
             if (overrides.TryGetValue(sectionKey, out var overrideConfig))
             {
-                var provider = GetProviderByName(overrideConfig.Provider);
+                var provider = await GetProviderByNameWithKeysAsync(overrideConfig.Provider);
                 if (provider != null)
                 {
                     _logger.LogDebug("Using override provider {Provider} for section {Section}",
@@ -128,11 +131,12 @@ public class AIProviderFactory : IAIProviderFactory
 
     public void InvalidateCache()
     {
-        _logger.LogInformation("Invalidating AI provider cache");
+        _logger.LogInformation("Invalidating AI provider cache and key resolver cache");
         _cachedActiveProvider = null;
         _cachedFallbackProviders = null;
         _cachedSectionOverrides = null;
         _lastCacheTime = DateTime.MinValue;
+        _keyResolver.InvalidateCache();
     }
 
     private async Task<string> GetActiveProviderNameAsync()
@@ -247,6 +251,33 @@ public class AIProviderFactory : IAIProviderFactory
         // Default: No section overrides
         _cachedSectionOverrides = new Dictionary<string, SectionOverrideConfig>();
         return _cachedSectionOverrides;
+    }
+
+    /// <summary>
+    /// Resolves a provider by name, ensures it has the latest API key and model from the DB,
+    /// and reconfigures the singleton if keys have changed.
+    /// </summary>
+    private async Task<IAIService?> GetProviderByNameWithKeysAsync(string providerName)
+    {
+        var provider = GetProviderByName(providerName);
+        if (provider == null) return null;
+
+        // Resolve the authoritative key + model from DB (falls back to env vars)
+        var config = providerName.ToLower() switch
+        {
+            "openai" => await _keyResolver.ResolveOpenAIAsync(),
+            "claude" => await _keyResolver.ResolveClaudeAsync(),
+            "gemini" => await _keyResolver.ResolveGeminiAsync(),
+            _ => null
+        };
+
+        // Reconfigure the singleton if DB has a different key/model
+        if (config != null && !string.IsNullOrEmpty(config.ApiKey) && provider is IReconfigurableAIService reconfigurable)
+        {
+            reconfigurable.Reconfigure(config.ApiKey, config.Model);
+        }
+
+        return provider;
     }
 
     private IAIService? GetProviderByName(string providerName)

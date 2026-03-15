@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -7,8 +10,6 @@ using Sqordia.Contracts.Requests.AI;
 using Sqordia.Contracts.Responses.AI;
 using Sqordia.Domain.Enums;
 using Sqordia.Infrastructure.Services;
-using System.Diagnostics;
-using System.Text.Json;
 
 namespace WebAPI.Controllers;
 
@@ -22,27 +23,33 @@ public class AIConfigController : BaseApiController
 {
     private readonly ISettingsService _settingsService;
     private readonly IAIProviderFactory _providerFactory;
+    private readonly IAIKeyResolver _keyResolver;
     private readonly IConfiguration _configuration;
     private readonly IOptions<OpenAISettings> _openAISettings;
     private readonly IOptions<ClaudeSettings> _claudeSettings;
     private readonly IOptions<GeminiSettings> _geminiSettings;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<AIConfigController> _logger;
 
     public AIConfigController(
         ISettingsService settingsService,
         IAIProviderFactory providerFactory,
+        IAIKeyResolver keyResolver,
         IConfiguration configuration,
         IOptions<OpenAISettings> openAISettings,
         IOptions<ClaudeSettings> claudeSettings,
         IOptions<GeminiSettings> geminiSettings,
+        IHttpClientFactory httpClientFactory,
         ILogger<AIConfigController> logger)
     {
         _settingsService = settingsService;
         _providerFactory = providerFactory;
+        _keyResolver = keyResolver;
         _configuration = configuration;
         _openAISettings = openAISettings;
         _claudeSettings = claudeSettings;
         _geminiSettings = geminiSettings;
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
@@ -284,8 +291,11 @@ public class AIConfigController : BaseApiController
                 );
             }
 
-            // Invalidate factory cache to pick up new settings
+            // Invalidate factory cache and key resolver to pick up new settings
             _providerFactory.InvalidateCache();
+
+            // Forward keys to Python AI service (fire-and-forget, non-blocking)
+            _ = ForwardConfigToPythonServiceAsync(request);
 
             _logger.LogInformation("AI provider configuration updated successfully. Active provider: {ActiveProvider}",
                 request.ActiveProvider);
@@ -502,6 +512,72 @@ public class AIConfigController : BaseApiController
         var start = apiKey.Substring(0, 7);
         var end = apiKey.Substring(apiKey.Length - 4);
         return $"{start}...{end}";
+    }
+
+    /// <summary>
+    /// Forward updated keys/models to the Python AI service so it reconfigures at runtime.
+    /// Fire-and-forget: failures are logged but do not block the admin response.
+    /// </summary>
+    private async Task ForwardConfigToPythonServiceAsync(AIConfigurationRequest request)
+    {
+        try
+        {
+            var baseUrl = _configuration["AI:PythonService:BaseUrl"];
+            if (string.IsNullOrEmpty(baseUrl))
+            {
+                _logger.LogDebug("Python AI service base URL not configured, skipping config forwarding");
+                return;
+            }
+
+            var serviceKey = _configuration["AI:PythonService:ServiceKey"];
+            var client = _httpClientFactory.CreateClient();
+            client.BaseAddress = new Uri(baseUrl.TrimEnd('/'));
+            if (!string.IsNullOrEmpty(serviceKey))
+            {
+                client.DefaultRequestHeaders.Add("X-Service-Key", serviceKey);
+            }
+
+            // Build the update payload — only send keys that were actually provided
+            var payload = new Dictionary<string, object?>();
+
+            if (request.Providers.TryGetValue("OpenAI", out var openai))
+            {
+                if (!string.IsNullOrEmpty(openai.ApiKey) && openai.ApiKey != "existing")
+                    payload["openai_api_key"] = openai.ApiKey;
+                payload["openai_model"] = openai.Model;
+            }
+            if (request.Providers.TryGetValue("Claude", out var claude))
+            {
+                if (!string.IsNullOrEmpty(claude.ApiKey) && claude.ApiKey != "existing")
+                    payload["anthropic_api_key"] = claude.ApiKey;
+                payload["anthropic_model"] = claude.Model;
+            }
+            if (request.Providers.TryGetValue("Gemini", out var gemini))
+            {
+                if (!string.IsNullOrEmpty(gemini.ApiKey) && gemini.ApiKey != "existing")
+                    payload["google_api_key"] = gemini.ApiKey;
+                payload["google_model"] = gemini.Model;
+            }
+
+            payload["active_provider"] = request.ActiveProvider?.ToLower();
+            payload["fallback_providers"] = request.FallbackProviders?.Select(p => p.ToLower()).ToList();
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var response = await client.PostAsJsonAsync("/admin/update-config", payload, cts.Token);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Successfully forwarded AI config to Python service");
+            }
+            else
+            {
+                _logger.LogWarning("Python service config forward returned {StatusCode}", response.StatusCode);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to forward AI config to Python service (non-blocking)");
+        }
     }
 
     private async Task<(bool success, string message, string? error)> TestProviderConnection(

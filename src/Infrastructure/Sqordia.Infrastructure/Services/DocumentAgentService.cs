@@ -16,8 +16,10 @@ namespace Sqordia.Infrastructure.Services;
 /// </summary>
 public class DocumentAgentService : IDocumentAgentService
 {
-    private readonly AnthropicClient? _client;
+    private AnthropicClient? _client;
     private readonly ClaudeSettings _settings;
+    private readonly IAIKeyResolver _keyResolver;
+    private string _lastApiKey = string.Empty;
     private readonly ILogger<DocumentAgentService> _logger;
 
     private const int MaxAgentTokens = 8000;
@@ -27,9 +29,11 @@ public class DocumentAgentService : IDocumentAgentService
 
     public DocumentAgentService(
         IOptions<ClaudeSettings> settings,
+        IAIKeyResolver keyResolver,
         ILogger<DocumentAgentService> logger)
     {
         _settings = settings.Value;
+        _keyResolver = keyResolver;
         _logger = logger;
 
         if (!string.IsNullOrEmpty(_settings.ApiKey))
@@ -38,7 +42,20 @@ public class DocumentAgentService : IDocumentAgentService
             {
                 ApiKey = _settings.ApiKey
             });
+            _lastApiKey = _settings.ApiKey;
         }
+    }
+
+    private async Task<AnthropicClient?> GetClientAsync(CancellationToken ct = default)
+    {
+        var config = await _keyResolver.ResolveClaudeAsync(ct);
+        if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != _lastApiKey)
+        {
+            _client = new AnthropicClient(new Anthropic.Core.ClientOptions { ApiKey = config.ApiKey });
+            _lastApiKey = config.ApiKey;
+            _settings.Model = config.Model;
+        }
+        return _client;
     }
 
     // ── Word Blueprint ───────────────────────────────────────
@@ -46,7 +63,8 @@ public class DocumentAgentService : IDocumentAgentService
     public async Task<Result<WordDocumentBlueprint>> GenerateWordBlueprintAsync(
         DocumentAgentRequest request, CancellationToken ct = default)
     {
-        if (_client == null)
+        var client = await GetClientAsync(ct);
+        if (client == null)
             return Result.Failure<WordDocumentBlueprint>(Error.Failure("DocumentAgent.NotConfigured", "Claude API key not configured"));
 
         var blocks = new List<WordBlock>();
@@ -95,7 +113,8 @@ public class DocumentAgentService : IDocumentAgentService
     public async Task<Result<PdfDocumentBlueprint>> GeneratePdfBlueprintAsync(
         DocumentAgentRequest request, CancellationToken ct = default)
     {
-        if (_client == null)
+        var client = await GetClientAsync(ct);
+        if (client == null)
             return Result.Failure<PdfDocumentBlueprint>(Error.Failure("DocumentAgent.NotConfigured", "Claude API key not configured"));
 
         var tools = BuildPdfTools();
@@ -238,7 +257,8 @@ public class DocumentAgentService : IDocumentAgentService
     public async Task<Result<PresentationBlueprint>> GeneratePresentationBlueprintAsync(
         DocumentAgentRequest request, CancellationToken ct = default)
     {
-        if (_client == null)
+        var client = await GetClientAsync(ct);
+        if (client == null)
             return Result.Failure<PresentationBlueprint>(Error.Failure("DocumentAgent.NotConfigured", "Claude API key not configured"));
 
         var tools = BuildPresentationTools();
@@ -287,7 +307,8 @@ public class DocumentAgentService : IDocumentAgentService
     public async Task<Result<SpreadsheetBlueprint>> GenerateSpreadsheetBlueprintAsync(
         DocumentAgentRequest request, CancellationToken ct = default)
     {
-        if (_client == null)
+        var client = await GetClientAsync(ct);
+        if (client == null)
             return Result.Failure<SpreadsheetBlueprint>(Error.Failure("DocumentAgent.NotConfigured", "Claude API key not configured"));
 
         var tool = new Tool

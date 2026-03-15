@@ -289,7 +289,8 @@ public static class ConfigureServices
                 options.ApiKey = string.Empty;
             }
 
-            var envApiKey = Environment.GetEnvironmentVariable("CLAUDE_API_KEY")
+            var envApiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
+                          ?? Environment.GetEnvironmentVariable("CLAUDE_API_KEY")
                           ?? Environment.GetEnvironmentVariable("AI__Claude__ApiKey");
 
             var configApiKey = configuration["AI:Claude:ApiKey"];
@@ -353,6 +354,9 @@ public static class ConfigureServices
         services.AddSingleton<OpenAIService>();
         services.AddSingleton<ClaudeService>();
         services.AddSingleton<GeminiService>();
+
+        // AI key resolver — single source of truth for API keys (DB > env vars)
+        services.AddSingleton<IAIKeyResolver, AIKeyResolver>();
 
         // Register AI provider factory
         services.AddSingleton<IAIProviderFactory, AIProviderFactory>();

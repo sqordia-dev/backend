@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Models;
 using Sqordia.Application.Services;
 using Sqordia.Contracts.Requests.Admin.PromptRegistry;
@@ -19,30 +20,53 @@ public class PromptImprovementService : IPromptImprovementService
     private readonly ILogger<PromptImprovementService> _logger;
     private readonly HttpClient _httpClient;
     private readonly ClaudeSettings _settings;
+    private readonly IAIKeyResolver _keyResolver;
+    private string _lastApiKey = string.Empty;
     private const string ImprovePromptEndpoint = "https://api.anthropic.com/v1/experimental/improve_prompt";
     private const string AnthropicVersion = "2023-06-01";
 
     public PromptImprovementService(
         IHttpClientFactory httpClientFactory,
+        IAIKeyResolver keyResolver,
         IOptions<ClaudeSettings> settings,
         ILogger<PromptImprovementService> logger)
     {
         _logger = logger;
         _settings = settings.Value;
+        _keyResolver = keyResolver;
         _httpClient = httpClientFactory.CreateClient("Anthropic");
 
         // Configure headers for Anthropic API
+        ConfigureHttpHeaders(_settings.ApiKey);
+    }
+
+    private void ConfigureHttpHeaders(string apiKey)
+    {
         _httpClient.DefaultRequestHeaders.Clear();
-        _httpClient.DefaultRequestHeaders.Add("x-api-key", _settings.ApiKey);
+        _httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
         _httpClient.DefaultRequestHeaders.Add("anthropic-version", AnthropicVersion);
         _httpClient.DefaultRequestHeaders.Add("anthropic-beta", "prompt-improvement-2025-01-24");
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        _lastApiKey = apiKey;
+    }
+
+    private async Task EnsureLatestKeyAsync(CancellationToken ct)
+    {
+        var config = await _keyResolver.ResolveClaudeAsync(ct);
+        if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != _lastApiKey)
+        {
+            _settings.ApiKey = config.ApiKey;
+            _settings.Model = config.Model;
+            ConfigureHttpHeaders(config.ApiKey);
+        }
     }
 
     public async Task<Result<PromptImprovementResultDto>> ImprovePromptAsync(
         PromptImprovementRequest request,
         CancellationToken cancellationToken = default)
     {
+        await EnsureLatestKeyAsync(cancellationToken);
+
         if (string.IsNullOrEmpty(_settings.ApiKey))
         {
             _logger.LogWarning("Claude API key not configured");

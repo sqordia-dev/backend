@@ -27,11 +27,12 @@ public class ClaudeSettings
     public bool EnablePromptCaching { get; set; } = true;
 }
 
-public class ClaudeService : IAIService
+public class ClaudeService : IAIService, IReconfigurableAIService
 {
     private readonly ILogger<ClaudeService> _logger;
     private readonly ClaudeSettings _settings;
-    private readonly AnthropicClient? _client;
+    private AnthropicClient? _client;
+    private readonly object _reconfigLock = new();
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -51,24 +52,53 @@ public class ClaudeService : IAIService
 
         if (!string.IsNullOrEmpty(_settings.ApiKey))
         {
-            try
-            {
-                _logger.LogInformation("Initializing Claude client with model: {Model}", _settings.Model);
-                _client = new AnthropicClient(new Anthropic.Core.ClientOptions
-                {
-                    ApiKey = _settings.ApiKey
-                });
-                _logger.LogInformation("Claude service initialized successfully");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to initialize Claude client");
-                _client = null;
-            }
+            InitializeClient(_settings.ApiKey);
         }
         else
         {
             _logger.LogWarning("Claude API key not configured");
+        }
+    }
+
+    /// <summary>
+    /// Hot-swap API key and model at runtime (called by AIProviderFactory after admin saves)
+    /// </summary>
+    public void Reconfigure(string apiKey, string model)
+    {
+        if (string.IsNullOrEmpty(apiKey)) return;
+        if (apiKey == _settings.ApiKey && model == _settings.Model) return;
+
+        lock (_reconfigLock)
+        {
+            if (apiKey == _settings.ApiKey && model == _settings.Model) return;
+
+            _logger.LogInformation("Reconfiguring Claude service with new key and model: {Model}", model);
+            _settings.ApiKey = apiKey;
+            _settings.Model = model;
+            InitializeClient(apiKey);
+        }
+    }
+
+    /// <summary>
+    /// Exposes the underlying Anthropic client for services that need raw tool_use access
+    /// </summary>
+    public AnthropicClient? Client => _client;
+
+    private void InitializeClient(string apiKey)
+    {
+        try
+        {
+            _logger.LogInformation("Initializing Claude client with model: {Model}", _settings.Model);
+            _client = new AnthropicClient(new Anthropic.Core.ClientOptions
+            {
+                ApiKey = apiKey
+            });
+            _logger.LogInformation("Claude service initialized successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize Claude client");
+            _client = null;
         }
     }
 

@@ -38,8 +38,8 @@ services:
       - AI__FallbackProviders=["OpenAI"]
 
       # Claude API Configuration
-      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
-      - AI__Claude__ApiKey=${CLAUDE_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AI__Claude__ApiKey=${ANTHROPIC_API_KEY:-}
 
       # Alternative AI Providers
       # - AI__Gemini__ApiKey=${GEMINI_API_KEY:-}

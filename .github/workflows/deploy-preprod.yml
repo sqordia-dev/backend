@@ -1,0 +1,183 @@
+name: Deploy Backend - Preprod
+
+on:
+  workflow_run:
+    workflows: ["CI - Build and Test"]
+    types: [completed]
+    branches: [develop]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  IMAGE_NAME: api
+
+jobs:
+  deploy:
+    name: Deploy to Preprod
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment: preprod
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RESOURCE_GROUP_NAME: ${{ secrets.AZURE_RESOURCE_GROUP_NAME }}
+      CONTAINER_REGISTRY_NAME: ${{ secrets.AZURE_CONTAINER_REGISTRY_NAME }}
+      CONTAINER_APP_NAME: ${{ secrets.AZURE_CONTAINER_APP_NAME }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Verify required secrets
+        run: |
+          MISSING=()
+          [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ] && MISSING+=("AZURE_SUBSCRIPTION_ID")
+          [ -z "${{ secrets.AZURE_CLIENT_ID }}" ] && MISSING+=("AZURE_CLIENT_ID")
+          [ -z "${{ secrets.AZURE_TENANT_ID }}" ] && MISSING+=("AZURE_TENANT_ID")
+          [ -z "${{ secrets.AZURE_CONTAINER_REGISTRY_NAME }}" ] && MISSING+=("AZURE_CONTAINER_REGISTRY_NAME")
+          [ -z "${{ secrets.AZURE_CONTAINER_APP_NAME }}" ] && MISSING+=("AZURE_CONTAINER_APP_NAME")
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "Missing secrets for preprod environment: ${MISSING[*]}" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+        continue-on-error: true
+        id: azure_login_oidc
+
+      - name: Azure Login (Service Principal Fallback)
+        if: steps.azure_login_oidc.outcome == 'failure'
+        run: |
+          if [ -z "${{ secrets.AZURE_CLIENT_SECRET }}" ]; then
+            echo "OIDC failed and AZURE_CLIENT_SECRET not set" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          az login --service-principal \
+            --username "${{ secrets.AZURE_CLIENT_ID }}" \
+            --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
+            --tenant "${{ secrets.AZURE_TENANT_ID }}"
+          az account set --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}"
+        id: azure_login_secret
+
+      - name: Fail if all auth methods failed
+        if: steps.azure_login_oidc.outcome == 'failure' && (steps.azure_login_secret.outcome == 'failure' || steps.azure_login_secret.outcome == 'skipped')
+        run: |
+          echo "All authentication methods failed" >> $GITHUB_STEP_SUMMARY
+          exit 1
+
+      - name: Set Azure subscription
+        run: az account set --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      # ── Database Migrations ──────────────────────────────────
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install EF Core tools
+        run: |
+          dotnet tool install --global dotnet-ef --version 8.0.10
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Restore and build
+        run: |
+          dotnet restore Sqordia.sln
+          dotnet build Sqordia.sln -c Release --no-restore
+
+      - name: Get database connection string
+        id: get-db-connection
+        run: |
+          KEY_VAULT_NAME=$(az keyvault list \
+            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+            --query "[?contains(name, 'kv')].name" \
+            --output tsv | head -1)
+
+          if [ -z "$KEY_VAULT_NAME" ]; then
+            echo "Key Vault not found in ${{ env.RESOURCE_GROUP_NAME }}"
+            exit 1
+          fi
+          echo "key_vault=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
+
+          CONNECTION_STRING=$(az keyvault secret show \
+            --vault-name "$KEY_VAULT_NAME" \
+            --name "database-connection-string" \
+            --query "value" --output tsv 2>/dev/null || echo "")
+
+          if [ -n "$CONNECTION_STRING" ]; then
+            echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
+            echo "connection_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "connection_available=false" >> $GITHUB_OUTPUT
+            DB_USER=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "postgresql-admin-username" --query "value" -o tsv 2>/dev/null || echo "${{ secrets.AZURE_POSTGRESQL_ADMIN_USERNAME }}")
+            DB_PASSWORD=$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "postgresql-admin-password" --query "value" -o tsv 2>/dev/null || echo "${{ secrets.AZURE_POSTGRESQL_ADMIN_PASSWORD }}")
+            SERVER_FQDN=$(az postgres flexible-server show \
+              --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+              --name "${{ secrets.AZURE_POSTGRESQL_SERVER_NAME }}" \
+              --query "fullyQualifiedDomainName" --output tsv 2>/dev/null || echo "")
+            if [ -n "$SERVER_FQDN" ] && [ -n "$DB_USER" ] && [ -n "$DB_PASSWORD" ]; then
+              CONN="Host=$SERVER_FQDN;Port=5432;Database=SqordiaDb;Username=$DB_USER;Password=$DB_PASSWORD;SSL Mode=Require;"
+              echo "connection_string=$CONN" >> $GITHUB_OUTPUT
+              echo "connection_available=true" >> $GITHUB_OUTPUT
+            else
+              echo "Cannot resolve database connection string" >> $GITHUB_STEP_SUMMARY
+              exit 1
+            fi
+          fi
+
+      - name: Run database migrations
+        run: |
+          dotnet ef database update \
+            --project src/Infrastructure/Sqordia.Persistence \
+            --startup-project src/WebAPI \
+            --configuration Release \
+            --connection "${{ steps.get-db-connection.outputs.connection_string }}" \
+            --no-build
+
+      # ── Docker Build & Deploy ────────────────────────────────
+      - name: Login to ACR
+        run: az acr login --name ${{ env.CONTAINER_REGISTRY_NAME }}
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
+          FULL_IMAGE="${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}"
+
+          docker build -t "${FULL_IMAGE}:${IMAGE_TAG}" -t "${FULL_IMAGE}:preprod-latest" .
+          docker push "${FULL_IMAGE}:${IMAGE_TAG}"
+          docker push "${FULL_IMAGE}:preprod-latest"
+
+      - name: Deploy to Container App
+        run: |
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+            --image "${{ env.CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.event.workflow_run.head_sha }}"
+
+      # ── Health Check ─────────────────────────────────────────
+      - name: Health check
+        run: |
+          sleep 20
+          URL=$(az containerapp show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+            --query "properties.configuration.ingress.fqdn" --output tsv 2>/dev/null || echo "")
+          if [ -n "$URL" ]; then
+            curl -sf "https://$URL/health" || echo "Health check failed - app may still be starting"
+          fi
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "## Preprod Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.event.workflow_run.head_branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.event.workflow_run.head_sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**CI Run:** ${{ github.event.workflow_run.html_url }}" >> $GITHUB_STEP_SUMMARY

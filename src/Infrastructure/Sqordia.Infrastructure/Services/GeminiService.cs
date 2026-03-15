@@ -22,12 +22,13 @@ public class GeminiSettings
     public int MaxTokens { get; set; } = 2000;
 }
 
-public class GeminiService : IAIService
+public class GeminiService : IAIService, IReconfigurableAIService
 {
     private readonly ILogger<GeminiService> _logger;
     private readonly GeminiSettings _settings;
-    private readonly GoogleAI? _client;
-    private readonly GenerativeModel? _model;
+    private GoogleAI? _client;
+    private GenerativeModel? _model;
+    private readonly object _reconfigLock = new();
 
     public GeminiService(
         IOptions<GeminiSettings> settings,
@@ -41,23 +42,47 @@ public class GeminiService : IAIService
 
         if (!string.IsNullOrEmpty(_settings.ApiKey))
         {
-            try
-            {
-                _logger.LogInformation("Initializing Gemini client with model: {Model}", _settings.Model);
-                _client = new GoogleAI(_settings.ApiKey);
-                _model = _client.GenerativeModel(_settings.Model);
-                _logger.LogInformation("Gemini service initialized successfully");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to initialize Gemini client");
-                _client = null;
-                _model = null;
-            }
+            InitializeClient(_settings.ApiKey, _settings.Model);
         }
         else
         {
             _logger.LogWarning("Gemini API key not configured");
+        }
+    }
+
+    /// <summary>
+    /// Hot-swap API key and model at runtime (called by AIProviderFactory after admin saves)
+    /// </summary>
+    public void Reconfigure(string apiKey, string model)
+    {
+        if (string.IsNullOrEmpty(apiKey)) return;
+        if (apiKey == _settings.ApiKey && model == _settings.Model) return;
+
+        lock (_reconfigLock)
+        {
+            if (apiKey == _settings.ApiKey && model == _settings.Model) return;
+
+            _logger.LogInformation("Reconfiguring Gemini service with new key and model: {Model}", model);
+            _settings.ApiKey = apiKey;
+            _settings.Model = model;
+            InitializeClient(apiKey, model);
+        }
+    }
+
+    private void InitializeClient(string apiKey, string modelName)
+    {
+        try
+        {
+            _logger.LogInformation("Initializing Gemini client with model: {Model}", modelName);
+            _client = new GoogleAI(apiKey);
+            _model = _client.GenerativeModel(modelName);
+            _logger.LogInformation("Gemini service initialized successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize Gemini client");
+            _client = null;
+            _model = null;
         }
     }
 

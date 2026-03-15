@@ -37,7 +37,7 @@ public class PublishedContentService : IPublishedContentService
 
             if (publishedVersion == null)
             {
-                return Result.Failure<PublishedContentResponse>(Error.NotFound("Cms.PublishedContent.NotFound", "No published CMS version exists."));
+                return Result.Success(new PublishedContentResponse { Sections = new Dictionary<string, List<CmsContentBlockResponse>>() });
             }
 
             var blocks = publishedVersion.ContentBlocks.AsEnumerable();
@@ -84,7 +84,7 @@ public class PublishedContentService : IPublishedContentService
 
             if (publishedVersion == null)
             {
-                return Result.Failure<PublishedContentResponse>(Error.NotFound("Cms.PublishedContent.NotFound", "No published CMS version exists."));
+                return Result.Success(new PublishedContentResponse { Sections = new Dictionary<string, List<CmsContentBlockResponse>>() });
             }
 
             var pagePrefix = pageKey + ".";
@@ -126,7 +126,7 @@ public class PublishedContentService : IPublishedContentService
 
             if (publishedVersion == null)
             {
-                return Result.Failure<CmsContentBlockResponse>(Error.NotFound("Cms.PublishedContent.NotFound", "No published CMS version exists."));
+                return Result.Failure<CmsContentBlockResponse>(Error.NotFound("Cms.ContentBlock.NotFound", "No published CMS version exists."));
             }
 
             var block = publishedVersion.ContentBlocks

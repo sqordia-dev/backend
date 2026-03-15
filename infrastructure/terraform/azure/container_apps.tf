@@ -188,7 +188,7 @@ resource "azurerm_container_app" "api" {
 
       # Claude (Anthropic) Configuration
       env {
-        name  = "CLAUDE_API_KEY"
+        name  = "ANTHROPIC_API_KEY"
         value = var.anthropic_api_key
       }
 
