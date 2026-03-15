@@ -114,6 +114,46 @@ public static class WebApplicationExtensions
     {
         var environment = app.Environment;
 
+        // CORS preflight handler — must be first to ensure OPTIONS requests for
+        // SignalR hubs (which have [Authorize]) get proper CORS headers before
+        // any auth middleware can interfere and return 401.
+        app.Use(async (context, next) =>
+        {
+            if (HttpMethods.IsOptions(context.Request.Method) &&
+                context.Request.Headers.ContainsKey("Origin") &&
+                context.Request.Headers.ContainsKey("Access-Control-Request-Method"))
+            {
+                var origin = context.Request.Headers.Origin.ToString();
+                var frontendBaseUrl = (System.Environment.GetEnvironmentVariable("FRONTEND_BASE_URL")
+                    ?? app.Configuration["Frontend:BaseUrl"])?.TrimEnd('/');
+
+                bool isAllowed;
+                if (environment.IsDevelopment())
+                {
+                    isAllowed = Uri.TryCreate(origin, UriKind.Absolute, out var uri) &&
+                               (uri.Host == "localhost" || uri.Host == "127.0.0.1");
+                }
+                else
+                {
+                    isAllowed = !string.IsNullOrEmpty(frontendBaseUrl) &&
+                               origin.Equals(frontendBaseUrl, StringComparison.OrdinalIgnoreCase);
+                }
+
+                if (isAllowed)
+                {
+                    context.Response.StatusCode = StatusCodes.Status204NoContent;
+                    context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+                    context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS";
+                    context.Response.Headers["Access-Control-Allow-Headers"] =
+                        context.Request.Headers["Access-Control-Request-Headers"].ToString();
+                    context.Response.Headers["Access-Control-Allow-Credentials"] = "true";
+                    context.Response.Headers["Access-Control-Max-Age"] = "3600";
+                    return;
+                }
+            }
+            await next();
+        });
+
         // Response compression - should be early in pipeline for best performance
         app.UseResponseCompression();
 
@@ -176,12 +216,9 @@ public static class WebApplicationExtensions
             appBuilder.UseIpRateLimiting();
         });
 
-        // Authentication & Authorization - Skip for OPTIONS requests
-        app.UseWhen(context => context.Request.Method != "OPTIONS", appBuilder =>
-        {
-            appBuilder.UseAuthentication();
-            appBuilder.UseAuthorization();
-        });
+        // Authentication & Authorization
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         // Map controllers
         app.MapControllers();
