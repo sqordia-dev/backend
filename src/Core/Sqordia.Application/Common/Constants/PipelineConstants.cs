@@ -27,6 +27,9 @@ public static class PipelineConstants
     /// <summary>Maximum tokens for section generation.</summary>
     public const int SectionMaxTokens = 4000;
 
+    /// <summary>Maximum tokens for Business Brief generation (complex 8-object JSON structure).</summary>
+    public const int BusinessBriefMaxTokens = 8000;
+
     /// <summary>Maximum tokens for analysis/review passes.</summary>
     public const int AnalysisMaxTokens = 3000;
 

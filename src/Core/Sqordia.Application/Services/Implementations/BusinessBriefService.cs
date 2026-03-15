@@ -79,7 +79,7 @@ public class BusinessBriefService : IBusinessBriefService
             var aiResult = await _aiService.GenerateContentWithMetadataAsync(
                 systemPrompt,
                 userPrompt,
-                maxTokens: Common.Constants.PipelineConstants.SectionMaxTokens,
+                maxTokens: Common.Constants.PipelineConstants.BusinessBriefMaxTokens,
                 temperature: Common.Constants.PipelineConstants.AnalysisTemperature,
                 maxRetries: Common.Constants.PipelineConstants.ReducedMaxRetries,
                 cancellationToken);
@@ -305,7 +305,25 @@ Respond ONLY with a valid JSON object following exactly the requested structure.
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning(ex, "Failed to parse AI response as JSON, creating brief from raw response");
+            _logger.LogWarning(ex, "Failed to parse AI response as JSON, attempting JSON repair");
+
+            // Attempt to repair truncated JSON by closing open braces/brackets
+            var repaired = RepairTruncatedJson(jsonContent);
+            try
+            {
+                var briefDto = JsonSerializer.Deserialize<BusinessBriefDto>(repaired, JsonOptions);
+                if (briefDto != null)
+                {
+                    _logger.LogInformation("Successfully parsed Business Brief after JSON repair");
+                    briefDto.BusinessPlanId = businessPlanId;
+                    briefDto.GeneratedAt = DateTime.UtcNow;
+                    return briefDto;
+                }
+            }
+            catch (JsonException repairEx)
+            {
+                _logger.LogWarning(repairEx, "JSON repair also failed, creating brief from raw response");
+            }
         }
 
         // Fallback: create a minimal brief from the raw response
@@ -318,6 +336,58 @@ Respond ONLY with a valid JSON object following exactly the requested structure.
                 PersonaSpecificNotes = aiResponse
             }
         };
+    }
+
+    /// <summary>
+    /// Attempts to repair truncated JSON by closing unclosed braces, brackets, and strings.
+    /// </summary>
+    private static string RepairTruncatedJson(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return "{}";
+
+        var sb = new System.Text.StringBuilder(json.TrimEnd());
+
+        // Track open structures
+        var openBraces = 0;
+        var openBrackets = 0;
+        var inString = false;
+        var escaped = false;
+
+        foreach (var ch in json)
+        {
+            if (escaped) { escaped = false; continue; }
+            if (ch == '\\') { escaped = true; continue; }
+            if (ch == '"') { inString = !inString; continue; }
+            if (inString) continue;
+
+            switch (ch)
+            {
+                case '{': openBraces++; break;
+                case '}': openBraces--; break;
+                case '[': openBrackets++; break;
+                case ']': openBrackets--; break;
+            }
+        }
+
+        // Close unclosed string
+        if (inString)
+            sb.Append('"');
+
+        // Remove trailing comma before closing
+        var trimmed = sb.ToString().TrimEnd();
+        if (trimmed.EndsWith(","))
+            trimmed = trimmed[..^1];
+        sb.Clear();
+        sb.Append(trimmed);
+
+        // Close unclosed brackets and braces
+        for (var i = 0; i < openBrackets; i++)
+            sb.Append(']');
+        for (var i = 0; i < openBraces; i++)
+            sb.Append('}');
+
+        return sb.ToString();
     }
 
     private static string ExtractJsonFromResponse(string response)
