@@ -188,7 +188,8 @@ public class User : BaseAuditableEntity
     // OAuth methods
     public static User CreateGoogleUser(string googleId, string firstName, string lastName, EmailAddress email, string? profilePictureUrl = null)
     {
-        var user = new User(firstName, lastName, email, email.Value, UserType.Entrepreneur);
+        var userName = email.Value.Split('@')[0];
+        var user = new User(firstName, lastName, email, userName, UserType.Entrepreneur);
         user.GoogleId = googleId;
         user.Provider = "google";
         user.IsEmailConfirmed = true; // Google emails are pre-verified
@@ -225,7 +226,8 @@ public class User : BaseAuditableEntity
     // Microsoft OAuth methods
     public static User CreateMicrosoftUser(string microsoftId, string firstName, string lastName, EmailAddress email, string? profilePictureUrl = null)
     {
-        var user = new User(firstName, lastName, email, email.Value, UserType.Entrepreneur);
+        var userName = email.Value.Split('@')[0];
+        var user = new User(firstName, lastName, email, userName, UserType.Entrepreneur);
         user.MicrosoftId = microsoftId;
         user.Provider = "microsoft";
         user.IsEmailConfirmed = true; // Microsoft emails are pre-verified

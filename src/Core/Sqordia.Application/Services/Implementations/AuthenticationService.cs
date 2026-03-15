@@ -85,13 +85,28 @@ public class AuthenticationService : IAuthenticationService
 
             // Create user with proper password hashing
             var email = new EmailAddress(request.Email);
-            var user = new User(request.FirstName, request.LastName, email, request.Email, userType);
-            
+            var userName = !string.IsNullOrWhiteSpace(request.UserName) ? request.UserName : request.Email.Split('@')[0];
+            var user = new User(request.FirstName, request.LastName, email, userName, userType);
+
             // Hash password using BCrypt
             var passwordHash = _securityService.HashPassword(request.Password);
             user.SetPasswordHash(passwordHash);
 
             _context.Users.Add(user);
+
+            // Assign default "Collaborateur" role to new users
+            var defaultRole = await _context.Roles
+                .FirstOrDefaultAsync(r => r.Name == "Collaborateur", cancellationToken);
+            if (defaultRole != null)
+            {
+                var userRole = new UserRole(user.Id, defaultRole.Id);
+                _context.UserRoles.Add(userRole);
+                user.UserRoles.Add(userRole);
+            }
+            else
+            {
+                _logger.LogWarning("Default 'Collaborateur' role not found. New user {Email} has no role assigned.", request.Email);
+            }
 
             // Generate JWT token and refresh token
             var accessToken = await _jwtTokenService.GenerateAccessTokenAsync(user);
@@ -1026,16 +1041,26 @@ public class AuthenticationService : IAuthenticationService
 
             // Create new user
             _logger.LogInformation("Creating new Google user for email: {Email}", email);
-            
+
             var emailAddress = new EmailAddress(email);
             var newUser = User.CreateGoogleUser(googleId, firstName, lastName, emailAddress, profilePictureUrl);
-            
+
             _context.Users.Add(newUser);
-            
-            // Generate refresh token (adds to context but doesn't save)
-            // Note: We need to save the user first to get the ID, but we'll do it in one call
-            // Actually, we can't generate the refresh token before saving the user because we need the user ID
-            // So we'll save the user first, then generate and save the refresh token
+
+            // Assign default "Collaborateur" role to new Google users
+            var defaultRole = await _context.Roles
+                .FirstOrDefaultAsync(r => r.Name == "Collaborateur", cancellationToken);
+            if (defaultRole != null)
+            {
+                var userRole = new UserRole(newUser.Id, defaultRole.Id);
+                _context.UserRoles.Add(userRole);
+                newUser.UserRoles.Add(userRole);
+            }
+            else
+            {
+                _logger.LogWarning("Default 'Collaborateur' role not found. New Google user {Email} has no role assigned.", email);
+            }
+
             await _context.SaveChangesAsync(cancellationToken);
 
             // Send welcome email (email is already verified by Google, so no verification needed)
