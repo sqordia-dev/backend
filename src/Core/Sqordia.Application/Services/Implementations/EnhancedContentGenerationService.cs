@@ -150,7 +150,7 @@ public class EnhancedContentGenerationService : IEnhancedContentGenerationServic
             var aiResult = await _aiService.GenerateContentWithMetadataAsync(
                 systemPrompt,
                 userPrompt,
-                maxTokens: 4000,
+                maxTokens: Common.Constants.PipelineConstants.SectionMaxTokens,
                 temperature: temperature,
                 maxRetries: 3,
                 cancellationToken);
@@ -301,7 +301,7 @@ public class EnhancedContentGenerationService : IEnhancedContentGenerationServic
             var aiResult = await _aiService.GenerateContentWithMetadataAsync(
                 systemPrompt,
                 userPrompt,
-                maxTokens: 4000,
+                maxTokens: Common.Constants.PipelineConstants.SectionMaxTokens,
                 temperature: temperature,
                 maxRetries: 3,
                 cancellationToken);
@@ -675,19 +675,8 @@ Generate realistic data that matches the business context.");
 
     private string GetFallbackSystemPrompt(string language)
     {
-        return language.ToLower() == "en"
-            ? @"You are an expert business plan consultant with 20 years of experience. Generate professional, comprehensive business plan content with:
-1. Clear, compelling prose in HTML format
-2. Relevant visual elements (charts, tables, metrics) where appropriate
-3. Data-driven insights and actionable recommendations
-
-Write ONLY in English. Always aim for clarity, professionalism, and persuasiveness."
-            : @"Vous êtes un consultant expert en plans d'affaires avec 20 ans d'expérience. Générez un contenu de plan d'affaires professionnel et complet avec :
-1. Une prose claire et convaincante au format HTML
-2. Des éléments visuels pertinents (graphiques, tableaux, métriques) le cas échéant
-3. Des informations basées sur les données et des recommandations actionnables
-
-Rédigez UNIQUEMENT en français. Ne produisez JAMAIS de contenu en anglais. Visez toujours la clarté, le professionnalisme et la persuasion.";
+        // Delegate to the shared pipeline system prompt for consistency
+        return GenerationPipelineService.GetSharedFallbackSystemPrompt(language);
     }
 
     private string GetFallbackUserPrompt(SectionType sectionType, Dictionary<string, string> variables, GenerationOptionsDto options)

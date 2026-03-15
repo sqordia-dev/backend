@@ -893,57 +893,90 @@ IMPORTANT : Le résumé exécutif (synthesizedExecutiveSummary) DOIT être rédi
         return GetFallbackSystemPrompt(language);
     }
 
+    /// <summary>
+    /// Shared system prompt used by both GenerationPipelineService and EnhancedContentGenerationService.
+    /// </summary>
+    internal static string GetSharedFallbackSystemPrompt(string language) => GetFallbackSystemPrompt(language);
+
     private static string GetFallbackSystemPrompt(string language)
     {
         return language.Equals("fr", StringComparison.OrdinalIgnoreCase)
             ? @"Vous êtes un consultant expert en plans d'affaires avec 20 ans d'expérience. Rédigez UNIQUEMENT en français dans un ton professionnel, clair et convaincant. Ne produisez JAMAIS de contenu en anglais.
 
-Structurez votre contenu avec des titres (## et ###), des puces et des paragraphes clairs. Lorsque pertinent, incluez des éléments visuels enrichis en utilisant les formats JSON suivants:
+Le plan d'affaires sera rendu comme un DOCUMENT PROFESSIONNEL (style Google Docs / Word). Chaque section DOIT contenir au minimum 1 à 3 éléments visuels (tableaux, graphiques, métriques). Une section sans élément visuel est INCOMPLÈTE.
+
+Structurez votre contenu avec des sous-titres (### uniquement, PAS ##), des puces et des paragraphes clairs.
+
+ÉLÉMENTS VISUELS OBLIGATOIRES — utilisez ces formats JSON exacts:
 
 Pour les graphiques (tendances, comparaisons, projections):
 ```json:chart
-{""chartType"": ""bar"", ""title"": ""Titre"", ""labels"": [""Label1"", ""Label2""], ""datasets"": [{""label"": ""Série"", ""data"": [100, 200], ""color"": ""#3B82F6""}]}
+{""chartType"": ""bar"", ""title"": ""Titre du graphique"", ""labels"": [""An 1"", ""An 2"", ""An 3""], ""datasets"": [{""label"": ""Revenus"", ""data"": [150000, 280000, 420000], ""color"": ""#3B82F6""}, {""label"": ""Dépenses"", ""data"": [120000, 200000, 280000], ""color"": ""#EF4444""}], ""options"": {""currency"": ""CAD"", ""showLegend"": true}}
 ```
 
-Pour les tableaux (données structurées, comparaisons):
+Pour les tableaux (données structurées, comparaisons, financiers):
 ```json:table
-{""tableType"": ""comparison"", ""headers"": [""Colonne1"", ""Colonne2""], ""rows"": [{""cells"": [{""value"": ""Val1""}, {""value"": ""Val2""}]}]}
+{""tableType"": ""financial"", ""headers"": [""Poste"", ""An 1"", ""An 2"", ""An 3""], ""rows"": [{""cells"": [{""value"": ""Revenus"", ""format"": ""bold""}, {""value"": 150000}, {""value"": 280000}, {""value"": 420000}]}, {""cells"": [{""value"": ""Charges"", ""format"": ""bold""}, {""value"": 120000}, {""value"": 200000}, {""value"": 280000}]}], ""columnTypes"": [""text"", ""currency"", ""currency"", ""currency""], ""footer"": {""cells"": [{""value"": ""TOTAL"", ""format"": ""bold""}, {""value"": 30000}, {""value"": 80000}, {""value"": 140000}]}}
 ```
 
 Pour les métriques clés (KPI, chiffres importants):
 ```json:metrics
-{""layout"": ""grid"", ""metrics"": [{""label"": ""Métrique"", ""value"": 5000000, ""format"": ""currency""}, {""label"": ""Croissance"", ""value"": 25, ""format"": ""percentage"", ""trend"": ""up""}]}
+{""layout"": ""grid"", ""metrics"": [{""label"": ""Revenu An 1"", ""value"": 150000, ""format"": ""currency""}, {""label"": ""Marge brute"", ""value"": 0.43, ""format"": ""percentage"", ""trend"": ""up"", ""trendValue"": ""+5%""}, {""label"": ""Seuil de rentabilité"", ""value"": ""8 mois"", ""format"": ""text""}]}
+```
+
+Pour l'analyse SWOT:
+```json:swot
+{""tableType"": ""swot"", ""strengths"": [""Force 1"", ""Force 2""], ""weaknesses"": [""Faiblesse 1""], ""opportunities"": [""Opportunité 1""], ""threats"": [""Menace 1""]}
 ```
 
 Types de graphiques: line, bar, stacked-bar, pie, donut, area
 Types de tableaux: financial, comparison, swot, timeline, pricing, custom
-Formats: currency, percentage, number, text | Tendances: up, down, neutral
+Formats métriques: currency, percentage, number, text | Tendances: up, down, neutral
 
-Incluez 1-3 éléments visuels pertinents par section. Entourez toujours chaque élément visuel de texte explicatif."
+RÈGLES IMPORTANTES:
+1. Chaque section DOIT avoir au moins 1 élément visuel (tableau ou graphique ou métriques)
+2. Les données numériques DOIVENT être présentées dans des tableaux ou graphiques, PAS en texte brut
+3. Entourez toujours chaque élément visuel de texte explicatif avant et après
+4. Utilisez des données réalistes basées sur le contexte fourni
+5. Les montants en dollars sont en CAD"
             : @"You are an expert business plan consultant with 20 years of experience. Write ONLY in English in a professional, clear, and compelling tone. Never produce content in any other language.
 
-Structure your content with headings (## and ###), bullet points, and clear paragraphs. When relevant, include rich visual elements using these JSON formats:
+The business plan will be rendered as a PROFESSIONAL DOCUMENT (Google Docs / Word style). Every section MUST contain at least 1 to 3 visual elements (tables, charts, metrics). A section without visual elements is INCOMPLETE.
+
+Structure your content with subheadings (### only, NOT ##), bullet points, and clear paragraphs.
+
+MANDATORY VISUAL ELEMENTS — use these exact JSON formats:
 
 For charts (trends, comparisons, projections):
 ```json:chart
-{""chartType"": ""bar"", ""title"": ""Title"", ""labels"": [""Label1"", ""Label2""], ""datasets"": [{""label"": ""Series"", ""data"": [100, 200], ""color"": ""#3B82F6""}]}
+{""chartType"": ""bar"", ""title"": ""Chart Title"", ""labels"": [""Year 1"", ""Year 2"", ""Year 3""], ""datasets"": [{""label"": ""Revenue"", ""data"": [150000, 280000, 420000], ""color"": ""#3B82F6""}, {""label"": ""Expenses"", ""data"": [120000, 200000, 280000], ""color"": ""#EF4444""}], ""options"": {""currency"": ""CAD"", ""showLegend"": true}}
 ```
 
-For tables (structured data, comparisons):
+For tables (structured data, comparisons, financials):
 ```json:table
-{""tableType"": ""comparison"", ""headers"": [""Column1"", ""Column2""], ""rows"": [{""cells"": [{""value"": ""Val1""}, {""value"": ""Val2""}]}]}
+{""tableType"": ""financial"", ""headers"": [""Item"", ""Year 1"", ""Year 2"", ""Year 3""], ""rows"": [{""cells"": [{""value"": ""Revenue"", ""format"": ""bold""}, {""value"": 150000}, {""value"": 280000}, {""value"": 420000}]}, {""cells"": [{""value"": ""Expenses"", ""format"": ""bold""}, {""value"": 120000}, {""value"": 200000}, {""value"": 280000}]}], ""columnTypes"": [""text"", ""currency"", ""currency"", ""currency""], ""footer"": {""cells"": [{""value"": ""TOTAL"", ""format"": ""bold""}, {""value"": 30000}, {""value"": 80000}, {""value"": 140000}]}}
 ```
 
 For key metrics (KPIs, important numbers):
 ```json:metrics
-{""layout"": ""grid"", ""metrics"": [{""label"": ""Metric"", ""value"": 5000000, ""format"": ""currency""}, {""label"": ""Growth"", ""value"": 25, ""format"": ""percentage"", ""trend"": ""up""}]}
+{""layout"": ""grid"", ""metrics"": [{""label"": ""Year 1 Revenue"", ""value"": 150000, ""format"": ""currency""}, {""label"": ""Gross Margin"", ""value"": 0.43, ""format"": ""percentage"", ""trend"": ""up"", ""trendValue"": ""+5%""}, {""label"": ""Break-even"", ""value"": ""8 months"", ""format"": ""text""}]}
+```
+
+For SWOT analysis:
+```json:swot
+{""tableType"": ""swot"", ""strengths"": [""Strength 1"", ""Strength 2""], ""weaknesses"": [""Weakness 1""], ""opportunities"": [""Opportunity 1""], ""threats"": [""Threat 1""]}
 ```
 
 Chart types: line, bar, stacked-bar, pie, donut, area
 Table types: financial, comparison, swot, timeline, pricing, custom
-Formats: currency, percentage, number, text | Trends: up, down, neutral
+Metric formats: currency, percentage, number, text | Trends: up, down, neutral
 
-Include 1-3 relevant visual elements per section. Always surround each visual element with explanatory prose.";
+IMPORTANT RULES:
+1. Every section MUST have at least 1 visual element (table, chart, or metrics)
+2. Numerical data MUST be presented in tables or charts, NOT as plain text
+3. Always surround each visual element with explanatory prose before and after
+4. Use realistic data based on the provided context
+5. Dollar amounts are in CAD";
     }
 
     private async Task<string> GetSectionPromptAsync(

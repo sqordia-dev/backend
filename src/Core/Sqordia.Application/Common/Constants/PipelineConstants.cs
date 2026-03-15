@@ -24,8 +24,8 @@ public static class PipelineConstants
     /// <summary>Minimum sample count for a learned preference to be included in prompts.</summary>
     public const int MinPreferenceSamples = 3;
 
-    /// <summary>Maximum tokens for section generation.</summary>
-    public const int SectionMaxTokens = 4000;
+    /// <summary>Maximum tokens for section generation (includes visual element JSON blocks).</summary>
+    public const int SectionMaxTokens = 6000;
 
     /// <summary>Maximum tokens for Business Brief generation (complex 8-object JSON structure).</summary>
     public const int BusinessBriefMaxTokens = 8000;
