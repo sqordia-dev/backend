@@ -8,14 +8,13 @@ terraform {
     }
   }
 
-  # Optional: Use Azure Storage backend for remote state (recommended for team collaboration)
-  # Uncomment and configure when ready
-  # backend "azurerm" {
-  #   resource_group_name  = "sqordia-terraform-state"
-  #   storage_account_name = "sqordiaterraformstate"
-  #   container_name       = "terraform-state"
-  #   key                  = "terraform.tfstate"
-  # }
+  # Remote state in Azure Storage (encrypted at rest, versioned for rollback)
+  backend "azurerm" {
+    resource_group_name  = "sqordia-production-rg"
+    storage_account_name = "sqordiaterraformstate"
+    container_name       = "tfstate"
+    key                  = "production.tfstate"
+  }
 }
 
 provider "azurerm" {
