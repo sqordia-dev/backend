@@ -20,8 +20,6 @@
     <PackageReference Include="Stripe.net" Version="47.0.0" />
     <!-- Azure Packages -->
     <PackageReference Include="Azure.Storage.Blobs" Version="12.19.1" />
-    <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.17.0" />
-    <PackageReference Include="Azure.Communication.Email" Version="1.1.0" />
   </ItemGroup>
 
   <PropertyGroup>

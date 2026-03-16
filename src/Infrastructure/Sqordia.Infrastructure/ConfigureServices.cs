@@ -5,8 +5,6 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Localization;
 using Azure.Storage.Blobs;
-using Azure.Messaging.ServiceBus;
-using Azure.Communication.Email;
 using Resend;
 using Sqordia.Application.Common.Interfaces;
 using Sqordia.Application.Common.Security;
@@ -35,7 +33,7 @@ public static class ConfigureServices
         services.AddHttpContextAccessor();
 
         // Email service configuration
-        // Priority: Resend > Azure Communication Services Email > Azure Service Bus > MockEmailService
+        // Priority: Resend > MockEmailService
         // Check if we're in a test environment
         var isTestEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Testing"
                              || Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Test"
@@ -109,109 +107,11 @@ public static class ConfigureServices
                                    || ex.Message.Contains("authentication", StringComparison.OrdinalIgnoreCase)
                                    || ex is InvalidOperationException)
             {
-                // If Resend is not available, fall back to Azure Communication Services
+                // If Resend is not available, fall back to mock
             }
         }
 
-        // Fall back to Azure Communication Services Email if Resend is not configured
-        var azureCommConnectionString = Environment.GetEnvironmentVariable("AzureCommunicationServices__ConnectionString")
-                                     ?? configuration["AzureCommunicationServices:ConnectionString"];
-        
-        var fromEmail = Environment.GetEnvironmentVariable("AzureCommunicationServices__FromEmail")
-                     ?? configuration["AzureCommunicationServices:FromEmail"]
-                     ?? Environment.GetEnvironmentVariable("Email__FromAddress")
-                     ?? configuration["Email:FromAddress"];
-        
-        var fromName = Environment.GetEnvironmentVariable("AzureCommunicationServices__FromName")
-                    ?? configuration["AzureCommunicationServices:FromName"]
-                    ?? Environment.GetEnvironmentVariable("Email__FromName")
-                    ?? configuration["Email:FromName"]
-                    ?? "Sqordia";
-
-        // Only initialize Azure Communication Services Email if Resend is not configured and not in test environment
-        if (!emailServiceRegistered && !isTestEnvironment && !string.IsNullOrEmpty(azureCommConnectionString) && !string.IsNullOrEmpty(fromEmail))
-        {
-            try
-            {
-                var frontendBaseUrl = Environment.GetEnvironmentVariable("FRONTEND_BASE_URL")
-                                   ?? configuration["Frontend:BaseUrl"]
-                                   ?? "https://sqordia.app";
-                
-                var emailSettings = new AzureCommunicationEmailSettings
-                {
-                    ConnectionString = azureCommConnectionString,
-                    FromEmail = fromEmail,
-                    FromName = fromName,
-                    FrontendBaseUrl = frontendBaseUrl
-                };
-                
-                services.Configure<AzureCommunicationEmailSettings>(options =>
-                {
-                    options.ConnectionString = emailSettings.ConnectionString;
-                    options.FromEmail = emailSettings.FromEmail;
-                    options.FromName = emailSettings.FromName;
-                    options.FrontendBaseUrl = emailSettings.FrontendBaseUrl;
-                });
-                
-                // Create EmailClient for Azure Communication Services
-                var emailClient = new EmailClient(azureCommConnectionString);
-                services.AddSingleton(emailClient);
-                
-                services.AddTransient<IEmailService>(sp =>
-                    new AzureCommunicationEmailService(
-                        emailClient,
-                        sp.GetRequiredService<IOptions<AzureCommunicationEmailSettings>>(),
-                        sp.GetRequiredService<ILogger<AzureCommunicationEmailService>>(),
-                        sp.GetRequiredService<ILocalizationService>(),
-                        sp.GetRequiredService<IStringLocalizerFactory>()));
-                
-                emailServiceRegistered = true;
-            }
-            catch (Exception ex) when (ex.Message.Contains("connection", StringComparison.OrdinalIgnoreCase) 
-                                   || ex.Message.Contains("authentication", StringComparison.OrdinalIgnoreCase)
-                                   || ex is InvalidOperationException)
-            {
-                // If connection is not available, fall back to Service Bus or Mock
-            }
-        }
-
-        // Fallback to Azure Service Bus if Azure Communication Services is not configured
-        if (!emailServiceRegistered)
-        {
-            var serviceBusConnectionString = Environment.GetEnvironmentVariable("AzureServiceBus__ConnectionString")
-                                          ?? configuration["AzureServiceBus:ConnectionString"];
-            
-            var emailTopic = Environment.GetEnvironmentVariable("AzureServiceBus__EmailTopic")
-                          ?? configuration["AzureServiceBus:EmailTopic"];
-
-            // Only initialize Azure Service Bus if not in test environment and configuration is available
-            if (!isTestEnvironment && !string.IsNullOrEmpty(serviceBusConnectionString) && !string.IsNullOrEmpty(emailTopic))
-            {
-                try
-                {
-                    // Create ServiceBusClient for Service Bus
-                    var serviceBusClient = new ServiceBusClient(serviceBusConnectionString);
-                    services.AddSingleton(serviceBusClient);
-                    
-                    services.AddTransient<IEmailService>(sp =>
-                        new ServiceBusEmailService(
-                            serviceBusClient,
-                            emailTopic,
-                            sp.GetRequiredService<ILogger<ServiceBusEmailService>>(),
-                            sp.GetRequiredService<ILocalizationService>()));
-                    
-                    emailServiceRegistered = true;
-                }
-                catch (Exception ex) when (ex.Message.Contains("connection", StringComparison.OrdinalIgnoreCase) 
-                                       || ex.Message.Contains("authentication", StringComparison.OrdinalIgnoreCase)
-                                       || ex is InvalidOperationException)
-                {
-                    // If connection is not available, fall back to mock email service
-                }
-            }
-        }
-
-        // Use mock email service for tests or when no email service is configured
+        // Use mock email service for tests or when Resend is not configured
         if (!emailServiceRegistered)
         {
             services.AddTransient<IEmailService, MockEmailService>();

@@ -31,41 +31,6 @@ resource "azurerm_service_plan" "functions" {
   )
 }
 
-# Email Handler Function App
-resource "azurerm_linux_function_app" "email_handler" {
-  name                 = "${var.project_name}-${var.environment}-email-handler"
-  resource_group_name  = data.azurerm_resource_group.main.name
-  location             = data.azurerm_resource_group.main.location
-  service_plan_id      = azurerm_service_plan.functions.id
-  storage_account_name = azurerm_storage_account.functions.name
-
-  site_config {
-    application_stack {
-      dotnet_version = "8.0"
-    }
-  }
-
-  app_settings = {
-    FUNCTIONS_WORKER_RUNTIME                     = "dotnet-isolated"
-    ConnectionStrings__SqordiaDb                 = "Host=${azurerm_postgresql_flexible_server.main.fqdn};Port=5432;Database=${azurerm_postgresql_flexible_server_database.main.name};Username=${var.postgresql_admin_username};Password=${var.postgresql_admin_password};SSL Mode=Require;"
-    AzureServiceBus__ConnectionString            = azurerm_servicebus_namespace.main.default_primary_connection_string
-    AzureServiceBus__EmailTopic                  = azurerm_servicebus_topic.email.name
-    AzureServiceBus__EmailSubscription           = azurerm_servicebus_subscription.email.name
-    AzureCommunicationServices__ConnectionString = azurerm_communication_service.main.primary_connection_string
-    AzureCommunicationServices__FromEmail        = var.email_from_address != "" ? var.email_from_address : azurerm_email_communication_service_domain.azure_managed.from_sender_domain
-    AzureCommunicationServices__FromName         = var.email_from_name
-    WEBSITE_CONTENTSHARE                         = "${var.project_name}-${var.environment}-email-handler-content"
-    WEBSITE_CONTENTAZUREFILECONNECTIONSTRING     = azurerm_storage_account.functions.primary_connection_string
-  }
-
-  tags = merge(
-    var.common_tags,
-    {
-      Name = "${var.project_name}-${var.environment}-email-handler"
-    }
-  )
-}
-
 # AI Generation Handler Function App
 resource "azurerm_linux_function_app" "ai_generation_handler" {
   name                 = "${var.project_name}-${var.environment}-ai-generation-handler"

@@ -631,16 +631,21 @@ public class AuthenticationService : IAuthenticationService
             _context.PasswordResetTokens.Add(passwordResetToken);
             await _context.SaveChangesAsync(cancellationToken);
 
-            // Send password reset email
-            try
+            // Fire-and-forget: send password reset email (non-blocking)
+            var resetEmail = user.Email.Value;
+            var resetUserName = user.UserName;
+            var resetTokenValue = resetToken;
+            _ = Task.Run(async () =>
             {
-                await _emailService.SendPasswordResetAsync(user.Email.Value, user.UserName, resetToken);
-            }
-            catch (Exception)
-            {
-                // Log email failure but don't fail the request
-                // In production, you might want to queue this for retry
-            }
+                try
+                {
+                    await _emailService.SendPasswordResetAsync(resetEmail, resetUserName, resetTokenValue);
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogError(emailEx, "Failed to send password reset email to {Email}", resetEmail);
+                }
+            });
 
             return Result.Success();
         }
@@ -708,16 +713,21 @@ public class AuthenticationService : IAuthenticationService
             _context.EmailVerificationTokens.Add(emailVerificationToken);
             await _context.SaveChangesAsync(cancellationToken);
 
-            // Send verification email
-            try
+            // Fire-and-forget: send verification email (non-blocking)
+            var verifyEmail = user.Email.Value;
+            var verifyUserName = user.UserName;
+            var verifyToken = verificationToken;
+            _ = Task.Run(async () =>
             {
-                await _emailService.SendEmailVerificationAsync(user.Email.Value, user.UserName, verificationToken);
-            }
-            catch (Exception)
-            {
-                // Log email failure but don't fail the request
-                // In production, you might want to queue this for retry
-            }
+                try
+                {
+                    await _emailService.SendEmailVerificationAsync(verifyEmail, verifyUserName, verifyToken);
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogError(emailEx, "Failed to send verification email to {Email}", verifyEmail);
+                }
+            });
 
             return Result.Success();
         }

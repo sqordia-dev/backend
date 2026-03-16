@@ -229,22 +229,6 @@ resource "azurerm_container_app" "api" {
         value = var.frontend_base_url
       }
 
-      # Azure Communication Services Email
-      env {
-        name  = "AzureCommunicationServices__ConnectionString"
-        value = azurerm_communication_service.main.primary_connection_string
-      }
-
-      env {
-        name  = "AzureCommunicationServices__FromEmail"
-        value = var.email_from_address != "" ? var.email_from_address : "DoNotReply@${try(azurerm_email_communication_service_domain.azure_managed.from_sender_domain, "azurecomm.net")}"
-      }
-
-      env {
-        name  = "AzureCommunicationServices__FromName"
-        value = var.email_from_name
-      }
-
       # Stripe Configuration (optional - for subscription management)
       env {
         name  = "Stripe__SecretKey"

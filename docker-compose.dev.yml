@@ -44,27 +44,11 @@ services:
       # Alternative AI Providers
       # - AI__Gemini__ApiKey=${GEMINI_API_KEY:-}
       
-      # Resend Email Configuration (preferred - set RESEND_API_KEY in .env file)
-      # Priority: Resend > Azure Communication Services > Azure Service Bus > MockEmailService
+      # Resend Email Configuration (set RESEND_API_KEY in .env file)
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - Resend__ApiKey=${RESEND_API_KEY:-}
       - Resend__FromEmail=${RESEND_FROM_EMAIL:-noreply@sqordia.app}
       - Resend__FromName=${RESEND_FROM_NAME:-Sqordia}
-
-      # Azure Communication Services Email Configuration (fallback)
-      # Set AzureCommunicationServices__ConnectionString to use Azure Communication Services Email
-      - AzureCommunicationServices__ConnectionString=${AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING:-}
-      - AzureCommunicationServices__FromEmail=${AZURE_COMMUNICATION_SERVICES_FROM_EMAIL:-sqordia.dev@gmail.com}
-      - AzureCommunicationServices__FromName=${AZURE_COMMUNICATION_SERVICES_FROM_NAME:-Sqordia}
-
-      # Alternative: SendGrid Configuration (using appsettings.Development.json via mounted volume)
-      # Only set if environment variable is provided, otherwise use appsettings file
-      - SendGrid__FromEmail=${SENDGRID_FROM_EMAIL:-sqordia.dev@gmail.com}
-      - SendGrid__FromName=${SENDGRID_FROM_NAME:-Sqordia}
-      
-      # Azure Service Bus Configuration (fallback if Azure Communication Services is not configured)
-      - AzureServiceBus__ConnectionString=${AZURE_SERVICE_BUS_CONNECTION_STRING:-}
-      - AzureServiceBus__EmailTopic=${AZURE_SERVICE_BUS_EMAIL_TOPIC:-email-jobs}
       
       # AWS Storage (optional)
       - AwsStorage__BucketName=${S3_BUCKET_NAME:-sqordia-documents}
