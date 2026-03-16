@@ -55,24 +55,30 @@ resource "azurerm_container_app" "api" {
       cpu    = var.container_apps_cpu
       memory = "${var.container_apps_memory}Gi"
 
+      # ================================================================
+      # Non-sensitive configuration (safe as env vars)
+      # ================================================================
       env {
         name  = "ASPNETCORE_ENVIRONMENT"
         value = "Production"
       }
 
+      # Key Vault URL — app loads all secrets from here at startup
       env {
-        name  = "ConnectionStrings__DefaultConnection"
-        value = "Host=${azurerm_postgresql_flexible_server.main.fqdn};Port=5432;Database=${azurerm_postgresql_flexible_server_database.main.name};Username=${var.postgresql_admin_username};Password=${var.postgresql_admin_password};SSL Mode=Require;"
+        name  = "AzureKeyVault__VaultUrl"
+        value = azurerm_key_vault.main.vault_uri
       }
 
+      # Managed Identity client ID for Key Vault authentication
+      env {
+        name  = "AZURE_CLIENT_ID"
+        value = azurerm_user_assigned_identity.container_apps.client_id
+      }
+
+      # Azure Storage (connection string loaded from Key Vault)
       env {
         name  = "AzureStorage__AccountName"
         value = azurerm_storage_account.main.name
-      }
-
-      env {
-        name  = "AzureStorage__ConnectionString"
-        value = azurerm_storage_account.main.primary_connection_string
       }
 
       env {
@@ -80,11 +86,7 @@ resource "azurerm_container_app" "api" {
         value = azurerm_storage_container.documents.name
       }
 
-      env {
-        name  = "AzureServiceBus__ConnectionString"
-        value = azurerm_servicebus_namespace.main.default_primary_connection_string
-      }
-
+      # Service Bus (connection string loaded from Key Vault)
       env {
         name  = "AzureServiceBus__EmailTopic"
         value = azurerm_servicebus_topic.email.name
@@ -100,29 +102,10 @@ resource "azurerm_container_app" "api" {
         value = azurerm_servicebus_topic.export.name
       }
 
-      env {
-        name  = "AzureKeyVault__VaultUrl"
-        value = azurerm_key_vault.main.vault_uri
-      }
-
-      env {
-        name  = "GOOGLE_OAUTH_CLIENT_ID"
-        value = var.google_oauth_client_id
-      }
-
-      env {
-        name  = "GOOGLE_OAUTH_CLIENT_SECRET"
-        value = var.google_oauth_client_secret
-      }
-
+      # OAuth (client ID is public, client secret loaded from Key Vault)
       env {
         name  = "GoogleOAuth__ClientId"
         value = var.google_oauth_client_id
-      }
-
-      env {
-        name  = "GoogleOAuth__ClientSecret"
-        value = var.google_oauth_client_secret
       }
 
       env {
@@ -130,16 +113,7 @@ resource "azurerm_container_app" "api" {
         value = var.google_oauth_redirect_uri != "" ? var.google_oauth_redirect_uri : "https://${var.project_name}.app/api/v1/auth/google/callback"
       }
 
-      env {
-        name  = "JWT_SECRET"
-        value = var.jwt_secret
-      }
-
-      env {
-        name  = "JwtSettings__Secret"
-        value = var.jwt_secret
-      }
-
+      # JWT (non-secret settings, secret loaded from Key Vault)
       env {
         name  = "JwtSettings__Issuer"
         value = var.jwt_issuer
@@ -155,30 +129,10 @@ resource "azurerm_container_app" "api" {
         value = tostring(var.jwt_expiration_minutes)
       }
 
-      # OpenAI Configuration
+      # AI models (non-secret configuration)
       env {
-        name  = "OPENAI_API_KEY"
-        value = var.openai_api_key
-      }
-
-      env {
-        name  = "OpenAI__ApiKey"
-        value = var.openai_api_key
-      }
-
-      env {
-        name  = "AI__OpenAI__ApiKey"
-        value = var.openai_api_key
-      }
-
-      env {
-        name  = "OPENAI_MODEL"
-        value = var.openai_model
-      }
-
-      env {
-        name  = "OpenAI__Model"
-        value = var.openai_model
+        name  = "AI__DefaultProvider"
+        value = var.ai_active_provider
       }
 
       env {
@@ -186,31 +140,9 @@ resource "azurerm_container_app" "api" {
         value = var.openai_model
       }
 
-      # Claude (Anthropic) Configuration
-      env {
-        name  = "ANTHROPIC_API_KEY"
-        value = var.anthropic_api_key
-      }
-
-      env {
-        name  = "AI__Claude__ApiKey"
-        value = var.anthropic_api_key
-      }
-
       env {
         name  = "AI__Claude__Model"
         value = var.ai_anthropic_model
-      }
-
-      # Gemini (Google AI) Configuration
-      env {
-        name  = "GEMINI_API_KEY"
-        value = var.google_ai_api_key
-      }
-
-      env {
-        name  = "AI__Gemini__ApiKey"
-        value = var.google_ai_api_key
       }
 
       env {
@@ -218,7 +150,7 @@ resource "azurerm_container_app" "api" {
         value = var.ai_google_model
       }
 
-      # Frontend Base URL
+      # Frontend
       env {
         name  = "FRONTEND_BASE_URL"
         value = var.frontend_base_url
@@ -229,23 +161,12 @@ resource "azurerm_container_app" "api" {
         value = var.frontend_base_url
       }
 
-      # Stripe Configuration (optional - for subscription management)
-      env {
-        name  = "Stripe__SecretKey"
-        value = var.stripe_secret_key != "" ? var.stripe_secret_key : ""
-      }
-
-      env {
-        name  = "Stripe__WebhookSecret"
-        value = var.stripe_webhook_secret != "" ? var.stripe_webhook_secret : ""
-      }
-
+      # Stripe (non-secret: publishable key + price IDs)
       env {
         name  = "Stripe__PublishableKey"
         value = var.stripe_publishable_key != "" ? var.stripe_publishable_key : ""
       }
 
-      # Stripe Price IDs
       env {
         name  = "Stripe__PriceIds__Free__Monthly"
         value = var.stripe_price_id_free_monthly != "" ? var.stripe_price_id_free_monthly : ""
@@ -276,7 +197,7 @@ resource "azurerm_container_app" "api" {
         value = var.stripe_price_id_enterprise_yearly != "" ? var.stripe_price_id_enterprise_yearly : ""
       }
 
-      # Security Configuration (optional - has defaults)
+      # Security (optional, has defaults)
       env {
         name  = "Security__MaxFailedLoginAttempts"
         value = var.security_max_failed_login_attempts > 0 ? tostring(var.security_max_failed_login_attempts) : ""
@@ -287,15 +208,10 @@ resource "azurerm_container_app" "api" {
         value = var.security_lockout_duration_minutes > 0 ? tostring(var.security_lockout_duration_minutes) : ""
       }
 
-      # Python AI Service — .NET calls this via HTTP
+      # Python AI Service URL (non-secret, service key loaded from Key Vault)
       env {
         name  = "AI__PythonService__BaseUrl"
         value = "https://${azurerm_linux_function_app.ai_service.default_hostname}"
-      }
-
-      env {
-        name  = "AI__PythonService__ServiceKey"
-        value = var.ai_service_key
       }
     }
   }

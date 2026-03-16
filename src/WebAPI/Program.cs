@@ -1,3 +1,4 @@
+using Azure.Identity;
 using Serilog;
 using Serilog.Enrichers;
 using Sqordia.Application;
@@ -42,7 +43,23 @@ try
             { "ConnectionStrings:DefaultConnection", customConnectionString }
         });
     }
-    
+
+    // Load secrets from Azure Key Vault in Production
+    var keyVaultUrl = builder.Configuration["AzureKeyVault:VaultUrl"];
+    if (builder.Environment.IsProduction() && !string.IsNullOrEmpty(keyVaultUrl))
+    {
+        var managedIdentityClientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
+        var credential = !string.IsNullOrEmpty(managedIdentityClientId)
+            ? new DefaultAzureCredential(new DefaultAzureCredentialOptions
+            {
+                ManagedIdentityClientId = managedIdentityClientId
+            })
+            : new DefaultAzureCredential();
+
+        builder.Configuration.AddAzureKeyVault(new Uri(keyVaultUrl), credential);
+        Log.Information("Azure Key Vault configuration provider loaded from {VaultUrl}", keyVaultUrl);
+    }
+
     // Configure Serilog
     builder.Host.UseSerilog((context, services, configuration) =>
     {

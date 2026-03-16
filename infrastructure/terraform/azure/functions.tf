@@ -31,6 +31,26 @@ resource "azurerm_service_plan" "functions" {
   )
 }
 
+# User Assigned Identity for .NET Functions (Key Vault access)
+resource "azurerm_user_assigned_identity" "dotnet_functions" {
+  name                = "${var.project_name}-${var.environment}-dotnet-functions-identity"
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
+
+  tags = var.common_tags
+}
+
+resource "azurerm_key_vault_access_policy" "dotnet_functions" {
+  key_vault_id = azurerm_key_vault.main.id
+  tenant_id    = data.azurerm_client_config.current.tenant_id
+  object_id    = azurerm_user_assigned_identity.dotnet_functions.principal_id
+
+  secret_permissions = [
+    "Get",
+    "List"
+  ]
+}
+
 # AI Generation Handler Function App
 resource "azurerm_linux_function_app" "ai_generation_handler" {
   name                 = "${var.project_name}-${var.environment}-ai-generation-handler"
@@ -39,6 +59,13 @@ resource "azurerm_linux_function_app" "ai_generation_handler" {
   service_plan_id      = azurerm_service_plan.functions.id
   storage_account_name = azurerm_storage_account.functions.name
 
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.dotnet_functions.id]
+  }
+
+  key_vault_reference_identity_id = azurerm_user_assigned_identity.dotnet_functions.id
+
   site_config {
     application_stack {
       dotnet_version = "8.0"
@@ -46,20 +73,24 @@ resource "azurerm_linux_function_app" "ai_generation_handler" {
   }
 
   app_settings = {
-    FUNCTIONS_WORKER_RUNTIME                  = "dotnet-isolated"
-    ConnectionStrings__SqordiaDb              = "Host=${azurerm_postgresql_flexible_server.main.fqdn};Port=5432;Database=${azurerm_postgresql_flexible_server_database.main.name};Username=${var.postgresql_admin_username};Password=${var.postgresql_admin_password};SSL Mode=Require;"
-    AzureServiceBus__ConnectionString         = azurerm_servicebus_namespace.main.default_primary_connection_string
+    FUNCTIONS_WORKER_RUNTIME = "dotnet-isolated"
+
+    # Secrets from Key Vault
+    ConnectionStrings__SqordiaDb      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.database_connection.versionless_id})"
+    AzureServiceBus__ConnectionString = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.servicebus_connection_string.versionless_id})"
+    OPENAI_API_KEY                    = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.openai_api_key.versionless_id})"
+    OpenAI__ApiKey                    = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.openai_api_key.versionless_id})"
+    AI__OpenAI__ApiKey                = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.openai_api_key.versionless_id})"
+
+    # Non-secret configuration
     AzureServiceBus__AiGenerationTopic        = azurerm_servicebus_topic.ai_generation.name
     AzureServiceBus__AiGenerationSubscription = azurerm_servicebus_subscription.ai_generation.name
     AzureKeyVault__VaultUrl                   = azurerm_key_vault.main.vault_uri
-    OPENAI_API_KEY                            = var.openai_api_key
-    OpenAI__ApiKey                            = var.openai_api_key
-    AI__OpenAI__ApiKey                        = var.openai_api_key
     OPENAI_MODEL                              = var.openai_model
     OpenAI__Model                             = var.openai_model
     AI__OpenAI__Model                         = var.openai_model
     WEBSITE_CONTENTSHARE                      = "${var.project_name}-${var.environment}-ai-generation-handler-content"
-    WEBSITE_CONTENTAZUREFILECONNECTIONSTRING  = azurerm_storage_account.functions.primary_connection_string
+    WEBSITE_CONTENTAZUREFILECONNECTIONSTRING   = azurerm_storage_account.functions.primary_connection_string
   }
 
   tags = merge(
@@ -68,6 +99,10 @@ resource "azurerm_linux_function_app" "ai_generation_handler" {
       Name = "${var.project_name}-${var.environment}-ai-generation-handler"
     }
   )
+
+  depends_on = [
+    azurerm_key_vault_access_policy.dotnet_functions,
+  ]
 }
 
 # Export Handler Function App
@@ -78,6 +113,13 @@ resource "azurerm_linux_function_app" "export_handler" {
   service_plan_id      = azurerm_service_plan.functions.id
   storage_account_name = azurerm_storage_account.functions.name
 
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.dotnet_functions.id]
+  }
+
+  key_vault_reference_identity_id = azurerm_user_assigned_identity.dotnet_functions.id
+
   site_config {
     application_stack {
       dotnet_version = "8.0"
@@ -85,15 +127,19 @@ resource "azurerm_linux_function_app" "export_handler" {
   }
 
   app_settings = {
-    FUNCTIONS_WORKER_RUNTIME                 = "dotnet-isolated"
-    ConnectionStrings__SqordiaDb             = "Host=${azurerm_postgresql_flexible_server.main.fqdn};Port=5432;Database=${azurerm_postgresql_flexible_server_database.main.name};Username=${var.postgresql_admin_username};Password=${var.postgresql_admin_password};SSL Mode=Require;"
-    AzureServiceBus__ConnectionString        = azurerm_servicebus_namespace.main.default_primary_connection_string
-    AzureServiceBus__ExportTopic             = azurerm_servicebus_topic.export.name
-    AzureServiceBus__ExportSubscription      = azurerm_servicebus_subscription.export.name
-    AzureStorage__AccountName                = azurerm_storage_account.main.name
-    AzureStorage__ConnectionString           = azurerm_storage_account.main.primary_connection_string
-    AzureStorage__ContainerName              = azurerm_storage_container.documents.name
-    WEBSITE_CONTENTSHARE                     = "${var.project_name}-${var.environment}-export-handler-content"
+    FUNCTIONS_WORKER_RUNTIME = "dotnet-isolated"
+
+    # Secrets from Key Vault
+    ConnectionStrings__SqordiaDb      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.database_connection.versionless_id})"
+    AzureServiceBus__ConnectionString = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.servicebus_connection_string.versionless_id})"
+    AzureStorage__ConnectionString    = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.storage_connection_string.versionless_id})"
+
+    # Non-secret configuration
+    AzureServiceBus__ExportTopic        = azurerm_servicebus_topic.export.name
+    AzureServiceBus__ExportSubscription = azurerm_servicebus_subscription.export.name
+    AzureStorage__AccountName           = azurerm_storage_account.main.name
+    AzureStorage__ContainerName         = azurerm_storage_container.documents.name
+    WEBSITE_CONTENTSHARE                = "${var.project_name}-${var.environment}-export-handler-content"
     WEBSITE_CONTENTAZUREFILECONNECTIONSTRING = azurerm_storage_account.functions.primary_connection_string
   }
 
@@ -103,5 +149,9 @@ resource "azurerm_linux_function_app" "export_handler" {
       Name = "${var.project_name}-${var.environment}-export-handler"
     }
   )
+
+  depends_on = [
+    azurerm_key_vault_access_policy.dotnet_functions,
+  ]
 }
 

@@ -191,17 +191,32 @@ variable "jwt_expiration_minutes" {
   default     = 60
 }
 
-# Email Configuration (Azure Communication Services)
-variable "email_from_address" {
-  description = "Email sender address (leave empty to auto-generate from Azure Managed Domain)"
+# Email Configuration (Resend)
+variable "resend_api_key" {
+  description = "Resend API key for transactional email (set via terraform.tfvars or TF_VAR_resend_api_key)"
   type        = string
-  default     = "" # Will auto-generate: DoNotReply@xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.azurecomm.net
+  sensitive   = true
+  default     = ""
+}
+
+variable "email_from_address" {
+  description = "Email sender address"
+  type        = string
+  default     = "noreply@sqordia.app"
 }
 
 variable "email_from_name" {
   description = "Email sender display name"
   type        = string
   default     = "Sqordia"
+}
+
+# GitHub Configuration
+variable "github_pat" {
+  description = "GitHub Personal Access Token for bug reporting integration (set via terraform.tfvars or TF_VAR_github_pat)"
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 
 # OpenAI Configuration
