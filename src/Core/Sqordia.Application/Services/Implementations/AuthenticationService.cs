@@ -120,21 +120,23 @@ public class AuthenticationService : IAuthenticationService
             // Single save: User + RefreshToken + EmailVerificationToken
             await _context.SaveChangesAsync(cancellationToken);
 
-            // Send combined welcome and verification email
-            try
+            // Fire-and-forget: send welcome + verification email (non-blocking)
+            var regEmail = request.Email;
+            var regFirstName = request.FirstName;
+            var regLastName = request.LastName;
+            var regUserName = user.UserName;
+            var regVerificationToken = verificationToken;
+            _ = Task.Run(async () =>
             {
-                _logger.LogInformation("Sending welcome and verification email to user");
-                
-                // Send single email with welcome message and verification link
-                await _emailService.SendWelcomeWithVerificationAsync(request.Email, request.FirstName, request.LastName, user.UserName, verificationToken);
-                _logger.LogInformation("Welcome and verification email sent successfully");
-            }
-            catch (Exception emailEx)
-            {
-                // Log email failure but don't fail registration
-                _logger.LogError(emailEx, "Failed to send email to {Email}. User registration completed but email not sent.", request.Email);
-                // In production, you might want to queue this for retry
-            }
+                try
+                {
+                    await _emailService.SendWelcomeWithVerificationAsync(regEmail, regFirstName, regLastName, regUserName, regVerificationToken);
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogError(emailEx, "Failed to send welcome email to {Email}", regEmail);
+                }
+            });
 
             var response = new AuthResponse
             {
@@ -1063,18 +1065,21 @@ public class AuthenticationService : IAuthenticationService
 
             await _context.SaveChangesAsync(cancellationToken);
 
-            // Send welcome email (email is already verified by Google, so no verification needed)
-            try
+            // Fire-and-forget: send welcome email (non-blocking)
+            var welcomeEmail = email;
+            var welcomeFirstName = firstName;
+            var welcomeLastName = lastName;
+            _ = Task.Run(async () =>
             {
-                _logger.LogInformation("Sending welcome email to new Google user: {Email}", email);
-                await _emailService.SendWelcomeEmailAsync(email, firstName, lastName);
-                _logger.LogInformation("Welcome email sent successfully to {Email}", email);
-            }
-            catch (Exception emailEx)
-            {
-                // Log email failure but don't fail registration
-                _logger.LogError(emailEx, "Failed to send welcome email to {Email}. User registration completed but email not sent.", email);
-            }
+                try
+                {
+                    await _emailService.SendWelcomeEmailAsync(welcomeEmail, welcomeFirstName, welcomeLastName);
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogError(emailEx, "Failed to send welcome email to {Email}", welcomeEmail);
+                }
+            });
 
             // Generate JWT token
             var newToken = await _jwtTokenService.GenerateAccessTokenAsync(newUser);
