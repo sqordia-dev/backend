@@ -80,10 +80,11 @@ output "service_bus_export_topic" {
 }
 
 # Azure Functions Outputs
-output "email_function_app_name" {
-  description = "Email handler Function App name"
-  value       = azurerm_linux_function_app.email_handler.name
-}
+# NOTE: email_handler function is not yet deployed — output commented out
+# output "email_function_app_name" {
+#   description = "Email handler Function App name"
+#   value       = azurerm_linux_function_app.email_handler.name
+# }
 
 output "ai_generation_function_app_name" {
   description = "AI Generation handler Function App name"
@@ -167,43 +168,28 @@ output "log_analytics_workspace_name" {
 }
 
 # Communication Services Outputs
-output "communication_service_name" {
-  description = "Azure Communication Services name"
-  value       = azurerm_communication_service.main.name
-}
-
-output "communication_service_connection_string" {
-  description = "Azure Communication Services connection string (sensitive)"
-  value       = azurerm_communication_service.main.primary_connection_string
-  sensitive   = true
-}
-
-output "email_service_name" {
-  description = "Email Communication Service name"
-  value       = azurerm_email_communication_service.main.name
-}
-
-output "email_domain_azure_managed" {
-  description = "Azure Managed Email Domain"
-  value       = azurerm_email_communication_service_domain.azure_managed.from_sender_domain
-}
-
-output "email_domain_custom" {
-  description = "Custom Email Domain (if configured)"
-  value       = var.email_from_address != "" && !strcontains(var.email_from_address, "azurecomm.net") ? azurerm_email_communication_service_domain.custom[0].from_sender_domain : "Not configured"
-}
-
-output "email_domain_verification_records" {
-  description = "DNS verification records for custom domain (add these to your DNS provider)"
-  value = var.email_from_address != "" && !strcontains(var.email_from_address, "azurecomm.net") ? {
-    domain_verification = azurerm_email_communication_service_domain.custom[0].verification_records
-    note                = "Add these DNS TXT records to your domain provider to verify ownership"
-  } : null
-}
+# NOTE: Azure Communication Services resources are not yet deployed — outputs commented out
+# Uncomment when communication_services.tf is added
+#
+# output "communication_service_name" {
+#   value = azurerm_communication_service.main.name
+# }
+# output "communication_service_connection_string" {
+#   value     = azurerm_communication_service.main.primary_connection_string
+#   sensitive = true
+# }
+# output "email_service_name" {
+#   value = azurerm_email_communication_service.main.name
+# }
+# output "email_domain_azure_managed" {
+#   value = azurerm_email_communication_service_domain.azure_managed.from_sender_domain
+# }
+# output "email_domain_custom" { ... }
+# output "email_domain_verification_records" { ... }
 
 output "email_from_address" {
   description = "Email from address"
-  value       = var.email_from_address != "" ? var.email_from_address : "DoNotReply@${azurerm_email_communication_service_domain.azure_managed.from_sender_domain}"
+  value       = var.email_from_address != "" ? var.email_from_address : "noreply@sqordia.app"
 }
 
 output "email_from_name" {
