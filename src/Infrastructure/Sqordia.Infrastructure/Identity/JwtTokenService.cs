@@ -34,7 +34,7 @@ public class JwtTokenService : IJwtTokenService, Application.Common.Interfaces.I
             ValidateAudience = true,
             ValidAudience = _configuration["JwtSettings:Audience"],
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
+            ClockSkew = TimeSpan.FromMinutes(1)
         };
     }
 

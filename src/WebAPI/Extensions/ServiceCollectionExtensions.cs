@@ -125,7 +125,7 @@ public static class ServiceCollectionExtensions
                 ValidateAudience = true,
                 ValidAudience = configuration["JwtSettings:Audience"],
                 ValidateLifetime = true,
-                ClockSkew = TimeSpan.Zero
+                ClockSkew = TimeSpan.FromMinutes(1)
             };
 
             options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
