@@ -16,11 +16,17 @@
 
 set -euo pipefail
 
-VAULT_NAME="sqordia-production-kv"
+VAULT_NAME="${VAULT_NAME:-sqordia-production-kv}"
 DRY_RUN=false
 
-if [[ "${1:-}" == "--dry-run" ]]; then
-  DRY_RUN=true
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=true ;;
+    --vault=*) VAULT_NAME="${arg#--vault=}" ;;
+  esac
+done
+
+if [[ "$DRY_RUN" == true ]]; then
   echo "=== DRY RUN MODE — no changes will be made ==="
 fi
 
@@ -42,9 +48,17 @@ rotate_secret() {
   fi
 }
 
+# Derive environment from vault name (sqordia-<env>-kv -> <env>)
+ENV_NAME=$(echo "$VAULT_NAME" | sed 's/sqordia-\(.*\)-kv/\1/')
+RG_NAME="sqordia-${ENV_NAME}-rg"
+DB_NAME="sqordia-${ENV_NAME}-postgres"
+API_NAME="sqordia-${ENV_NAME}-api"
+
 echo ""
 echo "=== Sqordia Secret Rotation ==="
-echo "Vault: $VAULT_NAME"
+echo "Vault:       $VAULT_NAME"
+echo "Environment: $ENV_NAME"
+echo "Resource RG: $RG_NAME"
 echo ""
 
 # ---------------------------------------------------------------
@@ -52,19 +66,19 @@ echo ""
 # ---------------------------------------------------------------
 echo "[1/7] PostgreSQL Admin Password"
 NEW_DB_PASSWORD=$(openssl rand -base64 32 | tr -d '=/+' | head -c 32)
-NEW_DB_CONN="Host=\$(az postgres flexible-server show --name sqordia-production-db --resource-group sqordia-production-rg --query fullyQualifiedDomainName -o tsv);Port=5432;Database=SqordiaDb;Username=sqordia_admin;Password=${NEW_DB_PASSWORD};SSL Mode=Require;"
+NEW_DB_CONN="Host=\$(az postgres flexible-server show --name ${DB_NAME} --resource-group ${RG_NAME} --query fullyQualifiedDomainName -o tsv);Port=5432;Database=SqordiaDb;Username=sqordia_admin;Password=${NEW_DB_PASSWORD};SSL Mode=Require;"
 
 if [[ "$DRY_RUN" == false ]]; then
   echo "  Updating PostgreSQL password..."
   az postgres flexible-server update \
-    --resource-group sqordia-production-rg \
-    --name sqordia-production-db \
+    --resource-group ${RG_NAME} \
+    --name ${DB_NAME} \
     --admin-password "$NEW_DB_PASSWORD" \
     --output none
   echo "    ✓ PostgreSQL password updated"
 
   # Update connection string secrets in Key Vault
-  DB_FQDN=$(az postgres flexible-server show --name sqordia-production-db --resource-group sqordia-production-rg --query fullyQualifiedDomainName -o tsv)
+  DB_FQDN=$(az postgres flexible-server show --name ${DB_NAME} --resource-group ${RG_NAME} --query fullyQualifiedDomainName -o tsv)
   NEW_CONN="Host=${DB_FQDN};Port=5432;Database=SqordiaDb;Username=sqordia_admin;Password=${NEW_DB_PASSWORD};SSL Mode=Require;"
   rotate_secret "database-connection-string" "$NEW_CONN" "legacy format"
   rotate_secret "ConnectionStrings--DefaultConnection" "$NEW_CONN" "ASP.NET Core format"
@@ -100,23 +114,28 @@ echo "  These must be rotated in each provider's dashboard first:"
 echo "    - OpenAI:    https://platform.openai.com/api-keys"
 echo "    - Anthropic: https://console.anthropic.com/settings/keys"
 echo "    - Google AI: https://aistudio.google.com/app/apikey"
-echo ""
-read -rp "  Enter new OpenAI API key (or press Enter to skip): " NEW_OPENAI_KEY
-if [[ -n "$NEW_OPENAI_KEY" ]]; then
-  rotate_secret "AI--OpenAI--ApiKey" "$NEW_OPENAI_KEY" "ASP.NET Core format"
-  rotate_secret "openai-api-key" "$NEW_OPENAI_KEY" "legacy format for Python Functions"
-fi
+if [[ "$DRY_RUN" == true ]]; then
+  echo ""
+  echo "  [dry-run] Would prompt for new API keys (OpenAI, Anthropic, Gemini)"
+else
+  echo ""
+  read -rp "  Enter new OpenAI API key (or press Enter to skip): " NEW_OPENAI_KEY
+  if [[ -n "$NEW_OPENAI_KEY" ]]; then
+    rotate_secret "AI--OpenAI--ApiKey" "$NEW_OPENAI_KEY" "ASP.NET Core format"
+    rotate_secret "openai-api-key" "$NEW_OPENAI_KEY" "legacy format for Python Functions"
+  fi
 
-read -rp "  Enter new Anthropic API key (or press Enter to skip): " NEW_ANTHROPIC_KEY
-if [[ -n "$NEW_ANTHROPIC_KEY" ]]; then
-  rotate_secret "AI--Claude--ApiKey" "$NEW_ANTHROPIC_KEY" "ASP.NET Core format"
-  rotate_secret "anthropic-api-key" "$NEW_ANTHROPIC_KEY" "legacy format for Python Functions"
-fi
+  read -rp "  Enter new Anthropic API key (or press Enter to skip): " NEW_ANTHROPIC_KEY
+  if [[ -n "$NEW_ANTHROPIC_KEY" ]]; then
+    rotate_secret "AI--Claude--ApiKey" "$NEW_ANTHROPIC_KEY" "ASP.NET Core format"
+    rotate_secret "anthropic-api-key" "$NEW_ANTHROPIC_KEY" "legacy format for Python Functions"
+  fi
 
-read -rp "  Enter new Google AI API key (or press Enter to skip): " NEW_GOOGLE_KEY
-if [[ -n "$NEW_GOOGLE_KEY" ]]; then
-  rotate_secret "AI--Gemini--ApiKey" "$NEW_GOOGLE_KEY" "ASP.NET Core format"
-  rotate_secret "google-ai-api-key" "$NEW_GOOGLE_KEY" "legacy format for Python Functions"
+  read -rp "  Enter new Google AI API key (or press Enter to skip): " NEW_GOOGLE_KEY
+  if [[ -n "$NEW_GOOGLE_KEY" ]]; then
+    rotate_secret "AI--Gemini--ApiKey" "$NEW_GOOGLE_KEY" "ASP.NET Core format"
+    rotate_secret "google-ai-api-key" "$NEW_GOOGLE_KEY" "legacy format for Python Functions"
+  fi
 fi
 
 # ---------------------------------------------------------------
@@ -125,9 +144,13 @@ fi
 echo ""
 echo "[5/7] Google OAuth Client Secret"
 echo "  Rotate at: https://console.cloud.google.com/apis/credentials"
-read -rp "  Enter new client secret (or press Enter to skip): " NEW_OAUTH_SECRET
-if [[ -n "$NEW_OAUTH_SECRET" ]]; then
-  rotate_secret "GoogleOAuth--ClientSecret" "$NEW_OAUTH_SECRET" "OAuth client secret"
+if [[ "$DRY_RUN" == true ]]; then
+  echo "  [dry-run] Would prompt for new client secret"
+else
+  read -rp "  Enter new client secret (or press Enter to skip): " NEW_OAUTH_SECRET
+  if [[ -n "$NEW_OAUTH_SECRET" ]]; then
+    rotate_secret "GoogleOAuth--ClientSecret" "$NEW_OAUTH_SECRET" "OAuth client secret"
+  fi
 fi
 
 # ---------------------------------------------------------------
@@ -136,14 +159,18 @@ fi
 echo ""
 echo "[6/7] Stripe Keys"
 echo "  Rotate at: https://dashboard.stripe.com/apikeys"
-read -rp "  Enter new Stripe secret key (or press Enter to skip): " NEW_STRIPE_KEY
-if [[ -n "$NEW_STRIPE_KEY" ]]; then
-  rotate_secret "Stripe--SecretKey" "$NEW_STRIPE_KEY" "Stripe secret key"
-fi
+if [[ "$DRY_RUN" == true ]]; then
+  echo "  [dry-run] Would prompt for new Stripe keys"
+else
+  read -rp "  Enter new Stripe secret key (or press Enter to skip): " NEW_STRIPE_KEY
+  if [[ -n "$NEW_STRIPE_KEY" ]]; then
+    rotate_secret "Stripe--SecretKey" "$NEW_STRIPE_KEY" "Stripe secret key"
+  fi
 
-read -rp "  Enter new Stripe webhook secret (or press Enter to skip): " NEW_STRIPE_WEBHOOK
-if [[ -n "$NEW_STRIPE_WEBHOOK" ]]; then
-  rotate_secret "Stripe--WebhookSecret" "$NEW_STRIPE_WEBHOOK" "Stripe webhook secret"
+  read -rp "  Enter new Stripe webhook secret (or press Enter to skip): " NEW_STRIPE_WEBHOOK
+  if [[ -n "$NEW_STRIPE_WEBHOOK" ]]; then
+    rotate_secret "Stripe--WebhookSecret" "$NEW_STRIPE_WEBHOOK" "Stripe webhook secret"
+  fi
 fi
 
 # ---------------------------------------------------------------
@@ -154,15 +181,15 @@ echo "[7/7] Restart Services"
 if [[ "$DRY_RUN" == false ]]; then
   echo "  Restarting Container App..."
   az containerapp revision restart \
-    --name sqordia-production-api \
-    --resource-group sqordia-production-rg \
-    --revision "$(az containerapp revision list --name sqordia-production-api --resource-group sqordia-production-rg --query '[0].name' -o tsv)" \
-    --output none 2>/dev/null || echo "  ⚠ Restart manually: az containerapp update --name sqordia-production-api -g sqordia-production-rg"
+    --name ${API_NAME} \
+    --resource-group ${RG_NAME} \
+    --revision "$(az containerapp revision list --name ${API_NAME} --resource-group ${RG_NAME} --query '[0].name' -o tsv)" \
+    --output none 2>/dev/null || echo "  ⚠ Restart manually: az containerapp update --name ${API_NAME} -g ${RG_NAME}"
 
   echo "  Restarting Function Apps..."
-  az functionapp restart --name sqordia-production-ai-generation-handler --resource-group sqordia-production-rg --output none 2>/dev/null || true
-  az functionapp restart --name sqordia-production-export-handler --resource-group sqordia-production-rg --output none 2>/dev/null || true
-  az functionapp restart --name sqordia-production-ai-service --resource-group sqordia-production-rg --output none 2>/dev/null || true
+  az functionapp restart --name sqordia-${ENV_NAME}-ai-generation-handler --resource-group ${RG_NAME} --output none 2>/dev/null || true
+  az functionapp restart --name sqordia-${ENV_NAME}-export-handler --resource-group ${RG_NAME} --output none 2>/dev/null || true
+  az functionapp restart --name sqordia-${ENV_NAME}-ai-service --resource-group ${RG_NAME} --output none 2>/dev/null || true
   echo "    ✓ Services restarted"
 else
   echo "  [dry-run] Would restart Container App and Function Apps"

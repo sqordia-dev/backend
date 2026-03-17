@@ -137,7 +137,7 @@ docs/ORGANIZATION_API_FORMAT.md
 **/*.tfstate
 **/*.tfstate.backup
 **/.terraform.lock.hcl
-terraform.tfvars
+*.tfvars
 secrets.json
 
 # PowerShell scripts (may contain sensitive information)
