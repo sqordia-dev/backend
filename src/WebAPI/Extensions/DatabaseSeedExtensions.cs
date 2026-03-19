@@ -23,65 +23,69 @@ public static class DatabaseSeedExtensions
                 return;
             }
 
-            // Check if we should run seeds (only in Development or if explicitly enabled)
+            // Check if we should run initial seeds (only in Development or if explicitly enabled)
             var environment = app.Environment.EnvironmentName;
-            var runSeeds = environment == "Development" ||
+            var runInitialSeeds = environment == "Development" ||
                           configuration.GetValue<bool>("Database:RunSeedsOnStartup", false);
 
-            if (!runSeeds)
+            if (runInitialSeeds)
             {
-                logger.LogInformation("Database seeding is disabled for {Environment} environment.", environment);
-                return;
-            }
-
-            // Try multiple paths to find the seed script
-            var possiblePaths = new[]
-            {
-                Path.Combine("/app", "scripts", "seed-all.sql"), // Docker container path
-                Path.Combine(AppContext.BaseDirectory, "scripts", "seed-all.sql"), // Published app directory
-                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "scripts", "seed-all.sql"), // Development path
-                Path.Combine(Directory.GetCurrentDirectory(), "scripts", "seed-all.sql"), // Current directory
-            };
-
-            string? seedScriptPath = null;
-            foreach (var path in possiblePaths)
-            {
-                if (File.Exists(path))
+                // Try multiple paths to find the seed script
+                var possiblePaths = new[]
                 {
-                    seedScriptPath = path;
-                    break;
+                    Path.Combine("/app", "scripts", "seed-all.sql"), // Docker container path
+                    Path.Combine(AppContext.BaseDirectory, "scripts", "seed-all.sql"), // Published app directory
+                    Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "scripts", "seed-all.sql"), // Development path
+                    Path.Combine(Directory.GetCurrentDirectory(), "scripts", "seed-all.sql"), // Current directory
+                };
+
+                string? seedScriptPath = null;
+                foreach (var path in possiblePaths)
+                {
+                    if (File.Exists(path))
+                    {
+                        seedScriptPath = path;
+                        break;
+                    }
                 }
-            }
 
-            if (seedScriptPath != null && File.Exists(seedScriptPath))
-            {
-                logger.LogInformation("Running database seed script from {Path}...", seedScriptPath);
+                if (seedScriptPath != null && File.Exists(seedScriptPath))
+                {
+                    logger.LogInformation("Running database seed script from {Path}...", seedScriptPath);
 
-                var seedScript = await File.ReadAllTextAsync(seedScriptPath);
+                    var seedScript = await File.ReadAllTextAsync(seedScriptPath);
 
-                using var connection = new NpgsqlConnection(connectionString);
-                await connection.OpenAsync();
+                    using var connection = new NpgsqlConnection(connectionString);
+                    await connection.OpenAsync();
 
-                using var command = new NpgsqlCommand(seedScript, connection);
-                command.CommandTimeout = 300; // 5 minutes timeout
+                    using var command = new NpgsqlCommand(seedScript, connection);
+                    command.CommandTimeout = 300; // 5 minutes timeout
 
-                var rowsAffected = await command.ExecuteNonQueryAsync();
+                    var rowsAffected = await command.ExecuteNonQueryAsync();
 
-                logger.LogInformation("Database seed script completed. Rows affected: {RowsAffected}", rowsAffected);
+                    logger.LogInformation("Database seed script completed. Rows affected: {RowsAffected}", rowsAffected);
+                }
+                else
+                {
+                    logger.LogWarning("Seed script not found. Tried paths: {Paths}. Continuing with AI prompts seeding.",
+                        string.Join(", ", possiblePaths));
+                }
+
+                // Seed AI prompts from SQL script (after main SQL seed)
+                await SeedAIPromptsFromSqlAsync(connectionString, logger);
+
+                // Seed prompt templates using EF Core seeder
+                await SeedPromptTemplatesAsync(services, logger);
             }
             else
             {
-                logger.LogWarning("Seed script not found. Tried paths: {Paths}. Continuing with AI prompts seeding.",
-                    string.Join(", ", possiblePaths));
+                logger.LogInformation("Initial database seeding is disabled for {Environment} environment.", environment);
             }
 
-            // Seed AI prompts from SQL script (after main SQL seed)
-            await SeedAIPromptsFromSqlAsync(connectionString, logger);
+            // Always run idempotent seed-or-update seeders (safe for all environments)
+            // These use upsert logic: insert new records, update existing ones
 
-            // Seed prompt templates using EF Core seeder
-            await SeedPromptTemplatesAsync(services, logger);
-
-            // Seed STRUCTURE FINALE data (sections, questions, mappings)
+            // Seed/Update STRUCTURE FINALE data (sections, sub-sections)
             await SeedStructureFinaleAsync(services, logger);
 
             // Seed/Update STRUCTURE FINALE questions with expert advice and coach prompts
@@ -90,7 +94,7 @@ public static class DatabaseSeedExtensions
             // Seed/Update Section prompts for AI content generation
             await SeedSectionPromptsAsync(services, logger);
 
-            // Seed subscription plans and feature limits (4 tiers × 21 features)
+            // Seed/Update subscription plans and feature limits (4 tiers × 21 features)
             await SeedSubscriptionPlansAsync(services, logger);
         }
         catch (PostgresException pgEx)

@@ -164,8 +164,19 @@ public class Organization : BaseAuditableEntity
 
     public void RecalculateProfileCompleteness()
     {
-        var fields = new[] { Industry, Sector, TeamSize, FundingStatus, TargetMarket, BusinessStage, GoalsJson, City, Province, Country };
-        var filled = fields.Count(f => !string.IsNullOrWhiteSpace(f));
+        var hasLocation = !string.IsNullOrWhiteSpace(City) || !string.IsNullOrWhiteSpace(Province) || !string.IsNullOrWhiteSpace(Country);
+        var fields = new[]
+        {
+            !string.IsNullOrWhiteSpace(Name),
+            !string.IsNullOrWhiteSpace(Industry),
+            !string.IsNullOrWhiteSpace(BusinessStage),
+            !string.IsNullOrWhiteSpace(TeamSize),
+            !string.IsNullOrWhiteSpace(FundingStatus),
+            !string.IsNullOrWhiteSpace(TargetMarket),
+            !string.IsNullOrWhiteSpace(GoalsJson),
+            hasLocation,
+        };
+        var filled = fields.Count(f => f);
         ProfileCompletenessScore = (int)Math.Round(filled / (double)fields.Length * 100);
     }
 }
